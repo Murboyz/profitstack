@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 const envPath = path.resolve(__dirname, '../../.env.local');
 
 function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return {};
   const text = fs.readFileSync(filePath, 'utf8');
   const out = {};
   for (const line of text.split(/\r?\n/)) {
@@ -21,7 +22,13 @@ function parseEnvFile(filePath) {
 }
 
 export function getSupabaseEnv() {
-  return parseEnvFile(envPath);
+  const fileEnv = parseEnvFile(envPath);
+  return {
+    SUPABASE_URL: process.env.SUPABASE_URL || fileEnv.SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || fileEnv.SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || fileEnv.SUPABASE_SERVICE_ROLE_KEY,
+    DATABASE_URL: process.env.DATABASE_URL || fileEnv.DATABASE_URL,
+  };
 }
 
 async function supabaseRequest(pathname, { method = 'GET', body, headers = {} } = {}) {
