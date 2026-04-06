@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProfitStack Ops Status</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 28px; }
+    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+    .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; align-items: start; }
+    .label { color: #94a3c7; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+    .value { font-size: 34px; font-weight: 800; margin-top: 8px; }
+    .subvalue { font-size: 18px; font-weight: 600; margin-top: 8px; }
+    .row { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgba(255,255,255,.06); padding: 12px 0; }
+    .row:last-child { border-bottom: 0; }
+    .muted { color: #94a3c7; }
+    .status-pill { display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; }
+    .status-COMPLETED { background: rgba(46, 204, 113, .16); color: #86efac; }
+    .status-BLOCKED { background: rgba(239, 68, 68, .16); color: #fca5a5; }
+    .status-NO-OP, .status-RUNNING { background: rgba(96, 165, 250, .16); color: #93c5fd; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button, a.button { padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; text-decoration: none; cursor: pointer; }
+    pre { white-space: pre-wrap; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>ProfitStack Ops Status</h1>
+      <p class="muted">Refresh this page to see what the ProfitStack cron lane is doing and whether the last run finished cleanly.</p>
+      <p><a href="./index.html">App</a> · <a href="./ops.html">Ops Status</a> · <a href="./session.html">Session</a></p>
+    </div>
+
+    <div class="hero">
+      <div class="panel">
+        <div class="label">Current status</div>
+        <div id="statusPill" class="status-pill status-NO-OP">NO-OP</div>
+        <div id="workingOn" class="value">Waiting for first tracked cron run</div>
+        <div id="updatedAt" class="muted">No status file yet.</div>
+      </div>
+
+      <div class="panel">
+        <div class="label">Actions</div>
+        <div class="actions" style="margin-top: 12px;">
+          <button id="refreshBtn">Refresh now</button>
+          <a class="button" href="./runtime/profitstack-cron-status.json" target="_blank" rel="noreferrer">Open raw JSON</a>
+        </div>
+        <div id="jobName" class="subvalue" style="margin-top: 16px;">ProfitStack autonomous build pass</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">Recent runs</div>
+      <div id="history">Loading…</div>
+    </div>
+
+    <div class="panel">
+      <div class="label">Raw payload</div>
+      <pre id="raw">Loading…</pre>
+    </div>
+  </div>
+
+  <script type="module" src="./ops.js"></script>
+</body>
+</html>

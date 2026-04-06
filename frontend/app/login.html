@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProfitStack Login</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
+    .wrap { max-width: 520px; margin: 60px auto; padding: 28px; }
+    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; }
+    label, input, select, button { display: block; width: 100%; margin-bottom: 12px; }
+    input, select, button { padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    .help { color: #94a3c7; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>ProfitStack Login</h1>
+      <p>Controlled first-tenant access only. Choose the approved user email the app should resolve through.</p>
+      <form id="loginForm">
+        <label for="preset">Quick switch</label>
+        <select id="preset">
+          <option value="chad@stopworkingbroke.com">Chad — Stop Working Broke</option>
+          <option value="owner@northfieldserviceco.com">Northfield Owner — Northfield Service Co</option>
+          <option value="custom">Custom email</option>
+        </select>
+        <label for="email">Email</label>
+        <input id="email" value="chad@stopworkingbroke.com" />
+        <button type="submit">Continue</button>
+      </form>
+      <div id="result"></div>
+      <div class="help">This is not public signup. If the email is not already in the database, login will fail.</div>
+    </div>
+  </div>
+  <script type="module" src="./login.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "organization": {
+    "id": "org_demo",
+    "name": "Demo Service Co"
+  },
+  "crmConnection": {
+    "provider": "housecall_pro",
+    "status": "connected",
+    "lastSyncAt": "2026-04-05T22:00:00Z",
+    "lastError": null
+  },
+  "weeks": {
+    "lastWeek": {
+      "range": "Mar 23–Mar 29, 2026",
+      "scheduledProduction": 30640.5,
+      "approvedSales": 8385.8
+    },
+    "currentWeek": {
+      "range": "Mar 30–Apr 5, 2026",
+      "scheduledProduction": 29228,
+      "approvedSales": 0
+    },
+    "nextWeek": {
+      "range": "Apr 6–Apr 12, 2026",
+      "scheduledProduction": 31280
+    },
+    "weekPlus2": {
+      "range": "Apr 13–Apr 19, 2026",
+      "scheduledProduction": 8483.1
+    },
+    "weekPlus3": {
+      "range": "Apr 20–Apr 26, 2026",
+      "scheduledProduction": 4550.5
+    }
+  },
+  "overridesApplied": {
+    "lastWeek": {
+      "scheduledProduction": true,
+      "approvedSales": true
+    },
+    "currentWeek": {
+      "scheduledProduction": true
+    }
+  }
+}

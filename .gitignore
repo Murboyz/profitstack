@@ -1,0 +1,5 @@
+.env
+.env.*
+!.env.example
+node_modules/
+frontend/app/runtime/profitstack-cron-status.json

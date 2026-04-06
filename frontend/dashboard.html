@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Numbers Dashboard MVP</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2" />
+  <link rel="shortcut icon" type="image/svg+xml" href="favicon.svg?v=2" />
+  <style>
+    :root {
+      --bg: #09101d;
+      --panel: #0f1728;
+      --panel-2: #121d33;
+      --text: #eff4ff;
+      --muted: #94a3c7;
+      --line: rgba(255,255,255,.08);
+      --blue: #5b8cff;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #fb7185;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(180deg, #08101d 0%, #0b1424 100%);
+      color: var(--text);
+    }
+    .wrap { max-width: 1260px; margin: 0 auto; padding: 28px; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px;
+    }
+    h1,h2,h3,p { margin: 0; }
+    .title h1 { font-size: 30px; }
+    .title p { margin-top: 8px; color: var(--muted); max-width: 700px; line-height: 1.5; }
+    .badge {
+      border: 1px solid rgba(91,140,255,.35); background: rgba(91,140,255,.12); color: #d5e2ff;
+      padding: 10px 14px; border-radius: 999px; font-size: 13px; white-space: nowrap;
+    }
+    .layout { display: grid; grid-template-columns: 400px 1fr; gap: 20px; }
+    .panel {
+      background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 20px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.25);
+    }
+    .panel .hd { padding: 22px 22px 10px; }
+    .panel .hd h2 { font-size: 19px; }
+    .panel .hd p { color: var(--muted); margin-top: 8px; line-height: 1.45; font-size: 14px; }
+    .panel .bd { padding: 22px; }
+    .stepbar { display: grid; gap: 10px; margin-bottom: 18px; }
+    .clientbar {
+      margin-bottom: 16px; padding: 12px 14px; border-radius: 14px;
+      background: rgba(91,140,255,.10); border: 1px solid rgba(91,140,255,.22);
+      color: #dbe6ff; font-size: 13px; line-height: 1.45;
+    }
+    .step {
+      padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .step strong { font-size: 14px; }
+    .step span { color: var(--muted); font-size: 12px; }
+    .step.active { border-color: rgba(91,140,255,.38); background: rgba(91,140,255,.12); }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
+    .field input, .field select {
+      width: 100%; padding: 13px 14px; border-radius: 14px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.04); color: var(--text); font-size: 15px;
+    }
+    .help { color: var(--muted); font-size: 12px; margin-top: 7px; line-height: 1.45; }
+    .card {
+      padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); margin-bottom: 14px;
+    }
+    .card h3 { font-size: 14px; margin-bottom: 6px; }
+    .card p { font-size: 13px; color: var(--muted); line-height: 1.45; }
+    .actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn {
+      border: 0; border-radius: 14px; padding: 12px 15px; font-weight: 800; cursor: pointer;
+    }
+    .btn-primary { background: var(--blue); color: white; }
+    .btn-secondary { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--line); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+    .stat {
+      padding: 18px; border-radius: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+    }
+    .stat .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .stat .v { margin-top: 10px; font-size: 30px; font-weight: 800; }
+    .stat.blue .v { color: #a9c2ff; }
+    .stat.green .v { color: #8cf0c4; }
+    .stat.yellow .v { color: #ffd666; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .scoreline.over {
+      border-color: rgba(52,211,153,.45);
+      background: rgba(52,211,153,.12);
+    }
+    .scoreline.under {
+      border-color: rgba(251,113,133,.45);
+      background: rgba(251,113,133,.12);
+    }
+    .scoreline.over .big { color: #8cf0c4; }
+    .scoreline.under .big { color: #ff9aac; }
+    .list .row {
+      display: flex; justify-content: space-between; gap: 14px; padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .list .row:last-child { border-bottom: 0; }
+    .row .label { color: var(--muted); }
+    .statusbar {
+      margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      padding: 14px 16px; border-radius: 16px; background: rgba(52,211,153,.10); border: 1px solid rgba(52,211,153,.24);
+    }
+    .scoreline {
+      margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    }
+    .scoreline .big { font-size: 22px; font-weight: 800; }
+    .scoreline .small { color: var(--muted); font-size: 13px; }
+    .week-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+    .week-shell {
+      padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    .week-shell .meta { display: grid; gap: 4px; }
+    .week-shell .title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .week-shell .range { font-size: 18px; font-weight: 800; }
+    .mini-metrics {
+      margin-top: 12px; display: grid; gap: 8px;
+    }
+    .mini-row {
+      display: flex; justify-content: space-between; gap: 12px; padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,.06);
+    }
+    .mini-row .label { color: var(--muted); font-size: 13px; }
+    .mini-row strong { font-size: 16px; }
+    .mini-note {
+      margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.06);
+      font-size: 13px; font-weight: 700;
+    }
+    .mini-note.good { color: var(--green); }
+    .mini-note.bad { color: var(--red); }
+    .statusbar .note { color: #c2f6df; font-size: 13px; }
+    .statusbar .pill {
+      padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,.12);
+    }
+    .source-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
+    .lifecycle { margin-top: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .life {
+      padding: 12px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line); font-size: 13px;
+    }
+    .life strong { display: block; margin-bottom: 6px; }
+    .source-card { padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); }
+    .source-card h3 { font-size: 14px; margin-bottom: 8px; }
+    .source-card p { font-size: 13px; color: var(--muted); line-height: 1.45; }
+    .override-note { margin-top: 10px; font-size: 12px; color: #ffd666; line-height: 1.45; }
+    .tag { display: inline-block; margin-top: 10px; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .tag.live { background: rgba(52,211,153,.14); color: #9df0cb; border: 1px solid rgba(52,211,153,.24); }
+    .tag.manual { background: rgba(251,191,36,.14); color: #ffe08a; border: 1px solid rgba(251,191,36,.22); }
+    .map { margin-top: 18px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+    .qa-box { margin-top: 18px; padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); }
+    .wiring { margin-top: 18px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+    .wiring .wrow { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 10px; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .wiring .wrow:last-child { border-bottom: 0; }
+    .wiring .head { background: rgba(255,255,255,.04); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .impl { margin-top: 18px; padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); }
+    .impl h3 { font-size: 14px; margin-bottom: 10px; }
+    .impl .irow { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .impl .irow:last-child { border-bottom: 0; }
+    .state { font-size: 12px; font-weight: 700; padding: 5px 8px; border-radius: 999px; }
+    .state.ready { background: rgba(52,211,153,.14); color: #9df0cb; border: 1px solid rgba(52,211,153,.22); }
+    .state.pending { background: rgba(251,191,36,.14); color: #ffe08a; border: 1px solid rgba(251,191,36,.22); }
+    .qa-box h3 { font-size: 14px; margin-bottom: 10px; }
+    .qa-box ul { margin: 0; padding-left: 18px; color: var(--muted); }
+    .qa-box li { margin: 8px 0; font-size: 13px; }
+    .map .mrow { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 10px; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .map .mrow:last-child { border-bottom: 0; }
+    .map .head { background: rgba(255,255,255,.04); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .map .mrow div { font-size: 13px; }
+    @media (max-width: 980px) {
+      .layout, .two, .stats { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; }
+      .badge { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">
+        <h1>Numbers Dashboard MVP</h1>
+        <p>A simple operating dashboard for service businesses: set the target, connect the CRM, then coach from weekly production, sales, and SPO.</p>
+      </div>
+      <div class="badge">ProfitStack · Service Business Dashboard</div>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="hd">
+          <h2>Onboarding Flow</h2>
+          <p>Fast path first. Better accuracy later.</p>
+        </div>
+        <div class="bd">
+          <div class="clientbar">
+            <strong>Current product direction:</strong> owner-entered target inputs + connected CRM data source + company-level QA before broad rollout.
+          </div>
+
+          <div class="stepbar">
+            <div class="step active"><strong>1. Set operating target</strong><span>required</span></div>
+            <div class="step"><strong>2. Connect Housecall Pro</strong><span>required</span></div>
+            <div class="step"><strong>3. Validate metrics</strong><span>required before done</span></div>
+          </div>
+
+          <div class="field">
+            <label>Monthly Expense Target</label>
+            <input id="monthlyExpenseTarget" value="144000" />
+            <div class="help">Use the same month from last year. Remove unusual, one-time, personal, or non-operating expenses.</div>
+          </div>
+
+          <div class="field">
+            <label>Profit % Goal</label>
+            <input id="profitPercentGoal" value="10" />
+            <div class="help">Default goal is 10% above break-even for the prototype and live product.</div>
+          </div>
+
+          <div class="field">
+            <label>CRM Source</label>
+            <select>
+              <option>Housecall Pro</option>
+              <option>Manual CSV import</option>
+            </select>
+          </div>
+
+          <div class="card">
+            <h3>Dashboard Overrides</h3>
+            <p>Use this to pin trusted numbers without editing JSON files.</p>
+            <div class="field" style="margin-top:12px;">
+              <label>Current Week Scheduled Production</label>
+              <input id="overrideCurrentWeekScheduled" value="" />
+            </div>
+            <div class="field">
+              <label>Last Week Scheduled Production</label>
+              <input id="overrideLastWeekScheduled" value="" />
+            </div>
+            <div class="field">
+              <label>Last Week Approved Sales</label>
+              <input id="overrideLastWeekSales" value="" />
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary" id="saveOverridesButton" type="button">Save Dashboard Overrides</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label id="opportunityCountLabel">Opportunities This Week</label>
+            <input id="opportunityCount" value="16" />
+            <div class="help">New estimates that are not yet jobs, while preserving converted history.</div>
+          </div>
+
+          <div class="field">
+            <label id="salesThisPeriodLabel">Approved Sales This Week</label>
+            <input id="salesThisPeriod" value="34352" />
+            <div class="help">Any dollar amount approved during the selected week counts here, regardless of when it was first created or later scheduled.</div>
+          </div>
+
+          <div class="field">
+            <label id="scheduledProductionLabel">Production Scheduled This Week</label>
+            <input id="scheduledProduction" value="34352" />
+            <div class="help">Primary production KPI: dollars currently scheduled on the calendar for the selected week.</div>
+          </div>
+
+          <div class="field">
+            <label>Production Completed This Week (Mar 30–Apr 5, 2026)</label>
+            <input id="completedProduction" value="21458" />
+            <div class="help">Secondary ops stat only. Useful for execution tracking, not the primary production KPI.</div>
+          </div>
+
+          <div class="field">
+            <label>Sales Today (Apr 3, 2026)</label>
+            <input id="salesToday" value="21458" />
+          </div>
+
+          <div class="field">
+            <label>Sales This Month (Apr 2026)</label>
+            <input id="salesMonth" value="27600" />
+          </div>
+
+          <div class="field">
+            <label>Sales This Year (2026)</label>
+            <input id="salesYear" value="201400" />
+          </div>
+
+          <div class="card">
+            <h3>What this powers</h3>
+            <p>Weekly break-even, weekly goal, scheduled production as the primary production KPI, completed production as a secondary ops stat, sales rollups, and company SPO in dollars per opportunity.</p>
+          </div>
+
+          <div class="card">
+            <h3>Data rule</h3>
+            <p>Opportunities stay preserved as estimates. Approved estimates become linked jobs. Do not overwrite the original opportunity record.</p>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" id="saveInputsButton">Save Inputs</button>
+            <button class="btn btn-secondary">Connect HCP</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="hd">
+          <h2>Company Dashboard</h2>
+          <p>Phase 1 company view only. Employee metrics come later.</p>
+        </div>
+        <div class="bd">
+          <div class="scoreline">
+            <div>
+              <div class="small" id="scorelineLabel">Scheduled production vs break-even · Mar 30–Apr 5, 2026</div>
+              <div class="big" id="paceToGoalValue">$23,900 ahead of break-even</div>
+            </div>
+            <div class="small">Coaching question: is this week's calendar load enough to cover break-even and hit the weekly goal?</div>
+          </div>
+
+          <div class="stats">
+            <div class="stat yellow">
+              <div class="k">Weekly Break-Even</div>
+              <div class="v" id="weeklyBreakEvenValue">$12,000</div>
+            </div>
+            <div class="stat green">
+              <div class="k">Weekly Goal</div>
+              <div class="v" id="weeklyGoalValue">$14,400</div>
+            </div>
+            <div class="stat blue">
+              <div class="k">Company SPO</div>
+              <div class="v" id="companySpoValue">$612</div>
+            </div>
+          </div>
+
+          <div class="two">
+            <section class="panel" style="background: rgba(255,255,255,.02);">
+              <div class="hd">
+                <h2>Production</h2>
+                <p id="productionRangeLabel">This week · Mar 30–Apr 5, 2026</p>
+              </div>
+              <div class="bd list">
+                <div class="row"><div class="label">Production Scheduled This Week</div><strong id="scheduledProductionValue">$21,400</strong></div>
+              </div>
+            </section>
+
+            <section class="panel" style="background: rgba(255,255,255,.02);">
+              <div class="hd">
+                <h2>Sales</h2>
+                <p id="salesRangeLabel">Today: Apr 3, 2026 · Week: Mar 30–Apr 5, 2026 · Month: Apr 2026 · Year: 2026</p>
+              </div>
+              <div class="bd list">
+                <div class="row"><div class="label">Approved Today</div><strong id="salesTodayValue">$2,150</strong></div>
+                <div class="row"><div class="label">Approved This Week</div><strong id="salesWeekValue">$9,800</strong></div>
+                <div class="row"><div class="label">Approved This Month</div><strong id="salesMonthValue">$27,600</strong></div>
+                <div class="row"><div class="label">Approved This Year</div><strong id="salesYearValue">$201,400</strong></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="week-nav">
+            <div class="week-shell" style="display:block;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                <div class="meta">
+                  <div class="title" id="weekViewTitle">Last Week</div>
+                  <div class="range" id="weekViewRange">Mar 23–Mar 29, 2026</div>
+                </div>
+                <button class="btn btn-secondary" id="toggleLastWeekButton" type="button">Last Week</button>
+              </div>
+              <div class="mini-metrics">
+                <div class="mini-row"><div class="label">Approved Sales</div><strong id="lastWeekSalesValue">$0</strong></div>
+                <div class="mini-row"><div class="label">Scheduled Production</div><strong id="lastWeekScheduledValue">$0</strong></div>
+                <div class="mini-note bad" id="lastWeekGoalDelta">$0 below goal</div>
+              </div>
+            </div>
+            <div class="week-shell" style="display:block;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                <div class="meta">
+                  <div class="title">Next 3 Weeks</div>
+                  <div class="range" id="upcomingWeekRange">Next Week · Apr 6–Apr 12, 2026</div>
+                </div>
+                <button class="btn btn-secondary" id="cycleUpcomingWeekButton" type="button">Next 3 Weeks</button>
+              </div>
+              <div class="mini-metrics">
+                <div class="mini-row"><div class="label">Scheduled Production</div><strong id="upcomingScheduledValue">$0</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="statusbar">
+            <div class="note">Current shell now includes a rough live HCP snapshot: job revenue earned $21,458, jobs completed 23, average job size $933, total new jobs booked $34,352. Production should be calendar-based scheduled dollars for the selected week. Completed stays secondary. Mapping still needs refinement.</div>
+            <div class="pill">MVP company view</div>
+          </div>
+
+          <div class="source-grid">
+            <div class="source-card">
+              <h3>CRM Connection</h3>
+              <p>Client will connect and authorize their own Housecall Pro account so the product controls data pulling instead of relying on our manual access.</p>
+              <span class="tag live">Connection flow target</span>
+            </div>
+            <div class="source-card">
+              <h3>Target Inputs</h3>
+              <p>Monthly Expense Target and Profit % remain owner-controlled inputs so the product can be useful before heavy accounting cleanup.</p>
+              <span class="tag manual">Manual / guided</span>
+            </div>
+            <div class="source-card">
+              <h3>HCP Operating Data</h3>
+              <p>Production scheduled this week, production completed this week, opportunities, and sales should come from Housecall Pro once the live source is wired cleanly.</p>
+              <span class="tag live">Live source target</span>
+            </div>
+            <div class="source-card">
+              <h3>Validation Layer</h3>
+              <p>Company-level numbers must be checked against known real values before this gets called done or sold as reliable. Sales and production must stay separated by definition.</p>
+              <span class="tag manual">QA required</span>
+              <div class="override-note" id="overrideNote">Pinned values will appear here when overrides are active.</div>
+            </div>
+          </div>
+
+          <div class="lifecycle">
+            <div class="life"><strong>1. Opportunity</strong>New estimate is created and counted.</div>
+            <div class="life"><strong>2. Approved</strong>Estimate is won but opportunity history stays intact.</div>
+            <div class="life"><strong>3. Job Linked</strong>Approved estimate connects to a real job record.</div>
+            <div class="life"><strong>4. Scheduled</strong>Jobs placed on the week's calendar count toward production for that week.</div>
+          </div>
+
+          <div class="map">
+            <div class="mrow head">
+              <div>Metric</div>
+              <div>Primary source</div>
+              <div>Rule</div>
+            </div>
+            <div class="mrow">
+              <div>Weekly Break-Even</div>
+              <div>Monthly Expense Target</div>
+              <div>Monthly expense target ÷ 4</div>
+            </div>
+            <div class="mrow">
+              <div>Weekly Goal</div>
+              <div>Monthly Expense Target + Profit %</div>
+              <div>Break-even × (1 + profit %)</div>
+            </div>
+            <div class="mrow">
+              <div>Production KPI</div>
+              <div>Scheduled production</div>
+              <div>Use scheduled dollars on the calendar for the selected week as the primary production number</div>
+            </div>
+            <div class="mrow">
+              <div>Company SPO</div>
+              <div>Approved revenue + Opportunities</div>
+              <div>Approved revenue ÷ opportunities as dollars</div>
+            </div>
+          </div>
+
+          <div class="qa-box">
+            <h3>Before this becomes client-ready</h3>
+            <ul>
+              <li>Validate approved revenue against known real values</li>
+              <li>Check scheduled production logic against the live calendar week</li>
+              <li>Confirm completed production stays secondary and is not blended into the primary KPI</li>
+              <li>Confirm opportunities are preserved after approval</li>
+              <li>Check for duplicate source rows and date-range errors</li>
+            </ul>
+          </div>
+
+          <div class="impl">
+            <h3>ProfitStack implementation status</h3>
+            <div class="irow"><span>Product shell</span><span class="state ready">ready</span></div>
+            <div class="irow"><span>Core target math</span><span class="state ready">ready</span></div>
+            <div class="irow"><span>Company SPO math</span><span class="state ready">ready</span></div>
+            <div class="irow"><span>Live HCP field wiring</span><span class="state pending">pending</span></div>
+            <div class="irow"><span>Company-level QA</span><span class="state pending">pending</span></div>
+          </div>
+
+          <div class="wiring">
+            <div class="wrow head">
+              <div>Dashboard output</div>
+              <div>Needed source</div>
+              <div>Wiring note</div>
+            </div>
+            <div class="wrow">
+              <div>Production scheduled this week</div>
+              <div>Connected CRM / import layer</div>
+              <div>Use scheduled date/week on the calendar. This is the primary production KPI.</div>
+            </div>
+            <div class="wrow">
+              <div>Production completed this week</div>
+              <div>Connected CRM / import layer</div>
+              <div>Use completed date/week. Keep as a secondary ops stat only; do not blend it into the primary production KPI.</div>
+            </div>
+            <div class="wrow">
+              <div>Company SPO</div>
+              <div>HCP opportunities + approved revenue</div>
+              <div>Preserve estimates, link approved jobs, divide approved revenue by opportunity count</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script>
+    const monthlyExpenseInput = document.getElementById('monthlyExpenseTarget');
+    const profitPercentInput = document.getElementById('profitPercentGoal');
+    const weeklyBreakEvenValue = document.getElementById('weeklyBreakEvenValue');
+    const weeklyGoalValue = document.getElementById('weeklyGoalValue');
+    const scorelineLabel = document.getElementById('scorelineLabel');
+    const weekViewTitle = document.getElementById('weekViewTitle');
+    const weekViewRange = document.getElementById('weekViewRange');
+    const productionRangeLabel = document.getElementById('productionRangeLabel');
+    const salesRangeLabel = document.getElementById('salesRangeLabel');
+    const opportunityCountLabel = document.getElementById('opportunityCountLabel');
+    const salesThisPeriodLabel = document.getElementById('salesThisPeriodLabel');
+    const scheduledProductionLabel = document.getElementById('scheduledProductionLabel');
+    const upcomingWeekRange = document.getElementById('upcomingWeekRange');
+    const upcomingScheduledValue = document.getElementById('upcomingScheduledValue');
+    const lastWeekSalesValue = document.getElementById('lastWeekSalesValue');
+    const lastWeekScheduledValue = document.getElementById('lastWeekScheduledValue');
+    const lastWeekGoalDelta = document.getElementById('lastWeekGoalDelta');
+    const companySpoValue = document.getElementById('companySpoValue');
+    const opportunityCountInput = document.getElementById('opportunityCount');
+    const salesThisPeriodInput = document.getElementById('salesThisPeriod');
+    const scheduledProductionInput = document.getElementById('scheduledProduction');
+    const completedProductionInput = document.getElementById('completedProduction');
+    const salesTodayInput = document.getElementById('salesToday');
+    const salesMonthInput = document.getElementById('salesMonth');
+    const salesYearInput = document.getElementById('salesYear');
+    const scheduledProductionValue = document.getElementById('scheduledProductionValue');
+    const scoreline = document.querySelector('.scoreline');
+    const paceToGoalValue = document.getElementById('paceToGoalValue');
+    const salesTodayValue = document.getElementById('salesTodayValue');
+    const salesWeekValue = document.getElementById('salesWeekValue');
+    const salesMonthValue = document.getElementById('salesMonthValue');
+    const salesYearValue = document.getElementById('salesYearValue');
+    const saveInputsButton = document.getElementById('saveInputsButton');
+    const toggleLastWeekButton = document.getElementById('toggleLastWeekButton');
+    const cycleUpcomingWeekButton = document.getElementById('cycleUpcomingWeekButton');
+    const overrideNote = document.getElementById('overrideNote');
+    const overrideCurrentWeekScheduled = document.getElementById('overrideCurrentWeekScheduled');
+    const overrideLastWeekScheduled = document.getElementById('overrideLastWeekScheduled');
+    const overrideLastWeekSales = document.getElementById('overrideLastWeekSales');
+    const saveOverridesButton = document.getElementById('saveOverridesButton');
+    const OVERRIDE_STORAGE_KEY = 'profitstackDashboardOverrides';
+    const upcomingWeeks = [
+      { key: 'nextWeek', label: 'Next Week · Apr 6–Apr 12, 2026' },
+      { key: 'weekPlus2', label: 'Week +2 · Apr 13–Apr 19, 2026' },
+      { key: 'weekPlus3', label: 'Week +3 · Apr 20–Apr 26, 2026' }
+    ];
+    let upcomingWeekIndex = 0;
+
+    const weekState = {
+      current: {
+        title: 'Current Week View',
+        range: 'Mar 30–Apr 5, 2026',
+        scoreline: 'Scheduled production vs break-even · Mar 30–Apr 5, 2026',
+        productionRange: 'This week · Mar 30–Apr 5, 2026',
+        salesRange: 'Today: Apr 3, 2026 · Week: Mar 30–Apr 5, 2026 · Month: Apr 2026 · Year: 2026',
+        metrics: null
+      },
+      last: {
+        title: 'Last Week View',
+        range: 'Mar 23–Mar 29, 2026',
+        scoreline: 'Scheduled production vs break-even · Mar 23–Mar 29, 2026',
+        productionRange: 'Last week · Mar 23–Mar 29, 2026',
+        salesRange: 'Week: Mar 23–Mar 29, 2026 · Prior period preview',
+        metrics: {
+          salesThisPeriod: 0,
+          scheduledProduction: 0,
+          completedProduction: 0,
+          salesToday: 0,
+          salesMonth: 0,
+          salesYear: 0,
+          opportunityCount: 0,
+          lastWeekApprovedSales: 0,
+          lastWeekScheduledProduction: 0,
+          nextWeekScheduledProduction: 0,
+          weekPlus2ScheduledProduction: 0,
+          weekPlus3ScheduledProduction: 0
+        }
+      },
+      active: 'current'
+    };
+
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
+    }
+
+    function readDashboardOverrides() {
+      try {
+        return JSON.parse(localStorage.getItem(OVERRIDE_STORAGE_KEY) || '{}');
+      } catch {
+        return {};
+      }
+    }
+
+    function writeDashboardOverrides(data) {
+      localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function renderWeekShell() {
+      const active = weekState[weekState.active];
+      scorelineLabel.textContent = active.scoreline;
+      productionRangeLabel.textContent = active.productionRange;
+      salesRangeLabel.textContent = active.salesRange;
+      upcomingWeekRange.textContent = upcomingWeeks[upcomingWeekIndex].label;
+      const metrics = weekState.current.metrics || weekState.last.metrics;
+      const upcomingMap = {
+        nextWeek: metrics.nextWeekScheduledProduction || 0,
+        weekPlus2: metrics.weekPlus2ScheduledProduction || 0,
+        weekPlus3: metrics.weekPlus3ScheduledProduction || 0
+      };
+      upcomingScheduledValue.textContent = formatCurrency(upcomingMap[upcomingWeeks[upcomingWeekIndex].key] || 0);
+      lastWeekSalesValue.textContent = formatCurrency(metrics.lastWeekApprovedSales || 0);
+      lastWeekScheduledValue.textContent = formatCurrency(metrics.lastWeekScheduledProduction || 0);
+    }
+
+    function applyMetrics(metrics = {}) {
+      if (metrics.salesThisPeriod != null) salesThisPeriodInput.value = metrics.salesThisPeriod;
+      if (metrics.scheduledProduction != null) scheduledProductionInput.value = metrics.scheduledProduction;
+      if (metrics.completedProduction != null) completedProductionInput.value = metrics.completedProduction;
+      if (metrics.salesToday != null) salesTodayInput.value = metrics.salesToday;
+      if (metrics.salesMonth != null) salesMonthInput.value = metrics.salesMonth;
+      if (metrics.salesYear != null) salesYearInput.value = metrics.salesYear;
+      if (metrics.opportunityCount != null) opportunityCountInput.value = metrics.opportunityCount;
+      calculateTargets();
+    }
+
+    async function loadLocalMetrics() {
+      try {
+        const res = await fetch('/dashboard/week-metrics.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const payload = await res.json();
+        const lastWeek = payload.weeks?.lastWeek || {};
+        const currentWeek = payload.weeks?.currentWeek || {};
+        const nextWeek = payload.weeks?.nextWeek || {};
+        const weekPlus2 = payload.weeks?.weekPlus2 || {};
+        const weekPlus3 = payload.weeks?.weekPlus3 || {};
+        if (currentWeek.range) {
+          weekState.current.productionRange = `This week · ${currentWeek.range}`;
+          weekState.current.salesRange = `Week: ${currentWeek.range}`;
+          productionRangeLabel.textContent = weekState.current.productionRange;
+          salesRangeLabel.textContent = weekState.current.salesRange;
+          opportunityCountLabel.textContent = `Opportunities This Week (${currentWeek.range})`;
+          salesThisPeriodLabel.textContent = `Approved Sales This Week (${currentWeek.range})`;
+          scheduledProductionLabel.textContent = `Production Scheduled This Week (${currentWeek.range})`;
+        }
+        if (lastWeek.range) {
+          weekState.last.range = lastWeek.range;
+          weekViewRange.textContent = lastWeek.range;
+        }
+        upcomingWeeks[0].label = `Next Week · ${nextWeek.range || 'TBD'}`;
+        upcomingWeeks[1].label = `Week +2 · ${weekPlus2.range || 'TBD'}`;
+        upcomingWeeks[2].label = `Week +3 · ${weekPlus3.range || 'TBD'}`;
+        const storedOverrides = readDashboardOverrides();
+        const pinned = [];
+        if (payload.overridesApplied?.lastWeek?.approvedSales != null || storedOverrides.lastWeekApprovedSales) pinned.push('Last Week sales');
+        if (payload.overridesApplied?.lastWeek?.scheduledProduction != null || storedOverrides.lastWeekScheduledProduction) pinned.push('Last Week scheduled');
+        if (payload.overridesApplied?.currentWeek?.scheduledProduction != null || storedOverrides.currentWeekScheduledProduction) pinned.push('Current Week scheduled');
+        overrideNote.textContent = pinned.length ? `Pinned/trusted values: ${pinned.join(' · ')}` : 'No pinned overrides active.';
+        overrideCurrentWeekScheduled.value = storedOverrides.currentWeekScheduledProduction ?? (currentWeek.scheduledProduction || '');
+        overrideLastWeekScheduled.value = storedOverrides.lastWeekScheduledProduction ?? (lastWeek.scheduledProduction || '');
+        overrideLastWeekSales.value = storedOverrides.lastWeekApprovedSales ?? (lastWeek.approvedSales || '');
+        const metrics = {
+          opportunityCount: 16,
+          salesThisPeriod: currentWeek.approvedSales || 0,
+          scheduledProduction: currentWeek.scheduledProduction || 0,
+          completedProduction: currentWeek.completedProduction || 0,
+          salesToday: 6575,
+          salesMonth: 0,
+          salesYear: 0,
+          lastWeekApprovedSales: lastWeek.approvedSales || 0,
+          lastWeekScheduledProduction: lastWeek.scheduledProduction || 0,
+          nextWeekScheduledProduction: nextWeek.scheduledProduction || 0,
+          weekPlus2ScheduledProduction: weekPlus2.scheduledProduction || 0,
+          weekPlus3ScheduledProduction: weekPlus3.scheduledProduction || 0
+        };
+        if (storedOverrides.currentWeekScheduledProduction != null && storedOverrides.currentWeekScheduledProduction !== '') {
+          metrics.scheduledProduction = Number(storedOverrides.currentWeekScheduledProduction) || 0;
+        }
+        if (storedOverrides.lastWeekScheduledProduction != null && storedOverrides.lastWeekScheduledProduction !== '') {
+          metrics.lastWeekScheduledProduction = Number(storedOverrides.lastWeekScheduledProduction) || 0;
+        }
+        if (storedOverrides.lastWeekApprovedSales != null && storedOverrides.lastWeekApprovedSales !== '') {
+          metrics.lastWeekApprovedSales = Number(storedOverrides.lastWeekApprovedSales) || 0;
+        }
+        weekState.current.metrics = metrics;
+        applyMetrics(metrics);
+        renderWeekShell();
+      } catch (err) {
+        // fall back to existing prototype defaults
+      }
+    }
+
+    function calculateTargets() {
+      const monthlyExpense = Number(String(monthlyExpenseInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const profitPercent = (Number(String(profitPercentInput.value).replace(/[^0-9.]/g, '')) || 0) / 100;
+      const weeklyBreakEven = monthlyExpense / 4;
+      const weeklyGoal = weeklyBreakEven * (1 + profitPercent);
+      const opportunities = Number(String(opportunityCountInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const salesThisPeriod = Number(String(salesThisPeriodInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const scheduledProduction = Number(String(scheduledProductionInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const completedProduction = Number(String(completedProductionInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const salesToday = Number(String(salesTodayInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const salesMonth = Number(String(salesMonthInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const salesYear = Number(String(salesYearInput.value).replace(/[^0-9.]/g, '')) || 0;
+      const companySpo = opportunities > 0 ? salesThisPeriod / opportunities : 0;
+      const totalProduction = scheduledProduction;
+      const deltaToBreakEven = totalProduction - weeklyBreakEven;
+      const lastWeekScheduled = weekState.current.metrics?.lastWeekScheduledProduction || 0;
+      const lastWeekDelta = lastWeekScheduled - weeklyGoal;
+      const paceLabel = deltaToBreakEven >= 0 ? `${formatCurrency(deltaToBreakEven)} ahead of break-even` : `${formatCurrency(Math.abs(deltaToBreakEven))} behind break-even`;
+      weeklyBreakEvenValue.textContent = formatCurrency(weeklyBreakEven);
+      weeklyGoalValue.textContent = formatCurrency(weeklyGoal);
+      companySpoValue.textContent = formatCurrency(companySpo);
+      scheduledProductionValue.textContent = formatCurrency(scheduledProduction);
+      paceToGoalValue.textContent = paceLabel;
+      scoreline.classList.toggle('over', deltaToBreakEven >= 0);
+      scoreline.classList.toggle('under', deltaToBreakEven < 0);
+      lastWeekGoalDelta.textContent = lastWeekDelta >= 0
+        ? `${formatCurrency(lastWeekDelta)} over goal`
+        : `${formatCurrency(Math.abs(lastWeekDelta))} below goal`;
+      lastWeekGoalDelta.classList.toggle('good', lastWeekDelta >= 0);
+      lastWeekGoalDelta.classList.toggle('bad', lastWeekDelta < 0);
+      salesTodayValue.textContent = formatCurrency(salesToday);
+      salesWeekValue.textContent = formatCurrency(salesThisPeriod);
+      salesMonthValue.textContent = formatCurrency(salesMonth);
+      salesYearValue.textContent = formatCurrency(salesYear);
+    }
+
+    monthlyExpenseInput.addEventListener('input', calculateTargets);
+    profitPercentInput.addEventListener('input', calculateTargets);
+    opportunityCountInput.addEventListener('input', calculateTargets);
+    salesThisPeriodInput.addEventListener('input', calculateTargets);
+    scheduledProductionInput.addEventListener('input', calculateTargets);
+    completedProductionInput.addEventListener('input', calculateTargets);
+    salesTodayInput.addEventListener('input', calculateTargets);
+    salesMonthInput.addEventListener('input', calculateTargets);
+    salesYearInput.addEventListener('input', calculateTargets);
+    saveInputsButton.addEventListener('click', calculateTargets);
+    saveOverridesButton.addEventListener('click', () => {
+      const overrides = {
+        currentWeekScheduledProduction: overrideCurrentWeekScheduled.value,
+        lastWeekScheduledProduction: overrideLastWeekScheduled.value,
+        lastWeekApprovedSales: overrideLastWeekSales.value
+      };
+      writeDashboardOverrides(overrides);
+      if (weekState.current.metrics) {
+        weekState.current.metrics.scheduledProduction = Number(overrides.currentWeekScheduledProduction) || 0;
+        weekState.current.metrics.lastWeekScheduledProduction = Number(overrides.lastWeekScheduledProduction) || 0;
+        weekState.current.metrics.lastWeekApprovedSales = Number(overrides.lastWeekApprovedSales) || 0;
+        applyMetrics(weekState.current.metrics);
+        renderWeekShell();
+      }
+    });
+    toggleLastWeekButton.addEventListener('click', () => {
+      // next stage: last-week card gets its own numbers without changing the top this-week cards
+    });
+    cycleUpcomingWeekButton.addEventListener('click', () => {
+      upcomingWeekIndex = (upcomingWeekIndex + 1) % upcomingWeeks.length;
+      renderWeekShell();
+    });
+    calculateTargets();
+    renderWeekShell();
+    loadLocalMetrics();
+  </script>
+</body>
+</html>

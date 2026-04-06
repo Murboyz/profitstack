@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProfitStack</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #08101d; color: #eef4ff; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 32px; }
+    .top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .brand { font-size: 28px; font-weight: 800; }
+    .sub { color: #94a3c7; margin-top: 8px; }
+    .pill { padding: 8px 12px; border-radius: 999px; background: rgba(91,140,255,.14); border: 1px solid rgba(91,140,255,.3); }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; }
+    .card h3 { margin: 0 0 10px; font-size: 15px; }
+    .card p, .card li { color: #94a3c7; line-height: 1.5; }
+    ul { margin: 0; padding-left: 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="brand">ProfitStack</div>
+        <div class="sub">Hosted operating dashboard for service businesses.</div>
+      </div>
+      <div class="pill">Frontend shell</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Dashboard</h3>
+        <ul>
+          <li>Current week production and sales</li>
+          <li>Last week support card</li>
+          <li>Next 3 weeks scheduled production</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>CRM Connection</h3>
+        <ul>
+          <li>Housecall Pro connect flow</li>
+          <li>Sync status</li>
+          <li>Last updated time</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Admin / Overrides</h3>
+        <ul>
+          <li>Pinned trusted values</li>
+          <li>Override controls</li>
+          <li>Validation visibility</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

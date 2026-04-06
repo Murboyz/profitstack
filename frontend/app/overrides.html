@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProfitStack Overrides</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 28px; }
+    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+    .row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.06); padding: 10px 0; gap: 12px; }
+    .row:last-child { border-bottom: 0; }
+    .session-banner-label, .session-banner-meta { color: #94a3c7; }
+    .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
+    .session-banner-value { font-size: 18px; font-weight: 700; }
+    label, input, select, button { display: block; width: 100%; margin-bottom: 10px; }
+    input, select, button { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    a { color: #7fb0ff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>ProfitStack Overrides</h1>
+      <p><a href="./index.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></p>
+    </div>
+    <div class="panel" id="sessionBanner">Loading session…</div>
+    <div class="panel" id="list">Loading…</div>
+    <div class="panel">
+      <h2>Save Override</h2>
+      <form id="overrideForm">
+        <label for="weekStartDate">Week Start Date</label>
+        <input id="weekStartDate" value="2026-03-30" />
+        <label for="metricKey">Metric</label>
+        <select id="metricKey"><option value="scheduledProduction">Scheduled Production</option><option value="approvedSales">Approved Sales</option></select>
+        <label for="metricValue">Metric Value</label>
+        <input id="metricValue" value="29228" />
+        <label for="reason">Reason</label>
+        <input id="reason" value="manual trusted value" />
+        <button type="submit">Save Override</button>
+      </form>
+      <div id="result"></div>
+    </div>
+  </div>
+  <script type="module" src="./overrides.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProfitStack Session</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 28px; }
+    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+    .session-banner-label, .session-banner-meta { color: #94a3c7; }
+    .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
+    .session-banner-value { font-size: 18px; font-weight: 700; }
+    a { color: #7fb0ff; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>ProfitStack Session</h1>
+      <p><a href="./index.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./session.html">Session</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></p>
+    </div>
+    <div class="panel" id="sessionBanner">Loading session…</div>
+    <div class="panel"><pre id="app">Loading…</pre></div>
+  </div>
+  <script type="module" src="./session.js"></script>
+</body>
+</html>

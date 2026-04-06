@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProfitStack Access Issue</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
+    .wrap { max-width: 640px; margin: 60px auto; padding: 28px; }
+    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 24px; }
+    .muted { color: #94a3c7; }
+    .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+    a { color: #eef4ff; text-decoration: none; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Access issue</h1>
+      <p id="message">Your session is no longer valid for ProfitStack.</p>
+      <p class="muted">Choose a valid user and sign back in. If this keeps happening, the account probably is not present in the app database yet.</p>
+      <div class="actions">
+        <a href="./login.html?reason=session-not-recognized">Sign in again</a>
+        <a href="./session.html">Try session page</a>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./unauthorized.js"></script>
+</body>
+</html>
