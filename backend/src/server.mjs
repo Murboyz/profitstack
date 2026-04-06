@@ -20,7 +20,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const statusPath = path.resolve(__dirname, '../../STATUS.md');
 const appRoot = path.resolve(__dirname, '../../frontend/app');
-const port = 8787;
+const host = '0.0.0.0';
+const port = Number(process.env.PORT || 8787);
 
 async function loadStatusText() {
   return fs.readFile(statusPath, 'utf8');
@@ -413,6 +414,6 @@ const server = http.createServer(async (req, res) => {
   return serveStatic(req, res);
 });
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`ProfitStack app listening on http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`ProfitStack app listening on http://${host}:${port}`);
 });
