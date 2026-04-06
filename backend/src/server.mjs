@@ -148,20 +148,24 @@ function buildEmptyWeeks(anchorDate = new Date()) {
 function buildWeeksFromMetrics(rows) {
   const fallbackWeeks = buildEmptyWeeks();
   if (!rows?.length) return fallbackWeeks;
-  const mapped = rows.map((row) => ({
-    weekStartDate: row.week_start_date,
-    range: formatRange(row.week_start_date, row.week_end_date),
-    scheduledProduction: Number(row.scheduled_production || 0),
-    approvedSales: row.approved_sales == null ? undefined : Number(row.approved_sales),
-  }));
+  const byWeekStart = Object.fromEntries(
+    rows.map((row) => [
+      row.week_start_date,
+      {
+        weekStartDate: row.week_start_date,
+        range: formatRange(row.week_start_date, row.week_end_date),
+        scheduledProduction: Number(row.scheduled_production || 0),
+        approvedSales: row.approved_sales == null ? undefined : Number(row.approved_sales),
+      },
+    ])
+  );
 
-  return {
-    lastWeek: mapped[0] || fallbackWeeks.lastWeek,
-    currentWeek: mapped[1] || fallbackWeeks.currentWeek,
-    nextWeek: mapped[2] || fallbackWeeks.nextWeek,
-    weekPlus2: mapped[3] || fallbackWeeks.weekPlus2,
-    weekPlus3: mapped[4] || fallbackWeeks.weekPlus3,
-  };
+  return Object.fromEntries(
+    Object.entries(fallbackWeeks).map(([key, fallbackWeek]) => [
+      key,
+      byWeekStart[fallbackWeek.weekStartDate] || fallbackWeek,
+    ])
+  );
 }
 
 function applyOverridesToWeeks(weeks, overrides) {
