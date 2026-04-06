@@ -8,16 +8,18 @@ function panel(title, body) {
 }
 
 async function loadJson(path) {
-  const res = await apiFetch(path);
+  const separator = path.includes('?') ? '&' : '?';
+  const res = await apiFetch(`${path}${separator}t=${Date.now()}`);
   if (!res.ok) throw new Error(`${path} failed with ${res.status}`);
   return res.json();
 }
 
-async function main() {
+async function renderDashboard() {
   const status = document.getElementById('status');
   const app = document.getElementById('app');
 
   try {
+    status.textContent = 'Refreshing dashboard…';
     await renderSessionBanner();
     const [session, dashboard, crmConnection, overrides, syncRuns, health] = await Promise.all([
       loadJson('/api/session'),
@@ -62,4 +64,5 @@ async function main() {
   }
 }
 
-main();
+document.getElementById('refreshButton').addEventListener('click', renderDashboard);
+renderDashboard();
