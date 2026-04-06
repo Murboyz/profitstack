@@ -43,7 +43,8 @@ function sendText(res, status, text, type = 'text/plain; charset=utf-8') {
 }
 
 async function serveStatic(req, res) {
-  const reqPath = req.url === '/' ? '/index.html' : req.url;
+  const requestUrl = new URL(req.url, 'http://127.0.0.1');
+  const reqPath = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
   const targetPath = path.normalize(path.join(appRoot, reqPath));
   if (!targetPath.startsWith(appRoot)) {
     return sendText(res, 403, 'Forbidden');
@@ -287,15 +288,17 @@ function formatSession(context) {
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return sendJson(res, 200, { ok: true });
+  const requestUrl = new URL(req.url, 'http://127.0.0.1');
+  const pathname = requestUrl.pathname;
 
-  if (req.url.startsWith('/api/')) {
+  if (pathname.startsWith('/api/')) {
     try {
-      if (req.method === 'GET' && req.url === '/api/status') {
+      if (req.method === 'GET' && pathname === '/api/status') {
         const text = await loadStatusText();
         return sendText(res, 200, text, 'text/plain; charset=utf-8');
       }
 
-      if (req.method === 'GET' && req.url === '/api/health') {
+      if (req.method === 'GET' && pathname === '/api/health') {
         const status = await probeSupabaseWithServiceRole();
         return sendJson(res, status.ok ? 200 : 502, {
           ok: status.ok,
@@ -307,10 +310,10 @@ const server = http.createServer(async (req, res) => {
 
       const context = await resolveContext(req);
 
-      if (req.method === 'GET' && req.url === '/api/session') {
+      if (req.method === 'GET' && pathname === '/api/session') {
         return sendJson(res, 200, formatSession(context));
       }
-      if (req.method === 'GET' && req.url === '/api/dashboard') {
+      if (req.method === 'GET' && pathname === '/api/dashboard') {
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
         const weekMetrics = await getWeekMetricsByOrg(context.organization.id);
         const overrides = await getMetricOverridesByOrg(context.organization.id);
@@ -323,11 +326,11 @@ const server = http.createServer(async (req, res) => {
           overridesApplied: summarizeOverridesByWeek(mergedWeeks, overrides),
         });
       }
-      if (req.method === 'GET' && req.url === '/api/crm-connection') {
+      if (req.method === 'GET' && pathname === '/api/crm-connection') {
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
         return sendJson(res, 200, crmConnection || {});
       }
-      if (req.method === 'POST' && req.url === '/api/crm-connection') {
+      if (req.method === 'POST' && pathname === '/api/crm-connection') {
         const body = await readJsonBody(req);
         const credentialEnvelope = buildCredentialEnvelope(body, context);
         const saved = await upsertCrmConnection({
@@ -342,11 +345,11 @@ const server = http.createServer(async (req, res) => {
         });
         return sendJson(res, 200, { ok: true, message: 'CRM connection saved to Supabase', item: saved?.[0] || null });
       }
-      if (req.method === 'GET' && req.url === '/api/overrides') {
+      if (req.method === 'GET' && pathname === '/api/overrides') {
         const overrides = await getMetricOverridesByOrg(context.organization.id);
         return sendJson(res, 200, { items: formatOverrides(overrides) });
       }
-      if (req.method === 'POST' && req.url === '/api/overrides') {
+      if (req.method === 'POST' && pathname === '/api/overrides') {
         const body = await readJsonBody(req);
         const saved = await upsertMetricOverride({
           id: crypto.randomUUID(),
@@ -359,11 +362,11 @@ const server = http.createServer(async (req, res) => {
         });
         return sendJson(res, 200, { ok: true, message: 'Override saved to Supabase', item: saved?.[0] || null });
       }
-      if (req.method === 'GET' && req.url === '/api/sync-runs') {
+      if (req.method === 'GET' && pathname === '/api/sync-runs') {
         const rows = await getSyncRunsByOrg(context.organization.id);
         return sendJson(res, 200, { items: formatSyncRuns(rows) });
       }
-      if (req.method === 'POST' && req.url === '/api/sync-runs') {
+      if (req.method === 'POST' && pathname === '/api/sync-runs') {
         const body = await readJsonBody(req);
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
         const now = new Date().toISOString();
@@ -384,17 +387,17 @@ const server = http.createServer(async (req, res) => {
         });
         return sendJson(res, 200, { ok: true, message: 'Sync run saved to Supabase', item: formatSyncRuns(saved || [])[0] || null });
       }
-      if (req.method === 'GET' && req.url === '/api/organizations/me') {
+      if (req.method === 'GET' && pathname === '/api/organizations/me') {
         return sendJson(res, 200, context.organization || {});
       }
-      if (req.method === 'GET' && req.url === '/api/users/me') {
+      if (req.method === 'GET' && pathname === '/api/users/me') {
         return sendJson(res, 200, context.user || {});
       }
-      if (req.method === 'GET' && req.url === '/api/supabase-status') {
+      if (req.method === 'GET' && pathname === '/api/supabase-status') {
         const status = await probeSupabaseWithServiceRole();
         return sendJson(res, status.ok ? 200 : 502, status);
       }
-      if (req.method === 'GET' && req.url === '/api/health/session') {
+      if (req.method === 'GET' && pathname === '/api/health/session') {
         const [status, crm, syncRuns] = await Promise.all([
           probeSupabaseWithServiceRole(),
           getCrmConnectionByOrg(context.organization.id),
