@@ -119,6 +119,7 @@ async function renderDashboard() {
     const currentApprovedSales = dashboard.weeks.currentWeek.approvedSales || 0;
     const lastApprovedSales = dashboard.weeks.lastWeek.approvedSales || 0;
     const currentScheduled = dashboard.weeks.currentWeek.scheduledProduction || 0;
+    const latestSyncRun = (syncRuns.items || [])[0] || null;
     const nextThreeScheduled = (dashboard.weeks.nextWeek.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus2.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus3.scheduledProduction || 0);
@@ -162,6 +163,9 @@ async function renderDashboard() {
           <div class="card">
             <h3>Data Status</h3>
             <div class="row"><span class="label">CRM</span><strong>${crmConnection.status || 'unknown'}</strong></div>
+            <div class="row"><span class="label">Last Sync Status</span><strong>${latestSyncRun?.status || 'none yet'}</strong></div>
+            <div class="row"><span class="label">Last Sync Finished</span><strong>${latestSyncRun?.finishedAt || '—'}</strong></div>
+            <div class="row"><span class="label">Last Sync Records</span><strong>${latestSyncRun?.recordsPulled ?? 0}</strong></div>
             <div class="row"><span class="label">Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
             <div class="row"><span class="label">Overrides</span><strong>${(overrides.items || []).length}</strong></div>
             <div class="tag live">Live + manual</div>
