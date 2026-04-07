@@ -119,6 +119,10 @@ async function renderDashboard() {
     const salesYear = parseNumber(savedTargets.salesYear || 0);
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
+    const lastWeekGoalDelta = (dashboard.weeks.lastWeek.scheduledProduction || 0) - targetMetrics.weeklyGoal;
+    const lastWeekGoalLabel = lastWeekGoalDelta >= 0
+      ? `${money.format(lastWeekGoalDelta)} over goal`
+      : `${money.format(Math.abs(lastWeekGoalDelta))} below goal`;
 
     app.innerHTML = `
       <div class="layout">
@@ -179,7 +183,7 @@ async function renderDashboard() {
             <div class="week-shell ${activeWeekKey === 'lastWeek' ? 'active' : ''}" data-week="lastWeek">
               <div class="title">Last Week</div>
               <div class="range">${dashboard.weeks.lastWeek.range}</div>
-              <div class="mini-note">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales</div>
+              <div class="mini-note">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales · ${lastWeekGoalLabel}</div>
             </div>
             <div class="week-shell ${activeWeekKey === 'currentWeek' ? 'active' : ''}" data-week="currentWeek">
               <div class="title">Current Week</div>
@@ -194,7 +198,7 @@ async function renderDashboard() {
           </div>
 
           <div class="two">
-            ${panel('Current Week', `
+            ${panel('Selected Week View', `
               <div class="row"><span class="label">Range</span><strong>${activeWeek.range}</strong></div>
               <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(activeWeekScheduled)}</strong></div>
               <div class="row"><span class="label">Approved Sales</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
