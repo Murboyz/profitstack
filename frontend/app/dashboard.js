@@ -111,12 +111,7 @@ async function renderDashboard() {
       <div class="layout">
         <section class="panel">
           <h2>Onboarding Flow</h2>
-          <div class="clientbar"><strong>Current mode:</strong> prototype-style dashboard shell with live data where trusted and manual inputs where you still want control.</div>
-          <div class="stepbar">
-            <div class="step active"><strong>1. Set operating target</strong><span>manual</span></div>
-            <div class="step active"><strong>2. Review live CRM numbers</strong><span>live</span></div>
-            <div class="step active"><strong>3. Refresh + coach</strong><span>live/manual</span></div>
-          </div>
+          <div class="clientbar"><strong>Mode:</strong> set the target, refresh the live data, coach from the numbers.</div>
 
           <div class="field">
             <label for="monthlyExpenseTarget">Monthly Expense Target</label>
@@ -132,8 +127,7 @@ async function renderDashboard() {
           </div>
 
           <div class="card">
-            <h3>Data Trust</h3>
-            <p>Live data is used for scheduled production, approved sales, CRM status, sync history, and overrides. Manual inputs are only the target + rollup fields you control.</p>
+            <h3>Data Status</h3>
             <div class="row"><span class="label">CRM</span><strong>${crmConnection.status || 'unknown'}</strong></div>
             <div class="row"><span class="label">Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
             <div class="row"><span class="label">Overrides</span><strong>${(overrides.items || []).length}</strong></div>
