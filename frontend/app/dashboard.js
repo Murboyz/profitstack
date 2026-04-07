@@ -16,10 +16,15 @@ function deltaLabel(current = 0, previous = 0) {
 }
 
 function readTargets() {
+  const defaults = { profitPercentGoal: 10 };
   try {
-    return JSON.parse(localStorage.getItem(TARGETS_STORAGE_KEY) || '{}');
+    const parsed = JSON.parse(localStorage.getItem(TARGETS_STORAGE_KEY) || '{}');
+    const profitPercentGoal = Number(parsed?.profitPercentGoal || 0) === 0
+      ? 10
+      : parsed.profitPercentGoal;
+    return { ...defaults, ...parsed, profitPercentGoal };
   } catch {
-    return {};
+    return defaults;
   }
 }
 
@@ -136,7 +141,7 @@ async function renderDashboard() {
           </div>
           <div class="field">
             <label for="profitPercentGoal">Profit % Goal</label>
-            <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="20" />
+            <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="10" />
           </div>
           <div class="actions">
             <button id="saveTargetsButton" class="btn-primary" type="button">Save + Recalculate</button>
