@@ -341,6 +341,28 @@ function normalizeSnapshotPayload(snapshot) {
   throw new Error('Snapshot payload must be an array or { weeks: [...] }');
 }
 
+async function fetchSnapshotFromCrmConnection(crmConnection) {
+  const fields = crmConnection?.encrypted_credentials?.fields || {};
+  const snapshotUrl = fields.snapshotUrl || fields.exportUrl || fields.reportUrl || null;
+  if (!snapshotUrl) return null;
+
+  const method = String(fields.method || 'GET').toUpperCase();
+  const headers = typeof fields.headers === 'object' && fields.headers !== null ? fields.headers : {};
+  const body = fields.body && method !== 'GET' ? JSON.stringify(fields.body) : undefined;
+
+  const response = await fetch(snapshotUrl, {
+    method,
+    headers,
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Snapshot fetch failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
 function formatSession(context) {
   return {
     user: {
@@ -561,7 +583,9 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST' && pathname === '/api/sync-runs/execute') {
         const body = await readJsonBody(req);
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
+        const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection);
         const snapshotInput = body.snapshot
+          || fetchedSnapshot
           || crmConnection?.encrypted_credentials?.fields?.manualSnapshot
           || crmConnection?.encrypted_credentials?.fields?.snapshot
           || null;
