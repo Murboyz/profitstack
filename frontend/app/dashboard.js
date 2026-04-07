@@ -87,6 +87,17 @@ async function loadJson(path) {
   return res.json();
 }
 
+async function executeLiveSync() {
+  const res = await apiFetch('/api/sync-runs/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sourceLabel: 'dashboard refresh' }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Live sync failed with ${res.status}`);
+  return data;
+}
+
 async function renderDashboard() {
   const status = document.getElementById('status');
   const app = document.getElementById('app');
@@ -237,7 +248,16 @@ async function renderDashboard() {
     `;
 
     bindTargetInputs();
-    document.getElementById('refreshButton').addEventListener('click', renderDashboard);
+    document.getElementById('refreshButton').addEventListener('click', async () => {
+      try {
+        status.textContent = 'Running live CRM sync…';
+        const syncResult = await executeLiveSync();
+        status.textContent = syncResult.message || 'Live CRM sync complete.';
+        await renderDashboard();
+      } catch (error) {
+        status.textContent = `Live sync failed: ${error.message}`;
+      }
+    });
     document.querySelectorAll('.week-shell[data-week]').forEach((node) => {
       node.addEventListener('click', () => {
         writeActiveWeek(node.dataset.week);
