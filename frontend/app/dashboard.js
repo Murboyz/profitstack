@@ -47,13 +47,11 @@ function computeCompanySpo(approvedSales = 0, opportunityCount = 0) {
 }
 
 function collectTargetInputs() {
+  const savedTargets = readTargets();
   return {
-    monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget').value,
-    profitPercentGoal: document.getElementById('profitPercentGoal').value,
-    opportunityCount: document.getElementById('opportunityCount').value,
-    salesToday: document.getElementById('salesToday').value,
-    salesMonth: document.getElementById('salesMonth').value,
-    salesYear: document.getElementById('salesYear').value,
+    ...savedTargets,
+    monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget')?.value ?? savedTargets.monthlyExpenseTarget,
+    profitPercentGoal: document.getElementById('profitPercentGoal')?.value ?? savedTargets.profitPercentGoal,
   };
 }
 
@@ -64,7 +62,7 @@ function bindTargetInputs() {
   };
 
   document.getElementById('saveTargetsButton').addEventListener('click', save);
-  ['monthlyExpenseTarget', 'profitPercentGoal', 'opportunityCount', 'salesToday', 'salesMonth', 'salesYear']
+  ['monthlyExpenseTarget', 'profitPercentGoal']
     .forEach((id) => document.getElementById(id).addEventListener('change', save));
 }
 
@@ -181,25 +179,6 @@ async function renderDashboard() {
               <div class="row"><span class="label">Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>
               <div class="row"><span class="label">Sales This Year</span><strong>${money.format(salesYear)}</strong></div>
               <div class="tag manual">Manual + live</div>
-            `)}
-            ${panel('Manual Inputs', `
-              <div class="field">
-                <label for="opportunityCount">Opportunities This Week</label>
-                <input id="opportunityCount" value="${opportunityCount || ''}" placeholder="12" />
-              </div>
-              <div class="field">
-                <label for="salesToday">Sales Today</label>
-                <input id="salesToday" value="${salesToday || ''}" placeholder="0" />
-              </div>
-              <div class="field">
-                <label for="salesMonth">Sales This Month</label>
-                <input id="salesMonth" value="${salesMonth || ''}" placeholder="0" />
-              </div>
-              <div class="field">
-                <label for="salesYear">Sales This Year</label>
-                <input id="salesYear" value="${salesYear || ''}" placeholder="0" />
-              </div>
-              <div class="tag manual">Manual</div>
             `)}
             ${panel('Last Week Snapshot', `
               <div class="row"><span class="label">Range</span><strong>${dashboard.weeks.lastWeek.range}</strong></div>
