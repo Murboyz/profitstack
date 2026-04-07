@@ -2,6 +2,7 @@ import { apiFetch, getCurrentUserEmail, requireLogin } from './auth.js';
 import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -11,6 +12,29 @@ function deltaLabel(current = 0, previous = 0) {
   const delta = current - previous;
   if (delta === 0) return 'Flat vs last week';
   return delta > 0 ? `${money.format(delta)} above last week` : `${money.format(Math.abs(delta))} below last week`;
+}
+
+function readTargets() {
+  try {
+    return JSON.parse(localStorage.getItem(TARGETS_STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function writeTargets(targets) {
+  localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
+}
+
+function computeTargets(monthlyExpenseTarget = 0, profitPercentGoal = 0, scheduledProduction = 0) {
+  const weeklyBreakEven = monthlyExpenseTarget / 4;
+  const weeklyGoal = weeklyBreakEven * (1 + profitPercentGoal / 100);
+  const delta = scheduledProduction - weeklyGoal;
+  return {
+    weeklyBreakEven,
+    weeklyGoal,
+    paceLabel: delta >= 0 ? `${money.format(delta)} above goal` : `${money.format(Math.abs(delta))} below goal`,
+  };
 }
 
 async function loadJson(path) {
@@ -44,6 +68,10 @@ async function renderDashboard() {
     const nextThreeScheduled = (dashboard.weeks.nextWeek.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus2.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus3.scheduledProduction || 0);
+    const savedTargets = readTargets();
+    const monthlyExpenseTarget = Number(savedTargets.monthlyExpenseTarget || 0);
+    const profitPercentGoal = Number(savedTargets.profitPercentGoal || 0);
+    const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, currentScheduled);
 
     app.innerHTML = `
       ${panel('Current Week', `
@@ -74,6 +102,22 @@ async function renderDashboard() {
         <div class="row"><span>Next 3 Weeks Scheduled</span><strong>${money.format(nextThreeScheduled)}</strong></div>
         <div class="row"><span>Next Sync Count</span><strong>${(syncRuns.items || []).length} logged runs</strong></div>
       `)}
+      ${panel('Targets', `
+        <div class="input-grid">
+          <div>
+            <label for="monthlyExpenseTarget">Monthly Expense Target</label>
+            <input id="monthlyExpenseTarget" value="${monthlyExpenseTarget || ''}" placeholder="35000" />
+          </div>
+          <div>
+            <label for="profitPercentGoal">Profit % Goal</label>
+            <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="20" />
+          </div>
+        </div>
+        <div class="actions"><button id="saveTargetsButton" type="button">Save Targets</button></div>
+        <div class="row"><span>Weekly Break-Even</span><strong>${money.format(targetMetrics.weeklyBreakEven)}</strong></div>
+        <div class="row"><span>Weekly Goal</span><strong>${money.format(targetMetrics.weeklyGoal)}</strong></div>
+        <div class="row"><span>Pace vs Goal</span><strong>${targetMetrics.paceLabel}</strong></div>
+      `)}
       ${panel('Live Status', `
         <div class="row"><span>Supabase</span><strong>${health.supabase ? 'connected' : 'error'}</strong></div>
         <div class="row"><span>User Context</span><strong>${session.user.email || getCurrentUserEmail()}</strong></div>
@@ -82,6 +126,14 @@ async function renderDashboard() {
         <div class="row"><span>CRM Connection</span><strong>${crmConnection.status || 'unknown'}</strong></div>
       `)}
     `;
+
+    document.getElementById('saveTargetsButton').addEventListener('click', () => {
+      writeTargets({
+        monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget').value,
+        profitPercentGoal: document.getElementById('profitPercentGoal').value,
+      });
+      renderDashboard();
+    });
   } catch (error) {
     status.textContent = `Failed to load dashboard: ${error.message}`;
   }
