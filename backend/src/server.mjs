@@ -341,8 +341,219 @@ function normalizeSnapshotPayload(snapshot) {
   throw new Error('Snapshot payload must be an array or { weeks: [...] }');
 }
 
+function formatDateOnly(date) {
+  return toIsoDate(date);
+}
+
+function endOfUtcWeek(start) {
+  return addDays(start, 6);
+}
+
+function buildWeekBuckets(anchorDate = new Date(), count = 5) {
+  const firstWeek = startOfUtcWeek(anchorDate);
+  firstWeek.setUTCDate(firstWeek.getUTCDate() - 7);
+  return Array.from({ length: count }, (_, index) => {
+    const weekStart = new Date(firstWeek);
+    weekStart.setUTCDate(weekStart.getUTCDate() + (index * 7));
+    const weekEnd = endOfUtcWeek(weekStart);
+    return {
+      key: formatDateOnly(weekStart),
+      weekStartDate: formatDateOnly(weekStart),
+      weekEndDate: formatDateOnly(weekEnd),
+      scheduledProduction: 0,
+      approvedSales: 0,
+      completedProduction: 0,
+      opportunities: 0,
+      sourceConfidence: 'session_live_pull',
+      sourceVersion: 'housecall-pro-v1',
+    };
+  });
+}
+
+function toCurrencyNumber(rawValue) {
+  if (rawValue == null) return 0;
+  return Number(rawValue) / 100;
+}
+
+function incrementWeekMetric(weekMap, dateValue, updater) {
+  if (!dateValue) return;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return;
+  const weekKey = formatDateOnly(startOfUtcWeek(date));
+  const bucket = weekMap.get(weekKey);
+  if (!bucket) return;
+  updater(bucket);
+}
+
+async function fetchJsonWithCookie(url, sessionCookie) {
+  const response = await fetch(url, {
+    headers: {
+      Cookie: sessionCookie,
+      Accept: 'application/json, text/plain, */*',
+      Referer: 'https://pro.housecallpro.com/app/reporting',
+      Origin: 'https://pro.housecallpro.com',
+      'User-Agent': 'ProfitStack/0.1',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`HCP fetch failed (${response.status}) for ${url}`);
+  }
+  return response.json();
+}
+
+async function getBrowserCdpPages() {
+  const response = await fetch('http://127.0.0.1:18800/json/list');
+  if (!response.ok) throw new Error(`CDP list failed with ${response.status}`);
+  return response.json();
+}
+
+async function evaluateInBrowserPage(pageWsUrl, expression) {
+  const ws = new WebSocket(pageWsUrl);
+  let id = 0;
+  const pending = new Map();
+
+  ws.addEventListener('message', (event) => {
+    const message = JSON.parse(typeof event.data === 'string' ? event.data : String(event.data));
+    if (message.id && pending.has(message.id)) {
+      const current = pending.get(message.id);
+      pending.delete(message.id);
+      if (message.error) current.reject(new Error(message.error.message || JSON.stringify(message.error)));
+      else current.resolve(message.result);
+    }
+  });
+
+  await new Promise((resolve, reject) => {
+    ws.addEventListener('open', resolve, { once: true });
+    ws.addEventListener('error', (event) => reject(event.error || new Error('CDP websocket failed')), { once: true });
+  });
+
+  const send = (method, params = {}) => new Promise((resolve, reject) => {
+    pending.set(++id, { resolve, reject });
+    ws.send(JSON.stringify({ id, method, params }));
+  });
+
+  try {
+    await send('Runtime.enable');
+    const result = await send('Runtime.evaluate', {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (result.exceptionDetails) {
+      throw new Error(result.exceptionDetails.text || 'CDP evaluate failed');
+    }
+    return result.result.value;
+  } finally {
+    ws.close();
+  }
+}
+
+async function fetchHousecallProViaBrowser(rangeStartIso, rangeEndIso) {
+  const pages = await getBrowserCdpPages();
+  const page = pages.find((item) => item.type === 'page' && item.url.includes('pro.housecallpro.com/app')) || pages[0];
+  if (!page?.webSocketDebuggerUrl) {
+    throw new Error('No active browser page found for Housecall Pro');
+  }
+
+  const expression = `(async () => {
+    const rangeStart = ${JSON.stringify(rangeStartIso)};
+    const rangeEnd = ${JSON.stringify(rangeEndIso)};
+    const fetchJson = async (url) => {
+      const res = await fetch(url, { credentials: 'include' });
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+      return { ok: res.ok, status: res.status, json, text: text.slice(0, 500) };
+    };
+
+    const calendarUrl = '/api/scheduling/calendar_items/web/organization_calendar_items?start_date=' + encodeURIComponent(rangeStart) + '&end_date=' + encodeURIComponent(rangeEnd);
+    const calendar = await fetchJson(calendarUrl);
+    if (!calendar.ok) throw new Error('calendar_items ' + calendar.status + ' ' + calendar.text);
+
+    const estimates = [];
+    let page = 1;
+    let keepGoing = true;
+    while (keepGoing && page <= 12) {
+      const res = await fetchJson('/beta/estimates?page=' + page + '&page_size=200');
+      if (!res.ok) throw new Error('estimates ' + res.status + ' ' + res.text);
+      const items = (res.json && res.json.data) || [];
+      if (!items.length) break;
+      estimates.push(...items);
+      keepGoing = items.some((item) => item.created_at && item.created_at >= rangeStart);
+      page += 1;
+    }
+
+    return {
+      calendarItems: (calendar.json && calendar.json.calendar_items) || [],
+      estimates,
+    };
+  })()`;
+
+  return evaluateInBrowserPage(page.webSocketDebuggerUrl, expression);
+}
+
+async function fetchHousecallProSnapshot(crmConnection) {
+  const fields = crmConnection?.encrypted_credentials?.fields || {};
+  const sessionCookie = fields.sessionCookie;
+  if (!sessionCookie) return null;
+
+  const now = new Date();
+  const weeks = buildWeekBuckets(now, 5);
+  const weekMap = new Map(weeks.map((week) => [week.key, week]));
+  const rangeStart = new Date(`${weeks[0].weekStartDate}T00:00:00.000Z`);
+  const rangeEnd = new Date(`${weeks[weeks.length - 1].weekEndDate}T23:59:59.999Z`);
+
+  let payload;
+  try {
+    payload = await fetchHousecallProViaBrowser(rangeStart.toISOString(), rangeEnd.toISOString());
+  } catch {
+    const calendarUrl = new URL('https://pro.housecallpro.com/api/scheduling/calendar_items/web/organization_calendar_items');
+    calendarUrl.searchParams.set('start_date', rangeStart.toISOString());
+    calendarUrl.searchParams.set('end_date', rangeEnd.toISOString());
+    payload = {
+      calendarItems: (await fetchJsonWithCookie(calendarUrl.toString(), sessionCookie)).calendar_items || [],
+      estimates: [],
+    };
+  }
+
+  for (const item of payload.calendarItems || []) {
+    if (String(item.type || '').toLowerCase() !== 'job') continue;
+    incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
+      bucket.scheduledProduction += toCurrencyNumber(item.attributes?.amount);
+    });
+  }
+
+  for (const estimate of payload.estimates || []) {
+    const createdAt = estimate.created_at;
+    incrementWeekMetric(weekMap, createdAt, (bucket) => {
+      bucket.opportunities += 1;
+    });
+
+    const value = toCurrencyNumber(estimate.value || estimate.options?.[0]?.total_amount || 0);
+    const approvedLike = String(estimate.outcome || '').toLowerCase() === 'won'
+      || (estimate.options || []).some((option) => ['approved', 'scheduled'].includes(String(option.status || '').toLowerCase())
+        || ['approved', 'scheduled'].includes(String(option.customer_estimate_status || '').toLowerCase()));
+
+    if (approvedLike) {
+      incrementWeekMetric(weekMap, estimate.completed_at || estimate.scheduled_date || createdAt, (bucket) => {
+        bucket.approvedSales += value;
+      });
+    }
+  }
+
+  return {
+    provider: 'housecall_pro',
+    sourceLabel: 'housecall_pro_session_pull',
+    fetchedAt: new Date().toISOString(),
+    weeks,
+  };
+}
+
 async function fetchSnapshotFromCrmConnection(crmConnection) {
   const fields = crmConnection?.encrypted_credentials?.fields || {};
+  if (crmConnection?.provider === 'housecall_pro' && fields.sessionCookie) {
+    return fetchHousecallProSnapshot(crmConnection);
+  }
   const snapshotUrl = fields.snapshotUrl || fields.exportUrl || fields.reportUrl || null;
   if (!snapshotUrl) return null;
 
