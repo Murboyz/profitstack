@@ -5,38 +5,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ProfitStack App</title>
   <style>
-    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px; }
-    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-    .muted { color: #94a3c7; }
-    .value { font-size: 28px; font-weight: 800; }
-    .row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.06); padding: 10px 0; }
+    :root {
+      --bg: #09101d;
+      --panel: #0f1728;
+      --text: #eff4ff;
+      --muted: #94a3c7;
+      --line: rgba(255,255,255,.08);
+      --blue: #5b8cff;
+      --green: #34d399;
+      --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: linear-gradient(180deg, #08101d 0%, #0b1424 100%); color: var(--text); }
+    .wrap { max-width: 1260px; margin: 0 auto; padding: 28px; }
+    .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
+    .title h1 { margin: 0; font-size: 30px; }
+    .title p { margin: 8px 0 0; color: var(--muted); max-width: 760px; line-height: 1.5; }
+    .badge { border: 1px solid rgba(91,140,255,.35); background: rgba(91,140,255,.12); color: #d5e2ff; padding: 10px 14px; border-radius: 999px; font-size: 13px; }
+    .nav { margin: 10px 0 0; color: var(--muted); }
+    .panel { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 18px 50px rgba(0,0,0,.25); padding: 18px; margin-bottom: 16px; }
+    .layout { display: grid; grid-template-columns: 400px 1fr; gap: 20px; }
+    .card { padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); margin-bottom: 14px; }
+    .card h3, .panel h2 { margin: 0 0 8px; }
+    .card p { font-size: 13px; color: var(--muted); line-height: 1.45; margin: 0; }
+    .clientbar { margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(91,140,255,.10); border: 1px solid rgba(91,140,255,.22); color: #dbe6ff; font-size: 13px; line-height: 1.45; }
+    .stepbar { display: grid; gap: 10px; margin-bottom: 18px; }
+    .step { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    .step strong { font-size: 14px; }
+    .step span { color: var(--muted); font-size: 12px; }
+    .step.active { border-color: rgba(91,140,255,.38); background: rgba(91,140,255,.12); }
+    .field { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 13px; }
+    input { width: 100%; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    button { padding: 12px 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; cursor: pointer; font-weight: 700; }
+    .btn-primary { background: var(--blue); border-color: var(--blue); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+    .stat { padding: 18px; border-radius: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.03); }
+    .stat .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .stat .v { margin-top: 10px; font-size: 30px; font-weight: 800; }
+    .stat .note { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .stat.blue .v { color: #a9c2ff; }
+    .stat.green .v { color: #8cf0c4; }
+    .stat.yellow .v { color: #ffd666; }
+    .scoreline { margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+    .scoreline .big { font-size: 22px; font-weight: 800; }
+    .scoreline .small { color: var(--muted); font-size: 13px; }
+    .scoreline.good { border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.12); }
+    .scoreline.bad { border-color: rgba(251,191,36,.32); background: rgba(251,191,36,.12); }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .row { display: flex; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
     .row:last-child { border-bottom: 0; }
-    .session-banner-label, .session-banner-meta { color: #94a3c7; }
+    .row .label, .muted { color: var(--muted); }
+    .tag { display: inline-block; margin-top: 10px; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .tag.live { background: rgba(52,211,153,.14); color: #9df0cb; border: 1px solid rgba(52,211,153,.24); }
+    .tag.manual { background: rgba(251,191,36,.14); color: #ffe08a; border: 1px solid rgba(251,191,36,.22); }
+    .session-banner-label, .session-banner-meta { color: var(--muted); }
     .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
     .session-banner-value { font-size: 18px; font-weight: 700; }
-    .actions { margin-top: 12px; }
-    .input-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    label { display: block; margin-bottom: 6px; color: #94a3c7; }
-    input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; box-sizing: border-box; }
-    button { padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; cursor: pointer; }
     a { color: #7fb0ff; }
+    @media (max-width: 980px) {
+      .layout, .stats, .two { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="panel">
-      <h1>ProfitStack</h1>
-      <p class="muted">Generic service-business dashboard app shell.</p>
-      <p><a href="./index.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./session.html">Session</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></p>
+    <div class="topbar">
+      <div class="title">
+        <h1>ProfitStack</h1>
+        <p>The live dashboard shell is back in prototype mode: same feel, but every card is either live data or clearly manual instead of pretending.</p>
+        <div class="nav"><a href="./index.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./session.html">Session</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></div>
+      </div>
+      <div class="badge">ProfitStack · Service Business Dashboard</div>
     </div>
 
     <div class="panel" id="sessionBanner">Loading session…</div>
 
     <div class="panel">
       <div id="status" class="muted">Loading dashboard…</div>
-      <div class="actions"><button id="refreshButton" type="button">Refresh Data</button></div>
     </div>
 
     <div id="app"></div>

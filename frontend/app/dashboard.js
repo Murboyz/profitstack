@@ -84,77 +84,119 @@ async function renderDashboard() {
     const companySpo = computeCompanySpo(currentApprovedSales, opportunityCount);
 
     app.innerHTML = `
-      ${panel('Current Week', `
-        <div class="muted">${dashboard.weeks.currentWeek.range}</div>
-        <div class="grid">
-          <div><div class="muted">Scheduled Production</div><div class="value">${money.format(dashboard.weeks.currentWeek.scheduledProduction)}</div></div>
-          <div><div class="muted">Approved Sales</div><div class="value">${money.format(dashboard.weeks.currentWeek.approvedSales || 0)}</div></div>
-          <div><div class="muted">Last Sync</div><div class="value">${crmConnection.last_sync_at || crmConnection.lastSyncAt || '—'}</div></div>
-        </div>
-      `)}
-      ${panel('Last Week', `
-        <div class="row"><span>Range</span><strong>${dashboard.weeks.lastWeek.range}</strong></div>
-        <div class="row"><span>Scheduled Production</span><strong>${money.format(dashboard.weeks.lastWeek.scheduledProduction)}</strong></div>
-        <div class="row"><span>Approved Sales</span><strong>${money.format(dashboard.weeks.lastWeek.approvedSales || 0)}</strong></div>
-      `)}
-      ${panel('Next 3 Weeks', `
-        <div class="row"><span>${dashboard.weeks.nextWeek.range}</span><strong>${money.format(dashboard.weeks.nextWeek.scheduledProduction)}</strong></div>
-        <div class="row"><span>${dashboard.weeks.weekPlus2.range}</span><strong>${money.format(dashboard.weeks.weekPlus2.scheduledProduction)}</strong></div>
-        <div class="row"><span>${dashboard.weeks.weekPlus3.range}</span><strong>${money.format(dashboard.weeks.weekPlus3.scheduledProduction)}</strong></div>
-      `)}
-      ${panel('Sales Snapshot', `
-        <div class="row"><span>This Week Approved Sales</span><strong>${money.format(currentApprovedSales)}</strong></div>
-        <div class="row"><span>Last Week Approved Sales</span><strong>${money.format(lastApprovedSales)}</strong></div>
-        <div class="row"><span>Week-over-Week</span><strong>${deltaLabel(currentApprovedSales, lastApprovedSales)}</strong></div>
-      `)}
-      ${panel('Production Outlook', `
-        <div class="row"><span>This Week Scheduled</span><strong>${money.format(currentScheduled)}</strong></div>
-        <div class="row"><span>Next 3 Weeks Scheduled</span><strong>${money.format(nextThreeScheduled)}</strong></div>
-        <div class="row"><span>Next Sync Count</span><strong>${(syncRuns.items || []).length} logged runs</strong></div>
-      `)}
-      ${panel('Targets', `
-        <div class="input-grid">
-          <div>
+      <div class="layout">
+        <section class="panel">
+          <h2>Onboarding Flow</h2>
+          <div class="clientbar"><strong>Current mode:</strong> prototype-style dashboard shell with live data where trusted and manual inputs where you still want control.</div>
+          <div class="stepbar">
+            <div class="step active"><strong>1. Set operating target</strong><span>manual</span></div>
+            <div class="step active"><strong>2. Review live CRM numbers</strong><span>live</span></div>
+            <div class="step active"><strong>3. Refresh + coach</strong><span>live/manual</span></div>
+          </div>
+
+          <div class="field">
             <label for="monthlyExpenseTarget">Monthly Expense Target</label>
             <input id="monthlyExpenseTarget" value="${monthlyExpenseTarget || ''}" placeholder="35000" />
           </div>
-          <div>
+          <div class="field">
             <label for="profitPercentGoal">Profit % Goal</label>
             <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="20" />
           </div>
-          <div>
-            <label for="opportunityCount">Opportunity Count This Week</label>
+          <div class="field">
+            <label for="opportunityCount">Opportunities This Week</label>
             <input id="opportunityCount" value="${opportunityCount || ''}" placeholder="12" />
           </div>
-          <div>
+          <div class="field">
             <label for="salesToday">Sales Today</label>
             <input id="salesToday" value="${salesToday || ''}" placeholder="0" />
           </div>
-          <div>
+          <div class="field">
             <label for="salesMonth">Sales This Month</label>
             <input id="salesMonth" value="${salesMonth || ''}" placeholder="0" />
           </div>
-          <div>
+          <div class="field">
             <label for="salesYear">Sales This Year</label>
             <input id="salesYear" value="${salesYear || ''}" placeholder="0" />
           </div>
-        </div>
-        <div class="actions"><button id="saveTargetsButton" type="button">Save Targets</button></div>
-        <div class="row"><span>Weekly Break-Even</span><strong>${money.format(targetMetrics.weeklyBreakEven)}</strong></div>
-        <div class="row"><span>Weekly Goal</span><strong>${money.format(targetMetrics.weeklyGoal)}</strong></div>
-        <div class="row"><span>Pace vs Goal</span><strong>${targetMetrics.paceLabel}</strong></div>
-        <div class="row"><span>Company SPO</span><strong>${money.format(companySpo)}</strong></div>
-        <div class="row"><span>Sales Today</span><strong>${money.format(salesToday)}</strong></div>
-        <div class="row"><span>Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>
-        <div class="row"><span>Sales This Year</span><strong>${money.format(salesYear)}</strong></div>
-      `)}
-      ${panel('Live Status', `
-        <div class="row"><span>Supabase</span><strong>${health.supabase ? 'connected' : 'error'}</strong></div>
-        <div class="row"><span>User Context</span><strong>${session.user.email || getCurrentUserEmail()}</strong></div>
-        <div class="row"><span>Override Rows</span><strong>${(overrides.items || []).length}</strong></div>
-        <div class="row"><span>Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
-        <div class="row"><span>CRM Connection</span><strong>${crmConnection.status || 'unknown'}</strong></div>
-      `)}
+          <div class="actions">
+            <button id="saveTargetsButton" class="btn-primary" type="button">Save Inputs</button>
+            <button id="refreshButton" type="button">Refresh Data</button>
+          </div>
+
+          <div class="card">
+            <h3>Data Trust</h3>
+            <p>Live data is used for scheduled production, approved sales, CRM status, sync history, and overrides. Manual inputs are only the target + rollup fields you control.</p>
+            <div class="tag live">Live + manual</div>
+          </div>
+        </section>
+
+        <section>
+          <div class="stats">
+            <div class="stat blue">
+              <div class="k">Weekly Break-Even</div>
+              <div class="v">${money.format(targetMetrics.weeklyBreakEven)}</div>
+              <div class="note">Monthly expense target ÷ 4</div>
+            </div>
+            <div class="stat green">
+              <div class="k">Weekly Goal</div>
+              <div class="v">${money.format(targetMetrics.weeklyGoal)}</div>
+              <div class="note">Break-even + profit goal</div>
+            </div>
+            <div class="stat yellow">
+              <div class="k">Company SPO</div>
+              <div class="v">${money.format(companySpo)}</div>
+              <div class="note">Approved sales ÷ opportunities</div>
+            </div>
+          </div>
+
+          <div class="scoreline ${currentScheduled >= targetMetrics.weeklyGoal ? 'good' : 'bad'}">
+            <div>
+              <div class="small">Scheduled production vs weekly goal</div>
+              <div class="big">${targetMetrics.paceLabel}</div>
+            </div>
+            <div class="small">Current week · ${dashboard.weeks.currentWeek.range}</div>
+          </div>
+
+          <div class="two">
+            ${panel('Current Week', `
+              <div class="row"><span class="label">Range</span><strong>${dashboard.weeks.currentWeek.range}</strong></div>
+              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(currentScheduled)}</strong></div>
+              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(currentApprovedSales)}</strong></div>
+              <div class="row"><span class="label">Last Sync</span><strong>${crmConnection.last_sync_at || crmConnection.lastSyncAt || '—'}</strong></div>
+              <div class="tag live">Live</div>
+            `)}
+            ${panel('Sales Rollup', `
+              <div class="row"><span class="label">Sales Today</span><strong>${money.format(salesToday)}</strong></div>
+              <div class="row"><span class="label">Sales This Week</span><strong>${money.format(currentApprovedSales)}</strong></div>
+              <div class="row"><span class="label">Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>
+              <div class="row"><span class="label">Sales This Year</span><strong>${money.format(salesYear)}</strong></div>
+              <div class="tag manual">Manual + live</div>
+            `)}
+            ${panel('Last Week Snapshot', `
+              <div class="row"><span class="label">Range</span><strong>${dashboard.weeks.lastWeek.range}</strong></div>
+              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(lastApprovedSales)}</strong></div>
+              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(dashboard.weeks.lastWeek.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">Week-over-Week</span><strong>${deltaLabel(currentApprovedSales, lastApprovedSales)}</strong></div>
+              <div class="tag live">Live</div>
+            `)}
+            ${panel('Production Outlook', `
+              <div class="row"><span class="label">${dashboard.weeks.nextWeek.range}</span><strong>${money.format(dashboard.weeks.nextWeek.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">${dashboard.weeks.weekPlus2.range}</span><strong>${money.format(dashboard.weeks.weekPlus2.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">${dashboard.weeks.weekPlus3.range}</span><strong>${money.format(dashboard.weeks.weekPlus3.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">Next 3 Weeks Total</span><strong>${money.format(nextThreeScheduled)}</strong></div>
+              <div class="tag live">Live</div>
+            `)}
+            ${panel('Live Status', `
+              <div class="row"><span class="label">Supabase</span><strong>${health.supabase ? 'connected' : 'error'}</strong></div>
+              <div class="row"><span class="label">User Context</span><strong>${session.user.email || getCurrentUserEmail()}</strong></div>
+              <div class="row"><span class="label">Override Rows</span><strong>${(overrides.items || []).length}</strong></div>
+              <div class="row"><span class="label">Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
+              <div class="row"><span class="label">CRM Connection</span><strong>${crmConnection.status || 'unknown'}</strong></div>
+              <div class="tag live">Live</div>
+            `)}
+          </div>
+        </section>
+      </div>
     `;
 
     document.getElementById('saveTargetsButton').addEventListener('click', () => {
@@ -168,10 +210,10 @@ async function renderDashboard() {
       });
       renderDashboard();
     });
+    document.getElementById('refreshButton').addEventListener('click', renderDashboard);
   } catch (error) {
     status.textContent = `Failed to load dashboard: ${error.message}`;
   }
 }
 
-document.getElementById('refreshButton').addEventListener('click', renderDashboard);
 renderDashboard();
