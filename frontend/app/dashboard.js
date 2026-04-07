@@ -3,6 +3,7 @@ import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
+const ACTIVE_WEEK_STORAGE_KEY = 'profitstack_dashboard_active_week';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -24,6 +25,14 @@ function readTargets() {
 
 function writeTargets(targets) {
   localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
+}
+
+function readActiveWeek() {
+  return localStorage.getItem(ACTIVE_WEEK_STORAGE_KEY) || 'currentWeek';
+}
+
+function writeActiveWeek(value) {
+  localStorage.setItem(ACTIVE_WEEK_STORAGE_KEY, value);
 }
 
 function parseNumber(value) {
@@ -97,6 +106,10 @@ async function renderDashboard() {
     const nextThreeScheduled = (dashboard.weeks.nextWeek.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus2.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus3.scheduledProduction || 0);
+    const activeWeekKey = ['lastWeek', 'currentWeek', 'nextWeek'].includes(readActiveWeek()) ? readActiveWeek() : 'currentWeek';
+    const activeWeek = dashboard.weeks[activeWeekKey] || dashboard.weeks.currentWeek;
+    const activeWeekApprovedSales = activeWeek.approvedSales || 0;
+    const activeWeekScheduled = activeWeek.scheduledProduction || 0;
     const savedTargets = readTargets();
     const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
@@ -104,8 +117,8 @@ async function renderDashboard() {
     const salesToday = parseNumber(savedTargets.salesToday || 0);
     const salesMonth = parseNumber(savedTargets.salesMonth || 0);
     const salesYear = parseNumber(savedTargets.salesYear || 0);
-    const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, currentScheduled);
-    const companySpo = computeCompanySpo(currentApprovedSales, opportunityCount);
+    const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
+    const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
 
     app.innerHTML = `
       <div class="layout">
@@ -154,26 +167,26 @@ async function renderDashboard() {
             </div>
           </div>
 
-          <div class="scoreline ${currentScheduled >= targetMetrics.weeklyGoal ? 'good' : 'bad'}">
+          <div class="scoreline ${activeWeekScheduled >= targetMetrics.weeklyGoal ? 'good' : 'bad'}">
             <div>
               <div class="small">Scheduled production vs weekly goal</div>
               <div class="big">${targetMetrics.paceLabel}</div>
             </div>
-            <div class="small">Current week · ${dashboard.weeks.currentWeek.range}</div>
+            <div class="small">Selected week · ${activeWeek.range}</div>
           </div>
 
           <div class="week-nav">
-            <div class="week-shell">
+            <div class="week-shell ${activeWeekKey === 'lastWeek' ? 'active' : ''}" data-week="lastWeek">
               <div class="title">Last Week</div>
               <div class="range">${dashboard.weeks.lastWeek.range}</div>
               <div class="mini-note">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales</div>
             </div>
-            <div class="week-shell">
+            <div class="week-shell ${activeWeekKey === 'currentWeek' ? 'active' : ''}" data-week="currentWeek">
               <div class="title">Current Week</div>
               <div class="range">${dashboard.weeks.currentWeek.range}</div>
               <div class="mini-note">${money.format(currentScheduled)} scheduled · ${money.format(currentApprovedSales)} sales</div>
             </div>
-            <div class="week-shell">
+            <div class="week-shell ${activeWeekKey === 'nextWeek' ? 'active' : ''}" data-week="nextWeek">
               <div class="title">Next Week</div>
               <div class="range">${dashboard.weeks.nextWeek.range}</div>
               <div class="mini-note">${money.format(dashboard.weeks.nextWeek.scheduledProduction)} scheduled</div>
@@ -182,15 +195,15 @@ async function renderDashboard() {
 
           <div class="two">
             ${panel('Current Week', `
-              <div class="row"><span class="label">Range</span><strong>${dashboard.weeks.currentWeek.range}</strong></div>
-              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(currentScheduled)}</strong></div>
-              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(currentApprovedSales)}</strong></div>
+              <div class="row"><span class="label">Range</span><strong>${activeWeek.range}</strong></div>
+              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(activeWeekScheduled)}</strong></div>
+              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
               <div class="row"><span class="label">Last Sync</span><strong>${crmConnection.last_sync_at || crmConnection.lastSyncAt || '—'}</strong></div>
               <div class="tag live">Live</div>
             `)}
             ${panel('Sales Rollup', `
               <div class="row"><span class="label">Sales Today</span><strong>${money.format(salesToday)}</strong></div>
-              <div class="row"><span class="label">Sales This Week</span><strong>${money.format(currentApprovedSales)}</strong></div>
+              <div class="row"><span class="label">Sales This Week</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
               <div class="row"><span class="label">Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>
               <div class="row"><span class="label">Sales This Year</span><strong>${money.format(salesYear)}</strong></div>
               <div class="tag manual">Manual + live</div>
@@ -216,6 +229,12 @@ async function renderDashboard() {
 
     bindTargetInputs();
     document.getElementById('refreshButton').addEventListener('click', renderDashboard);
+    document.querySelectorAll('.week-shell[data-week]').forEach((node) => {
+      node.addEventListener('click', () => {
+        writeActiveWeek(node.dataset.week);
+        renderDashboard();
+      });
+    });
   } catch (error) {
     status.textContent = `Failed to load dashboard: ${error.message}`;
   }
