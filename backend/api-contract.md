@@ -133,6 +133,28 @@ Response shape:
 }
 ```
 
+### POST /api/sync-runs/execute
+Stores a raw snapshot, normalizes it into weekly metrics, writes `week_metrics`, and records a sync run.
+
+Request shape:
+```json
+{
+  "sourceLabel": "manual sync snapshot",
+  "snapshot": {
+    "weeks": [
+      {
+        "weekStartDate": "2026-03-30",
+        "weekEndDate": "2026-04-05",
+        "scheduledProduction": 29228,
+        "approvedSales": 8385.8,
+        "completedProduction": 0,
+        "opportunities": 8
+      }
+    ]
+  }
+}
+```
+
 ## Rules
 - merged dashboard response is the main frontend payload
 - frontend should not compute business-critical metrics on its own

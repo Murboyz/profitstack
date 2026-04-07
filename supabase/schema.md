@@ -47,6 +47,20 @@ create table crm_connections (
 );
 ```
 
+### crm_snapshots
+```sql
+create table crm_snapshots (
+  id uuid primary key,
+  organization_id uuid not null references organizations(id) on delete cascade,
+  crm_connection_id uuid references crm_connections(id) on delete set null,
+  provider text not null,
+  source_label text,
+  payload jsonb not null,
+  captured_by_user_id uuid references users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+```
+
 ### sync_runs
 ```sql
 create table sync_runs (
@@ -99,6 +113,7 @@ create table metric_overrides (
 ```sql
 create index idx_users_org on users(organization_id);
 create index idx_crm_connections_org on crm_connections(organization_id);
+create index idx_crm_snapshots_org_created_at on crm_snapshots(organization_id, created_at desc);
 create index idx_sync_runs_org on sync_runs(organization_id, started_at desc);
 create index idx_week_metrics_org_week on week_metrics(organization_id, week_start_date);
 create index idx_metric_overrides_org_week on metric_overrides(organization_id, week_start_date);

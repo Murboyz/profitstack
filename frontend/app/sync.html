@@ -13,8 +13,9 @@
     .session-banner-label, .session-banner-meta { color: #94a3c7; }
     .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
     .session-banner-value { font-size: 18px; font-weight: 700; }
-    label, input, select, button { display: block; width: 100%; margin-bottom: 10px; }
-    input, select, button { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    label, input, select, textarea, button { display: block; width: 100%; margin-bottom: 10px; }
+    input, select, textarea, button { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    textarea { min-height: 180px; resize: vertical; }
     a { color: #7fb0ff; }
   </style>
 </head>
@@ -25,6 +26,15 @@
       <p><a href="./index.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></p>
     </div>
     <div class="panel" id="sessionBanner">Loading session…</div>
+    <div class="panel">
+      <h2>Execute Snapshot Sync</h2>
+      <label for="sourceLabel">Source Label</label>
+      <input id="sourceLabel" value="manual sync snapshot" />
+      <label for="snapshotJson">Snapshot JSON</label>
+      <textarea id="snapshotJson" placeholder='{"weeks":[{"weekStartDate":"2026-03-30","weekEndDate":"2026-04-05","scheduledProduction":29228,"approvedSales":8385.8,"completedProduction":0,"opportunities":8}]}'></textarea>
+      <button id="executeSyncButton" type="button">Execute Sync</button>
+      <div class="muted">This writes raw snapshot + normalized week metrics + sync run history.</div>
+    </div>
     <div class="panel">
       <h2>Log Sync Run</h2>
       <form id="syncForm">

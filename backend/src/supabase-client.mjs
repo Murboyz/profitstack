@@ -114,13 +114,56 @@ export async function getUserByEmail(email) {
   return rows[0] || null;
 }
 
+export async function getUserByAuthUserId(authUserId) {
+  const rows = await supabaseRequest(`/rest/v1/users?select=*&auth_user_id=eq.${authUserId}&limit=1`);
+  return rows[0] || null;
+}
+
+export async function linkUserAuthIdentity(userId, authUserId) {
+  return supabaseRequest(`/rest/v1/users?id=eq.${userId}`, {
+    method: 'PATCH',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: {
+      auth_user_id: authUserId,
+      updated_at: new Date().toISOString(),
+    },
+  });
+}
+
 export async function getOrganizationById(id) {
   const rows = await supabaseRequest(`/rest/v1/organizations?select=*&id=eq.${id}&limit=1`);
   return rows[0] || null;
 }
 
+export async function getOrganizationSettingsByOrg(organizationId) {
+  const rows = await supabaseRequest(`/rest/v1/organization_settings?select=*&organization_id=eq.${organizationId}&limit=1`);
+  return rows[0] || null;
+}
+
+export async function upsertOrganizationSettings(payload) {
+  return supabaseRequest('/rest/v1/organization_settings?on_conflict=organization_id', {
+    method: 'POST',
+    headers: {
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: payload,
+  });
+}
+
 export async function getWeekMetricsByOrg(organizationId) {
   return supabaseRequest(`/rest/v1/week_metrics?select=*&organization_id=eq.${organizationId}&order=week_start_date.asc`);
+}
+
+export async function upsertWeekMetrics(items) {
+  return supabaseRequest('/rest/v1/week_metrics?on_conflict=organization_id,week_start_date', {
+    method: 'POST',
+    headers: {
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: items,
+  });
 }
 
 export async function getMetricOverridesByOrg(organizationId) {
@@ -164,4 +207,30 @@ export async function insertSyncRun(payload) {
     },
     body: payload,
   });
+}
+
+export async function insertCrmSnapshot(payload) {
+  return supabaseRequest('/rest/v1/crm_snapshots', {
+    method: 'POST',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: payload,
+  });
+}
+
+export async function revokeSession(accessToken) {
+  const env = getSupabaseEnv();
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/logout?scope=global`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  // 204 = success, 401 = already invalid — both are fine for logout
+  if (!res.ok && res.status !== 401) {
+    throw new Error(`Supabase logout failed: ${res.status} ${res.statusText}`);
+  }
 }

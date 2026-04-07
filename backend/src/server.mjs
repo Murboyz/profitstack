@@ -8,15 +8,22 @@ import {
   getSupabaseEnv,
   getAuthUser,
   generateMagicLink,
+  getUserByAuthUserId,
   getUserByEmail,
+  linkUserAuthIdentity,
   getOrganizationById,
+  getOrganizationSettingsByOrg,
   getWeekMetricsByOrg,
+  upsertWeekMetrics,
   getMetricOverridesByOrg,
   upsertMetricOverride,
+  upsertOrganizationSettings,
   getCrmConnectionByOrg,
   upsertCrmConnection,
   getSyncRunsByOrg,
   insertSyncRun,
+  insertCrmSnapshot,
+  revokeSession,
 } from './supabase-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -35,7 +42,7 @@ function sendJson(res, status, payload) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-User-Email',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   });
   res.end(JSON.stringify(payload, null, 2));
 }
@@ -43,6 +50,17 @@ function sendJson(res, status, payload) {
 function sendText(res, status, text, type = 'text/plain; charset=utf-8') {
   res.writeHead(status, { 'Content-Type': type });
   res.end(text);
+}
+
+function getRequestOrigin(req) {
+  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() || 'http';
+  const hostHeader = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  if (!hostHeader) {
+    const error = new Error('Missing Host header');
+    error.statusCode = 400;
+    throw error;
+  }
+  return `${proto}://${hostHeader}`;
 }
 
 async function serveStatic(req, res) {
@@ -77,24 +95,42 @@ async function readJsonBody(req) {
 
 async function resolveContext(req) {
   const authHeader = req.headers.authorization || '';
-  let email = req.headers['x-user-email'];
-
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice('Bearer '.length).trim();
-    const authUser = await getAuthUser(token);
-    email = authUser?.email || email;
-  }
-
-  if (!email) {
-    const error = new Error('Missing X-User-Email header');
+  if (!authHeader.startsWith('Bearer ')) {
+    const error = new Error('Authorization required');
     error.statusCode = 401;
     throw error;
   }
-  const user = await getUserByEmail(email);
+
+  const token = authHeader.slice('Bearer '.length).trim();
+  let authUser;
+  try {
+    authUser = await getAuthUser(token);
+  } catch {
+    const error = new Error('Invalid or expired session');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const email = authUser?.email;
+  const authUserId = authUser?.id;
+  if (!email) {
+    const error = new Error('Could not resolve identity from token');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  let user = authUserId ? await getUserByAuthUserId(authUserId) : null;
+  if (!user) {
+    user = await getUserByEmail(email);
+  }
   if (!user) {
     const error = new Error(`No user found for ${email}`);
     error.statusCode = 401;
     throw error;
+  }
+  if (authUserId && !user.auth_user_id) {
+    const linked = await linkUserAuthIdentity(user.id, authUserId);
+    user = linked?.[0] || { ...user, auth_user_id: authUserId };
   }
   const organization = await getOrganizationById(user.organization_id);
   if (!organization) {
@@ -279,6 +315,32 @@ function formatSyncRuns(items) {
   }));
 }
 
+function normalizeWeekMetricInput(item) {
+  if (!item || !item.weekStartDate || !item.weekEndDate) {
+    throw new Error('Each week metric needs weekStartDate and weekEndDate');
+  }
+  return {
+    week_start_date: item.weekStartDate,
+    week_end_date: item.weekEndDate,
+    scheduled_production: toNumberOrNull(item.scheduledProduction),
+    approved_sales: toNumberOrNull(item.approvedSales),
+    completed_production: toNumberOrNull(item.completedProduction),
+    opportunities: toIntegerOrNull(item.opportunities),
+    source_confidence: item.sourceConfidence || 'imported_snapshot',
+    source_version: item.sourceVersion || 'manual-sync-v1',
+  };
+}
+
+function normalizeSnapshotPayload(snapshot) {
+  if (Array.isArray(snapshot)) {
+    return snapshot.map(normalizeWeekMetricInput);
+  }
+  if (Array.isArray(snapshot?.weeks)) {
+    return snapshot.weeks.map(normalizeWeekMetricInput);
+  }
+  throw new Error('Snapshot payload must be an array or { weeks: [...] }');
+}
+
 function formatSession(context) {
   return {
     user: {
@@ -294,6 +356,31 @@ function formatSession(context) {
       timezone: context.organization.timezone,
       status: context.organization.status,
     },
+  };
+}
+
+function toNumberOrNull(value) {
+  if (value === '' || value == null) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function toIntegerOrNull(value) {
+  if (value === '' || value == null) return null;
+  const num = Number.parseInt(value, 10);
+  return Number.isFinite(num) ? num : null;
+}
+
+function formatOrganizationSettings(item, organizationId) {
+  return {
+    organizationId,
+    monthlyExpenseTarget: item?.monthly_expense_target == null ? null : Number(item.monthly_expense_target),
+    profitPercentGoal: item?.profit_percent_goal == null ? null : Number(item.profit_percent_goal),
+    opportunityCount: item?.opportunity_count == null ? null : Number(item.opportunity_count),
+    salesToday: item?.sales_today == null ? null : Number(item.sales_today),
+    salesMonth: item?.sales_month == null ? null : Number(item.sales_month),
+    salesYear: item?.sales_year == null ? null : Number(item.sales_year),
+    updatedAt: item?.updated_at || null,
   };
 }
 
@@ -329,12 +416,36 @@ const server = http.createServer(async (req, res) => {
 
       if (req.method === 'POST' && pathname === '/api/auth/magic-link') {
         const body = await readJsonBody(req);
-        const redirectTo = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/login.html`;
-        const link = await generateMagicLink(body.email, redirectTo);
+        const email = String(body.email || '').trim().toLowerCase();
+        if (!email) {
+          return sendJson(res, 400, { error: 'Email is required' });
+        }
+
+        const approvedUser = await getUserByEmail(email);
+        if (!approvedUser) {
+          return sendJson(res, 404, { error: 'No approved user found for that email' });
+        }
+
+        const redirectTo = `${getRequestOrigin(req)}`;
+        const link = await generateMagicLink(email, redirectTo);
         return sendJson(res, 200, {
           ok: true,
           actionLink: link.action_link,
+          redirectTo,
         });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/auth/logout') {
+        const authHeader = req.headers.authorization || '';
+        if (authHeader.startsWith('Bearer ')) {
+          const token = authHeader.slice('Bearer '.length).trim();
+          try {
+            await revokeSession(token);
+          } catch {
+            // best-effort; return success so the client clears state regardless
+          }
+        }
+        return sendJson(res, 200, { ok: true });
       }
 
       const context = await resolveContext(req);
@@ -343,16 +454,47 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, formatSession(context));
       }
       if (req.method === 'GET' && pathname === '/api/dashboard') {
-        const crmConnection = await getCrmConnectionByOrg(context.organization.id);
-        const weekMetrics = await getWeekMetricsByOrg(context.organization.id);
-        const overrides = await getMetricOverridesByOrg(context.organization.id);
+        const [crmConnection, weekMetrics, overrides, organizationSettings] = await Promise.all([
+          getCrmConnectionByOrg(context.organization.id),
+          getWeekMetricsByOrg(context.organization.id),
+          getMetricOverridesByOrg(context.organization.id),
+          getOrganizationSettingsByOrg(context.organization.id),
+        ]);
         const liveWeeks = buildWeeksFromMetrics(weekMetrics);
         const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
         return sendJson(res, 200, {
           organization: formatSession(context).organization,
+          settings: formatOrganizationSettings(organizationSettings, context.organization.id),
           crmConnection: formatDashboardCrmConnection(crmConnection),
           weeks: mergedWeeks,
           overridesApplied: summarizeOverridesByWeek(mergedWeeks, overrides),
+        });
+      }
+      if (req.method === 'GET' && pathname === '/api/account') {
+        const settings = await getOrganizationSettingsByOrg(context.organization.id);
+        return sendJson(res, 200, {
+          organization: formatSession(context).organization,
+          user: formatSession(context).user,
+          settings: formatOrganizationSettings(settings, context.organization.id),
+        });
+      }
+      if (req.method === 'POST' && pathname === '/api/account') {
+        const body = await readJsonBody(req);
+        const saved = await upsertOrganizationSettings({
+          organization_id: context.organization.id,
+          monthly_expense_target: toNumberOrNull(body.monthlyExpenseTarget),
+          profit_percent_goal: toNumberOrNull(body.profitPercentGoal),
+          opportunity_count: toIntegerOrNull(body.opportunityCount),
+          sales_today: toNumberOrNull(body.salesToday),
+          sales_month: toNumberOrNull(body.salesMonth),
+          sales_year: toNumberOrNull(body.salesYear),
+          updated_by_user_id: context.user?.id || null,
+          updated_at: new Date().toISOString(),
+        });
+        return sendJson(res, 200, {
+          ok: true,
+          message: 'Organization settings saved',
+          settings: formatOrganizationSettings(saved?.[0] || null, context.organization.id),
         });
       }
       if (req.method === 'GET' && pathname === '/api/crm-connection') {
@@ -415,6 +557,79 @@ const server = http.createServer(async (req, res) => {
           raw_snapshot_path: body.rawSnapshotPath || null,
         });
         return sendJson(res, 200, { ok: true, message: 'Sync run saved to Supabase', item: formatSyncRuns(saved || [])[0] || null });
+      }
+      if (req.method === 'POST' && pathname === '/api/sync-runs/execute') {
+        const body = await readJsonBody(req);
+        const crmConnection = await getCrmConnectionByOrg(context.organization.id);
+        const snapshotInput = body.snapshot
+          || crmConnection?.encrypted_credentials?.fields?.manualSnapshot
+          || crmConnection?.encrypted_credentials?.fields?.snapshot
+          || null;
+
+        if (!snapshotInput) {
+          return sendJson(res, 400, { error: 'No snapshot payload found to sync' });
+        }
+
+        const normalizedWeeks = normalizeSnapshotPayload(snapshotInput);
+        const snapshotRow = await insertCrmSnapshot({
+          id: crypto.randomUUID(),
+          organization_id: context.organization.id,
+          crm_connection_id: crmConnection?.id || null,
+          provider: crmConnection?.provider || body.provider || 'manual_import',
+          source_label: body.sourceLabel || 'manual sync snapshot',
+          payload: snapshotInput,
+          captured_by_user_id: context.user?.id || null,
+        });
+
+        const persistedMetrics = await upsertWeekMetrics(
+          normalizedWeeks.map((item) => ({
+            id: crypto.randomUUID(),
+            organization_id: context.organization.id,
+            week_start_date: item.week_start_date,
+            week_end_date: item.week_end_date,
+            scheduled_production: item.scheduled_production,
+            approved_sales: item.approved_sales,
+            completed_production: item.completed_production,
+            opportunities: item.opportunities,
+            source_confidence: item.source_confidence,
+            source_version: item.source_version,
+            updated_at: new Date().toISOString(),
+          }))
+        );
+
+        const finishedAt = new Date().toISOString();
+        const syncRun = await insertSyncRun({
+          id: crypto.randomUUID(),
+          organization_id: context.organization.id,
+          crm_connection_id: crmConnection?.id || null,
+          started_at: body.startedAt || finishedAt,
+          finished_at: finishedAt,
+          status: 'success',
+          records_pulled: normalizedWeeks.length,
+          error_message: null,
+          raw_snapshot_path: `crm_snapshots:${snapshotRow?.[0]?.id || 'unknown'}`,
+        });
+
+        if (crmConnection?.id) {
+          await upsertCrmConnection({
+            id: crmConnection.id,
+            organization_id: context.organization.id,
+            provider: crmConnection.provider,
+            status: 'connected',
+            auth_type: crmConnection.auth_type,
+            encrypted_credentials: crmConnection.encrypted_credentials,
+            last_sync_at: finishedAt,
+            last_error: null,
+          });
+        }
+
+        return sendJson(res, 200, {
+          ok: true,
+          message: `Synced ${normalizedWeeks.length} week records`,
+          syncRun: formatSyncRuns(syncRun || [])[0] || null,
+          snapshotId: snapshotRow?.[0]?.id || null,
+          metricsWritten: persistedMetrics?.length || 0,
+        });
       }
       if (req.method === 'GET' && pathname === '/api/organizations/me') {
         return sendJson(res, 200, context.organization || {});

@@ -26,6 +26,28 @@ async function main() {
   try {
     await renderSessionBanner();
     await loadSyncRuns();
+    document.getElementById('executeSyncButton').addEventListener('click', async () => {
+      try {
+        let snapshot = null;
+        const raw = document.getElementById('snapshotJson').value.trim();
+        if (raw) {
+          snapshot = JSON.parse(raw);
+        }
+        const res = await apiFetch('/api/sync-runs/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceLabel: document.getElementById('sourceLabel').value.trim() || 'manual sync snapshot',
+            snapshot,
+          }),
+        });
+        const data = await res.json();
+        result.textContent = data.message || 'Sync executed.';
+        await loadSyncRuns();
+      } catch (error) {
+        result.textContent = `Sync execute failed: ${error.message}`;
+      }
+    });
     document.getElementById('syncForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload = {
