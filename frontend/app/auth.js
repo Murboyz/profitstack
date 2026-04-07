@@ -4,6 +4,29 @@ const API_BASE = getApiBase();
 const STORAGE_KEY = 'profitstack_user_email';
 const TOKEN_STORAGE_KEY = 'profitstack_access_token';
 
+function decodeJwtPayload(token) {
+  try {
+    const payload = token.split('.')[1];
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(normalized));
+  } catch {
+    return null;
+  }
+}
+
+function consumeAuthHash() {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const accessToken = hash.get('access_token');
+  if (!accessToken) return;
+
+  const payload = decodeJwtPayload(accessToken);
+  setAccessToken(accessToken);
+  if (payload?.email) setCurrentUserEmail(payload.email);
+  window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}`);
+}
+
+consumeAuthHash();
+
 function redirect(path, reason) {
   const url = new URL(path, window.location.href);
   if (reason) url.searchParams.set('reason', reason);
