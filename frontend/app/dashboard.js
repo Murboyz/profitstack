@@ -180,10 +180,10 @@ async function renderDashboard() {
           </div>
 
           <div class="week-nav">
-            <div class="week-shell ${activeWeekKey === 'lastWeek' ? 'active' : ''}" data-week="lastWeek">
+            <div class="week-shell ${activeWeekKey === 'lastWeek' ? 'active' : ''} ${lastWeekGoalDelta >= 0 ? 'good' : 'bad'}" data-week="lastWeek">
               <div class="title">Last Week</div>
               <div class="range">${dashboard.weeks.lastWeek.range}</div>
-              <div class="mini-note ${lastWeekGoalDelta >= 0 ? 'good' : 'bad'}">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales · ${lastWeekGoalLabel}</div>
+              <div class="mini-note">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales · ${lastWeekGoalLabel}</div>
             </div>
             <div class="week-shell ${activeWeekKey === 'currentWeek' ? 'active' : ''}" data-week="currentWeek">
               <div class="title">Current Week</div>
