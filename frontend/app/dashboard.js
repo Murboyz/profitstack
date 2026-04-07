@@ -42,6 +42,28 @@ function computeCompanySpo(approvedSales = 0, opportunityCount = 0) {
   return approvedSales / opportunityCount;
 }
 
+function collectTargetInputs() {
+  return {
+    monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget').value,
+    profitPercentGoal: document.getElementById('profitPercentGoal').value,
+    opportunityCount: document.getElementById('opportunityCount').value,
+    salesToday: document.getElementById('salesToday').value,
+    salesMonth: document.getElementById('salesMonth').value,
+    salesYear: document.getElementById('salesYear').value,
+  };
+}
+
+function bindTargetInputs() {
+  const save = () => {
+    writeTargets(collectTargetInputs());
+    renderDashboard();
+  };
+
+  document.getElementById('saveTargetsButton').addEventListener('click', save);
+  ['monthlyExpenseTarget', 'profitPercentGoal', 'opportunityCount', 'salesToday', 'salesMonth', 'salesYear']
+    .forEach((id) => document.getElementById(id).addEventListener('change', save));
+}
+
 async function loadJson(path) {
   const separator = path.includes('?') ? '&' : '?';
   const res = await apiFetch(`${path}${separator}t=${Date.now()}`);
@@ -119,7 +141,7 @@ async function renderDashboard() {
             <input id="salesYear" value="${salesYear || ''}" placeholder="0" />
           </div>
           <div class="actions">
-            <button id="saveTargetsButton" class="btn-primary" type="button">Save Inputs</button>
+            <button id="saveTargetsButton" class="btn-primary" type="button">Save + Recalculate</button>
             <button id="refreshButton" type="button">Refresh Data</button>
           </div>
 
@@ -199,17 +221,7 @@ async function renderDashboard() {
       </div>
     `;
 
-    document.getElementById('saveTargetsButton').addEventListener('click', () => {
-      writeTargets({
-        monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget').value,
-        profitPercentGoal: document.getElementById('profitPercentGoal').value,
-        opportunityCount: document.getElementById('opportunityCount').value,
-        salesToday: document.getElementById('salesToday').value,
-        salesMonth: document.getElementById('salesMonth').value,
-        salesYear: document.getElementById('salesYear').value,
-      });
-      renderDashboard();
-    });
+    bindTargetInputs();
     document.getElementById('refreshButton').addEventListener('click', renderDashboard);
   } catch (error) {
     status.textContent = `Failed to load dashboard: ${error.message}`;
