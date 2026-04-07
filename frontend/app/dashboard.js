@@ -37,6 +37,11 @@ function computeTargets(monthlyExpenseTarget = 0, profitPercentGoal = 0, schedul
   };
 }
 
+function computeCompanySpo(approvedSales = 0, opportunityCount = 0) {
+  if (!opportunityCount) return 0;
+  return approvedSales / opportunityCount;
+}
+
 async function loadJson(path) {
   const separator = path.includes('?') ? '&' : '?';
   const res = await apiFetch(`${path}${separator}t=${Date.now()}`);
@@ -71,7 +76,9 @@ async function renderDashboard() {
     const savedTargets = readTargets();
     const monthlyExpenseTarget = Number(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = Number(savedTargets.profitPercentGoal || 0);
+    const opportunityCount = Number(savedTargets.opportunityCount || 0);
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, currentScheduled);
+    const companySpo = computeCompanySpo(currentApprovedSales, opportunityCount);
 
     app.innerHTML = `
       ${panel('Current Week', `
@@ -112,11 +119,16 @@ async function renderDashboard() {
             <label for="profitPercentGoal">Profit % Goal</label>
             <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="20" />
           </div>
+          <div>
+            <label for="opportunityCount">Opportunity Count This Week</label>
+            <input id="opportunityCount" value="${opportunityCount || ''}" placeholder="12" />
+          </div>
         </div>
         <div class="actions"><button id="saveTargetsButton" type="button">Save Targets</button></div>
         <div class="row"><span>Weekly Break-Even</span><strong>${money.format(targetMetrics.weeklyBreakEven)}</strong></div>
         <div class="row"><span>Weekly Goal</span><strong>${money.format(targetMetrics.weeklyGoal)}</strong></div>
         <div class="row"><span>Pace vs Goal</span><strong>${targetMetrics.paceLabel}</strong></div>
+        <div class="row"><span>Company SPO</span><strong>${money.format(companySpo)}</strong></div>
       `)}
       ${panel('Live Status', `
         <div class="row"><span>Supabase</span><strong>${health.supabase ? 'connected' : 'error'}</strong></div>
@@ -131,6 +143,7 @@ async function renderDashboard() {
       writeTargets({
         monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget').value,
         profitPercentGoal: document.getElementById('profitPercentGoal').value,
+        opportunityCount: document.getElementById('opportunityCount').value,
       });
       renderDashboard();
     });
