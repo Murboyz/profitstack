@@ -53,12 +53,16 @@
     .scoreline .small { color: var(--muted); font-size: 13px; }
     .scoreline.good { border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.12); }
     .scoreline.bad { border-color: rgba(251,191,36,.32); background: rgba(251,191,36,.12); }
+    .scoreline.good .big { color: #8cf0c4; }
+    .scoreline.bad .big { color: #ff9aac; }
     .week-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
     .week-shell { padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); cursor: pointer; }
     .week-shell.active { border-color: rgba(91,140,255,.38); background: rgba(91,140,255,.12); }
     .week-shell .title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
     .week-shell .range { margin-top: 6px; font-size: 18px; font-weight: 800; }
     .week-shell .mini-note { margin-top: 10px; color: var(--muted); font-size: 13px; }
+    .week-shell .mini-note.good { color: #8cf0c4; }
+    .week-shell .mini-note.bad { color: #ff9aac; }
     .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     .row { display: flex; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
     .row:last-child { border-bottom: 0; }
