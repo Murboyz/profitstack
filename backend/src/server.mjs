@@ -5,6 +5,8 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
   probeSupabaseWithServiceRole,
+  getSupabaseEnv,
+  getAuthUser,
   getUserByEmail,
   getOrganizationById,
   getWeekMetricsByOrg,
@@ -73,7 +75,15 @@ async function readJsonBody(req) {
 }
 
 async function resolveContext(req) {
-  const email = req.headers['x-user-email'];
+  const authHeader = req.headers.authorization || '';
+  let email = req.headers['x-user-email'];
+
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice('Bearer '.length).trim();
+    const authUser = await getAuthUser(token);
+    email = authUser?.email || email;
+  }
+
   if (!email) {
     const error = new Error('Missing X-User-Email header');
     error.statusCode = 401;
@@ -305,6 +315,14 @@ const server = http.createServer(async (req, res) => {
           supabase: status.ok,
           app: 'profitstack',
           authRequired: false,
+        });
+      }
+
+      if (req.method === 'GET' && pathname === '/api/frontend-config') {
+        const env = getSupabaseEnv();
+        return sendJson(res, 200, {
+          supabaseUrl: env.SUPABASE_URL,
+          supabaseAnonKey: env.SUPABASE_ANON_KEY,
         });
       }
 

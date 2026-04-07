@@ -31,6 +31,22 @@ export function getSupabaseEnv() {
   };
 }
 
+export async function getAuthUser(accessToken) {
+  const env = getSupabaseEnv();
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase auth user lookup failed: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
 async function supabaseRequest(pathname, { method = 'GET', body, headers = {} } = {}) {
   const env = getSupabaseEnv();
   const res = await fetch(`${env.SUPABASE_URL}${pathname}`, {

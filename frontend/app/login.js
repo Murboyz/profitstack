@@ -1,4 +1,4 @@
-import { setCurrentUserEmail, getCurrentUserEmail, clearCurrentUserEmail, apiFetch } from './auth.js';
+import { setCurrentUserEmail, getCurrentUserEmail, clearCurrentUserEmail, setAccessToken } from './auth.js';
 
 const reasonMessages = {
   'missing-session': 'Sign in to continue.',
@@ -11,29 +11,65 @@ if (reason) {
   document.getElementById('result').textContent = reasonMessages[reason] || 'Sign in to continue.';
 }
 
+async function getFrontendConfig() {
+  const res = await fetch('/api/frontend-config');
+  if (!res.ok) throw new Error(`Frontend config failed with ${res.status}`);
+  return res.json();
+}
+
+async function completeMagicLinkLogin() {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const accessToken = hash.get('access_token');
+  if (!accessToken) return;
+
+  const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!userRes.ok) throw new Error(`Magic link session failed with ${userRes.status}`);
+  const user = await userRes.json();
+  setAccessToken(accessToken);
+  setCurrentUserEmail(user.email);
+  window.history.replaceState({}, '', './login.html');
+  window.location.href = './index.html';
+}
+
+completeMagicLinkLogin().catch((error) => {
+  document.getElementById('result').textContent = `Magic link failed: ${error.message}`;
+});
+
 const existing = getCurrentUserEmail();
 if (existing) {
   document.getElementById('email').value = existing;
 }
 
-document.getElementById('preset').addEventListener('change', (event) => {
-  if (event.target.value !== 'custom') {
-    document.getElementById('email').value = event.target.value;
-  }
-});
-
 document.getElementById('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = document.getElementById('email').value.trim();
   const result = document.getElementById('result');
-  setCurrentUserEmail(email);
 
   try {
-    const res = await apiFetch('/api/session');
-    if (!res.ok) throw new Error(`Login failed with ${res.status}`);
-    const session = await res.json();
-    result.textContent = `Signed in as ${session.user.email} · ${session.organization.name}`;
-    window.location.href = './index.html';
+    const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+    const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login.html`,
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`Magic link send failed with ${res.status}`);
+    clearCurrentUserEmail();
+    result.textContent = `Magic link sent to ${email}. Open that email and click the link to finish login.`;
   } catch (error) {
     clearCurrentUserEmail();
     result.textContent = `Login failed: ${error.message}`;

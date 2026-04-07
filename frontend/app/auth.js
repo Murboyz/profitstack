@@ -2,6 +2,7 @@ import { getApiBase } from './config.js';
 
 const API_BASE = getApiBase();
 const STORAGE_KEY = 'profitstack_user_email';
+const TOKEN_STORAGE_KEY = 'profitstack_access_token';
 
 function redirect(path, reason) {
   const url = new URL(path, window.location.href);
@@ -17,12 +18,21 @@ export function setCurrentUserEmail(email) {
   localStorage.setItem(STORAGE_KEY, email);
 }
 
+export function getAccessToken() {
+  return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+}
+
+export function setAccessToken(token) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
 export function clearCurrentUserEmail() {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
 export function requireLogin() {
-  if (!getCurrentUserEmail()) {
+  if (!getCurrentUserEmail() && !getAccessToken()) {
     redirect('./login.html', 'missing-session');
     throw new Error('Login required');
   }
@@ -38,9 +48,11 @@ export function redirectToUnauthorized(reason = 'unauthorized') {
 
 export async function apiFetch(path, options = {}) {
   const email = getCurrentUserEmail();
+  const accessToken = getAccessToken();
   const headers = {
     ...(options.headers || {}),
-    'X-User-Email': email,
+    ...(email ? { 'X-User-Email': email } : {}),
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (response.status === 401) {
