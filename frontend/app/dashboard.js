@@ -162,6 +162,24 @@ async function renderDashboard() {
             <div class="small">Current week · ${dashboard.weeks.currentWeek.range}</div>
           </div>
 
+          <div class="week-nav">
+            <div class="week-shell">
+              <div class="title">Last Week</div>
+              <div class="range">${dashboard.weeks.lastWeek.range}</div>
+              <div class="mini-note">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales</div>
+            </div>
+            <div class="week-shell">
+              <div class="title">Current Week</div>
+              <div class="range">${dashboard.weeks.currentWeek.range}</div>
+              <div class="mini-note">${money.format(currentScheduled)} scheduled · ${money.format(currentApprovedSales)} sales</div>
+            </div>
+            <div class="week-shell">
+              <div class="title">Next Week</div>
+              <div class="range">${dashboard.weeks.nextWeek.range}</div>
+              <div class="mini-note">${money.format(dashboard.weeks.nextWeek.scheduledProduction)} scheduled</div>
+            </div>
+          </div>
+
           <div class="two">
             ${panel('Current Week', `
               <div class="row"><span class="label">Range</span><strong>${dashboard.weeks.currentWeek.range}</strong></div>
