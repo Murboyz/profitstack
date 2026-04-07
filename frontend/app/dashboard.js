@@ -26,6 +26,10 @@ function writeTargets(targets) {
   localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
 }
 
+function parseNumber(value) {
+  return Number(String(value ?? '').replace(/[^0-9.]/g, '')) || 0;
+}
+
 function computeTargets(monthlyExpenseTarget = 0, profitPercentGoal = 0, scheduledProduction = 0) {
   const weeklyBreakEven = monthlyExpenseTarget / 4;
   const weeklyGoal = weeklyBreakEven * (1 + profitPercentGoal / 100);
@@ -96,12 +100,12 @@ async function renderDashboard() {
       + (dashboard.weeks.weekPlus2.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus3.scheduledProduction || 0);
     const savedTargets = readTargets();
-    const monthlyExpenseTarget = Number(savedTargets.monthlyExpenseTarget || 0);
-    const profitPercentGoal = Number(savedTargets.profitPercentGoal || 0);
-    const opportunityCount = Number(savedTargets.opportunityCount || 0);
-    const salesToday = Number(savedTargets.salesToday || 0);
-    const salesMonth = Number(savedTargets.salesMonth || 0);
-    const salesYear = Number(savedTargets.salesYear || 0);
+    const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
+    const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
+    const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
+    const salesToday = parseNumber(savedTargets.salesToday || 0);
+    const salesMonth = parseNumber(savedTargets.salesMonth || 0);
+    const salesYear = parseNumber(savedTargets.salesYear || 0);
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, currentScheduled);
     const companySpo = computeCompanySpo(currentApprovedSales, opportunityCount);
 
