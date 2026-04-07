@@ -7,6 +7,7 @@ import {
   probeSupabaseWithServiceRole,
   getSupabaseEnv,
   getAuthUser,
+  generateMagicLink,
   getUserByEmail,
   getOrganizationById,
   getWeekMetricsByOrg,
@@ -323,6 +324,16 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, {
           supabaseUrl: env.SUPABASE_URL,
           supabaseAnonKey: env.SUPABASE_ANON_KEY,
+        });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/auth/magic-link') {
+        const body = await readJsonBody(req);
+        const redirectTo = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/login.html`;
+        const link = await generateMagicLink(body.email, redirectTo);
+        return sendJson(res, 200, {
+          ok: true,
+          actionLink: link.action_link,
         });
       }
 

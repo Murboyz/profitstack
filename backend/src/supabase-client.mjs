@@ -47,6 +47,31 @@ export async function getAuthUser(accessToken) {
   return res.json();
 }
 
+export async function generateMagicLink(email, redirectTo) {
+  const env = getSupabaseEnv();
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/generate_link`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'magiclink',
+      email,
+      options: {
+        redirect_to: redirectTo,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase magic link generation failed: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
 async function supabaseRequest(pathname, { method = 'GET', body, headers = {} } = {}) {
   const env = getSupabaseEnv();
   const res = await fetch(`${env.SUPABASE_URL}${pathname}`, {

@@ -53,23 +53,18 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
   const result = document.getElementById('result');
 
   try {
-    const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
-    const res = await fetch(`${supabaseUrl}/auth/v1/otp`, {
+    const res = await fetch('/api/auth/magic-link', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        apikey: supabaseAnonKey,
       },
-      body: JSON.stringify({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login.html`,
-        },
-      }),
+      body: JSON.stringify({ email }),
     });
     if (!res.ok) throw new Error(`Magic link send failed with ${res.status}`);
+    const data = await res.json();
     clearCurrentUserEmail();
-    result.textContent = `Magic link sent to ${email}. Open that email and click the link to finish login.`;
+    result.textContent = `Redirecting you into ProfitStack…`;
+    window.location.href = data.actionLink;
   } catch (error) {
     clearCurrentUserEmail();
     result.textContent = `Login failed: ${error.message}`;
