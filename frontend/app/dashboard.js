@@ -134,6 +134,9 @@ async function renderDashboard() {
           <div class="card">
             <h3>Data Trust</h3>
             <p>Live data is used for scheduled production, approved sales, CRM status, sync history, and overrides. Manual inputs are only the target + rollup fields you control.</p>
+            <div class="row"><span class="label">CRM</span><strong>${crmConnection.status || 'unknown'}</strong></div>
+            <div class="row"><span class="label">Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
+            <div class="row"><span class="label">Overrides</span><strong>${(overrides.items || []).length}</strong></div>
             <div class="tag live">Live + manual</div>
           </div>
         </section>
@@ -192,14 +195,6 @@ async function renderDashboard() {
               <div class="row"><span class="label">${dashboard.weeks.weekPlus2.range}</span><strong>${money.format(dashboard.weeks.weekPlus2.scheduledProduction)}</strong></div>
               <div class="row"><span class="label">${dashboard.weeks.weekPlus3.range}</span><strong>${money.format(dashboard.weeks.weekPlus3.scheduledProduction)}</strong></div>
               <div class="row"><span class="label">Next 3 Weeks Total</span><strong>${money.format(nextThreeScheduled)}</strong></div>
-              <div class="tag live">Live</div>
-            `)}
-            ${panel('Live Status', `
-              <div class="row"><span class="label">Supabase</span><strong>${health.supabase ? 'connected' : 'error'}</strong></div>
-              <div class="row"><span class="label">User Context</span><strong>${session.user.email || getCurrentUserEmail()}</strong></div>
-              <div class="row"><span class="label">Override Rows</span><strong>${(overrides.items || []).length}</strong></div>
-              <div class="row"><span class="label">Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
-              <div class="row"><span class="label">CRM Connection</span><strong>${crmConnection.status || 'unknown'}</strong></div>
               <div class="tag live">Live</div>
             `)}
           </div>
