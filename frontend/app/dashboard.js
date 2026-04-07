@@ -77,6 +77,9 @@ async function renderDashboard() {
     const monthlyExpenseTarget = Number(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = Number(savedTargets.profitPercentGoal || 0);
     const opportunityCount = Number(savedTargets.opportunityCount || 0);
+    const salesToday = Number(savedTargets.salesToday || 0);
+    const salesMonth = Number(savedTargets.salesMonth || 0);
+    const salesYear = Number(savedTargets.salesYear || 0);
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, currentScheduled);
     const companySpo = computeCompanySpo(currentApprovedSales, opportunityCount);
 
@@ -123,12 +126,27 @@ async function renderDashboard() {
             <label for="opportunityCount">Opportunity Count This Week</label>
             <input id="opportunityCount" value="${opportunityCount || ''}" placeholder="12" />
           </div>
+          <div>
+            <label for="salesToday">Sales Today</label>
+            <input id="salesToday" value="${salesToday || ''}" placeholder="0" />
+          </div>
+          <div>
+            <label for="salesMonth">Sales This Month</label>
+            <input id="salesMonth" value="${salesMonth || ''}" placeholder="0" />
+          </div>
+          <div>
+            <label for="salesYear">Sales This Year</label>
+            <input id="salesYear" value="${salesYear || ''}" placeholder="0" />
+          </div>
         </div>
         <div class="actions"><button id="saveTargetsButton" type="button">Save Targets</button></div>
         <div class="row"><span>Weekly Break-Even</span><strong>${money.format(targetMetrics.weeklyBreakEven)}</strong></div>
         <div class="row"><span>Weekly Goal</span><strong>${money.format(targetMetrics.weeklyGoal)}</strong></div>
         <div class="row"><span>Pace vs Goal</span><strong>${targetMetrics.paceLabel}</strong></div>
         <div class="row"><span>Company SPO</span><strong>${money.format(companySpo)}</strong></div>
+        <div class="row"><span>Sales Today</span><strong>${money.format(salesToday)}</strong></div>
+        <div class="row"><span>Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>
+        <div class="row"><span>Sales This Year</span><strong>${money.format(salesYear)}</strong></div>
       `)}
       ${panel('Live Status', `
         <div class="row"><span>Supabase</span><strong>${health.supabase ? 'connected' : 'error'}</strong></div>
@@ -144,6 +162,9 @@ async function renderDashboard() {
         monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget').value,
         profitPercentGoal: document.getElementById('profitPercentGoal').value,
         opportunityCount: document.getElementById('opportunityCount').value,
+        salesToday: document.getElementById('salesToday').value,
+        salesMonth: document.getElementById('salesMonth').value,
+        salesYear: document.getElementById('salesYear').value,
       });
       renderDashboard();
     });
