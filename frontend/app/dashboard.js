@@ -166,6 +166,7 @@ async function renderDashboard() {
             <div class="row"><span class="label">Last Sync Status</span><strong>${latestSyncRun?.status || 'none yet'}</strong></div>
             <div class="row"><span class="label">Last Sync Finished</span><strong>${latestSyncRun?.finishedAt || '—'}</strong></div>
             <div class="row"><span class="label">Last Sync Records</span><strong>${latestSyncRun?.recordsPulled ?? 0}</strong></div>
+            <div class="row"><span class="label">Last Sync Error</span><strong>${latestSyncRun?.errorMessage || crmConnection.lastError || 'none'}</strong></div>
             <div class="row"><span class="label">Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
             <div class="row"><span class="label">Overrides</span><strong>${(overrides.items || []).length}</strong></div>
             <div class="tag live">Live + manual</div>
