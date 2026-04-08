@@ -185,7 +185,7 @@ async function renderDashboard() {
     const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
-    const salesToday = parseNumber(savedTargets.salesToday || 0);
+    const salesToday = parseNumber(dashboard.settings?.salesToday ?? savedTargets.salesToday ?? 0);
     const salesMonth = parseNumber(savedTargets.salesMonth || 0);
     const salesYear = parseNumber(savedTargets.salesYear || 0);
     const previousWeekHistory = (dashboard.weekHistory || [])

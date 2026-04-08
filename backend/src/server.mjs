@@ -547,6 +547,7 @@ async function fetchHousecallProSnapshot(crmConnection) {
   const now = new Date();
   const weeks = buildWeekBuckets(now, 5);
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
+  const todayDate = formatDateOnly(now);
   const rangeStart = new Date(`${weeks[0].weekStartDate}T00:00:00.000Z`);
   const rangeEnd = new Date(`${weeks[weeks.length - 1].weekEndDate}T23:59:59.999Z`);
 
@@ -677,6 +678,7 @@ async function fetchHousecallProSnapshot(crmConnection) {
     }
   }
 
+  let salesToday = 0;
   const jobCreatedApprovedSales = new Map();
   for (const job of payload.jobDetails || []) {
     const totalAmount = toCurrencyNumber(job.total_amount || 0);
@@ -684,6 +686,9 @@ async function fetchHousecallProSnapshot(crmConnection) {
     incrementWeekMetric(weekMap, job.created_at, (bucket) => {
       jobCreatedApprovedSales.set(bucket.key, (jobCreatedApprovedSales.get(bucket.key) || 0) + totalAmount);
     });
+    if (formatDateOnly(new Date(job.created_at)) === todayDate) {
+      salesToday += totalAmount;
+    }
   }
 
   for (const bucket of weekMap.values()) {
@@ -697,6 +702,9 @@ async function fetchHousecallProSnapshot(crmConnection) {
     provider: 'housecall_pro',
     sourceLabel: 'housecall_pro_session_pull',
     fetchedAt: new Date().toISOString(),
+    rollups: {
+      salesToday,
+    },
     weeks,
   };
 }
@@ -1053,6 +1061,20 @@ const server = http.createServer(async (req, res) => {
             error_message: null,
             raw_snapshot_path: `crm_snapshots:${snapshotRow?.[0]?.id || 'unknown'}`,
           });
+
+          if (organizationSettings?.id || snapshotInput?.rollups?.salesToday != null) {
+            await upsertOrganizationSettings({
+              organization_id: context.organization.id,
+              monthly_expense_target: organizationSettings?.monthly_expense_target ?? null,
+              profit_percent_goal: organizationSettings?.profit_percent_goal ?? null,
+              opportunity_count: organizationSettings?.opportunity_count ?? null,
+              sales_today: snapshotInput?.rollups?.salesToday ?? organizationSettings?.sales_today ?? null,
+              sales_month: organizationSettings?.sales_month ?? null,
+              sales_year: organizationSettings?.sales_year ?? null,
+              updated_by_user_id: context.user?.id || null,
+              updated_at: finishedAt,
+            });
+          }
 
           if (crmConnection?.id) {
             await upsertCrmConnection({
