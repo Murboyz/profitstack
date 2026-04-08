@@ -36,7 +36,9 @@
     .step.active { border-color: rgba(91,140,255,.38); background: rgba(91,140,255,.12); }
     .field { margin-bottom: 14px; }
     label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 13px; }
-    input { width: 100%; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    input, select { width: 100%; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    select { appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, #94a3c7 50%), linear-gradient(135deg, #94a3c7 50%, transparent 50%); background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px); background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; padding-right: 34px; }
+    select option { background: #111a2e; color: #eef4ff; }
     .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
     button { padding: 12px 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; cursor: pointer; font-weight: 700; }
     .btn-primary { background: var(--blue); border-color: var(--blue); }
