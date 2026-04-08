@@ -227,6 +227,18 @@ async function renderDashboard() {
             <label for="profitPercentGoal">Profit % Goal</label>
             <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="10" />
           </div>
+          <div class="field">
+            <label for="timezoneSelect"><strong>Time Zone</strong></label>
+            <select id="timezoneSelect">
+              ${[
+                ['America/Los_Angeles', 'Pacific'],
+                ['America/Denver', 'Mountain'],
+                ['America/Chicago', 'Central'],
+                ['America/New_York', 'Eastern'],
+                ['America/Phoenix', 'Arizona'],
+              ].map(([zone, label]) => `<option value="${zone}" ${timezone === zone ? 'selected' : ''}>${label}</option>`).join('')}
+            </select>
+          </div>
           <div class="actions">
             <button id="refreshButton" type="button">Refresh Data</button>
           </div>
@@ -328,21 +340,6 @@ async function renderDashboard() {
             `)}
           </div>
         </section>
-      </div>
-    `;
-
-    document.getElementById('navTimezone').innerHTML = `
-      <div class="nav-inline-control">
-        <label for="timezoneSelect"><strong>Time Zone</strong></label>
-        <select id="timezoneSelect">
-          ${[
-            ['America/Los_Angeles', 'Pacific'],
-            ['America/Denver', 'Mountain'],
-            ['America/Chicago', 'Central'],
-            ['America/New_York', 'Eastern'],
-            ['America/Phoenix', 'Arizona'],
-          ].map(([zone, label]) => `<option value="${zone}" ${timezone === zone ? 'selected' : ''}>${label}</option>`).join('')}
-        </select>
       </div>
     `;
 
