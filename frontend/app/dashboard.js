@@ -6,6 +6,7 @@ const TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
 const ACTIVE_WEEK_STORAGE_KEY = 'profitstack_dashboard_active_week';
 const AUTO_SYNC_STORAGE_KEY = 'profitstack_dashboard_auto_sync_done';
 const TIMEZONE_STORAGE_KEY = 'profitstack_dashboard_timezone';
+const HISTORY_WEEK_STORAGE_KEY = 'profitstack_dashboard_history_week';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -48,6 +49,14 @@ function readTimezone(defaultTimezone = 'America/Chicago') {
 
 function writeTimezone(value) {
   localStorage.setItem(TIMEZONE_STORAGE_KEY, value);
+}
+
+function readHistoryWeek(defaultValue) {
+  return localStorage.getItem(HISTORY_WEEK_STORAGE_KEY) || defaultValue;
+}
+
+function writeHistoryWeek(value) {
+  localStorage.setItem(HISTORY_WEEK_STORAGE_KEY, value);
 }
 
 function parseNumber(value) {
@@ -165,6 +174,14 @@ async function renderDashboard() {
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
       .reverse();
+    const defaultHistoryWeek = previousWeekHistory[0]?.weekStartDate || dashboard.weeks.lastWeek.weekStartDate;
+    const historyWeekKey = readHistoryWeek(defaultHistoryWeek);
+    const selectedHistoryWeek = previousWeekHistory.find((week) => week.weekStartDate === historyWeekKey) || previousWeekHistory[0] || {
+      range: dashboard.weeks.lastWeek.range,
+      scheduledProduction: dashboard.weeks.lastWeek.scheduledProduction,
+      approvedSales: lastApprovedSales,
+      weekStartDate: dashboard.weeks.lastWeek.weekStartDate,
+    };
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
     const lastWeekGoalDelta = (dashboard.weeks.lastWeek.scheduledProduction || 0) - targetMetrics.weeklyGoal;
@@ -266,10 +283,16 @@ async function renderDashboard() {
               <div class="tag manual">Manual + live</div>
             `)}
             ${panel('Last Week Snapshot', `
-              <div class="row"><span class="label">Range</span><strong>${dashboard.weeks.lastWeek.range}</strong></div>
-              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(lastApprovedSales)}</strong></div>
-              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(dashboard.weeks.lastWeek.scheduledProduction)}</strong></div>
-              <div class="row"><span class="label">Week-over-Week</span><strong>${deltaLabel(currentApprovedSales, lastApprovedSales)}</strong></div>
+              <div class="field">
+                <label for="historyWeekSelect">Snapshot Week</label>
+                <select id="historyWeekSelect">
+                  ${previousWeekHistory.map((week) => `<option value="${week.weekStartDate}" ${selectedHistoryWeek.weekStartDate === week.weekStartDate ? 'selected' : ''}>${week.range}</option>`).join('')}
+                </select>
+              </div>
+              <div class="row"><span class="label">Range</span><strong>${selectedHistoryWeek.range}</strong></div>
+              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(selectedHistoryWeek.approvedSales)}</strong></div>
+              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(selectedHistoryWeek.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">Week-over-Week</span><strong>${deltaLabel(currentApprovedSales, selectedHistoryWeek.approvedSales)}</strong></div>
               <div class="tag live">Live</div>
             `)}
             ${panel('Production Outlook', `
@@ -279,12 +302,6 @@ async function renderDashboard() {
               <div class="row"><span class="label">Next 3 Weeks Total</span><strong>${money.format(nextThreeScheduled)}</strong></div>
               <div class="tag live">Live</div>
             `)}
-            ${panel('Previous Week Snapshot History', previousWeekHistory.length
-              ? `${previousWeekHistory.map((week) => `
-                <div class="row"><span class="label">${week.range}</span><strong>${money.format(week.scheduledProduction)} scheduled · ${money.format(week.approvedSales)} sales</strong></div>
-              `).join('')}<div class="tag live">Live</div>`
-              : '<div class="row"><span class="label">History</span><strong>Not enough week history yet</strong></div>'
-            )}
           </div>
         </section>
       </div>
@@ -310,6 +327,13 @@ async function renderDashboard() {
       writeTimezone(event.target.value);
       renderDashboard();
     });
+    const historyWeekSelect = document.getElementById('historyWeekSelect');
+    if (historyWeekSelect) {
+      historyWeekSelect.addEventListener('change', (event) => {
+        writeHistoryWeek(event.target.value);
+        renderDashboard();
+      });
+    }
     document.getElementById('refreshButton').addEventListener('click', async () => {
       try {
         status.textContent = 'Running live CRM sync…';
