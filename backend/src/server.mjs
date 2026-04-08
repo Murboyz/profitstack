@@ -565,6 +565,8 @@ async function fetchHousecallProSnapshot(crmConnection) {
       page += 1;
     }
 
+    const calendarItems = (await fetchJsonWithCookie(calendarUrl.toString(), sessionCookie)).calendar_items || [];
+
     const jobs = [];
     for (let page = 1; page <= 8; page += 1) {
       const jobsUrl = new URL('https://pro.housecallpro.com/alpha/jobs/jobs_list');
@@ -576,13 +578,22 @@ async function fetchHousecallProSnapshot(crmConnection) {
       jobs.push(...items);
     }
 
+    const calendarJobIds = new Set(
+      calendarItems
+        .filter((item) => String(item.type || '').toLowerCase() === 'job')
+        .map((item) => item.appointable_id)
+        .filter(Boolean)
+    );
+    const recentJobIds = new Set(jobs.slice(0, 200).map((job) => job.id).filter(Boolean));
+    const jobIds = [...new Set([...calendarJobIds, ...recentJobIds])];
+
     const jobDetails = [];
-    for (const job of jobs.slice(0, 200)) {
-      jobDetails.push(await fetchJsonWithCookie(`https://pro.housecallpro.com/alpha/jobs/${job.id}`, sessionCookie));
+    for (const jobId of jobIds) {
+      jobDetails.push(await fetchJsonWithCookie(`https://pro.housecallpro.com/alpha/jobs/${jobId}`, sessionCookie));
     }
 
     payload = {
-      calendarItems: (await fetchJsonWithCookie(calendarUrl.toString(), sessionCookie)).calendar_items || [],
+      calendarItems,
       estimates,
       jobDetails,
     };
