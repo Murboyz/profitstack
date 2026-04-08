@@ -89,3 +89,4 @@ When starting a new dedicated ProfitStack session:
 - The live Render app now has working login, CRM save, and Refresh wiring.
 - Murphy HCP auth is connected, but the metric mapping is still wrong.
 - Multi-segment / multi-visit job allocation was introduced as a reporting experiment; if that change breaks trusted production reporting, roll back to the pre-allocation baseline and re-evaluate instead of stacking more patches.
+- Long-span single jobs (example: job `10277`, $15,406, Apr 6–Apr 24) now have a separate prorating experiment committed in `549b08f`; if reporting gets worse, come back to this checkpoint before adding more schedule math.
