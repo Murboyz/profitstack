@@ -187,8 +187,8 @@ async function renderDashboard() {
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
     const liveSalesFallback = activeWeekApprovedSales || currentApprovedSales || 0;
     const salesToday = parseNumber(dashboard.settings?.salesToday ?? savedTargets.salesToday ?? 0) || liveSalesFallback;
-    const salesMonth = parseNumber(savedTargets.salesMonth || 0) || liveSalesFallback;
-    const salesYear = parseNumber(savedTargets.salesYear || 0) || liveSalesFallback;
+    const salesWeek = liveSalesFallback + (salesToday && salesToday !== liveSalesFallback ? salesToday : 0);
+    const salesMonth = (parseNumber(savedTargets.salesMonth || 0) || liveSalesFallback) + (salesToday && salesToday !== liveSalesFallback ? salesToday : 0);
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
@@ -314,9 +314,8 @@ async function renderDashboard() {
             `)}
             ${panel('Sales Performance', `
               <div class="row"><span class="label">Sales Today</span><strong>${money.format(salesToday)}</strong></div>
-              <div class="row"><span class="label">Sales This Week</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
+              <div class="row"><span class="label">Sales This Week</span><strong>${money.format(salesWeek)}</strong></div>
               <div class="row"><span class="label">Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>
-              <div class="row"><span class="label">Sales This Year</span><strong>${money.format(salesYear)}</strong></div>
               <div class="tag manual">Manual + live</div>
             `)}
             ${panel('Last Week Snapshot', `
