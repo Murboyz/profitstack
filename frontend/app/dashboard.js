@@ -155,7 +155,7 @@ async function renderDashboard() {
   const app = document.getElementById('app');
 
   try {
-    status.textContent = 'Refreshing dashboard…';
+    if (status) status.textContent = 'Refreshing dashboard…';
     await renderSessionBanner();
     const [session, dashboard, crmConnection, overrides, syncRuns, health] = await Promise.all([
       loadJson('/api/session'),
@@ -166,7 +166,7 @@ async function renderDashboard() {
       loadJson('/api/health')
     ]);
 
-    status.textContent = `Loaded ${session.organization.name} · ${session.user.email} · CRM ${crmConnection.provider} · ${crmConnection.status}`;
+    if (status) status.textContent = `Loaded ${session.organization.name} · ${session.user.email} · CRM ${crmConnection.provider} · ${crmConnection.status}`;
 
     const currentApprovedSales = dashboard.weeks.currentWeek.approvedSales || 0;
     const lastApprovedSales = dashboard.weeks.lastWeek.approvedSales || 0;
@@ -357,25 +357,25 @@ async function renderDashboard() {
     }
     document.getElementById('refreshButton').addEventListener('click', async () => {
       try {
-        status.textContent = 'Running live CRM sync…';
+        if (status) status.textContent = 'Running live CRM sync…';
         const syncResult = await executeLiveSync();
-        status.textContent = syncResult.message || 'Live CRM sync complete.';
+        if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
         await renderDashboard();
       } catch (error) {
-        status.textContent = `Live sync failed: ${error.message}`;
+        if (status) status.textContent = `Live sync failed: ${error.message}`;
       }
     });
 
     if (!sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY)) {
       sessionStorage.setItem(AUTO_SYNC_STORAGE_KEY, '1');
       try {
-        status.textContent = 'Running automatic live CRM sync…';
+        if (status) status.textContent = 'Running automatic live CRM sync…';
         const syncResult = await executeLiveSync();
-        status.textContent = syncResult.message || 'Automatic live CRM sync complete.';
+        if (status) status.textContent = syncResult.message || 'Automatic live CRM sync complete.';
         await renderDashboard();
         return;
       } catch (error) {
-        status.textContent = `Automatic live sync failed: ${error.message}`;
+        if (status) status.textContent = `Automatic live sync failed: ${error.message}`;
       }
     }
 
@@ -386,7 +386,7 @@ async function renderDashboard() {
       });
     });
   } catch (error) {
-    status.textContent = `Failed to load dashboard: ${error.message}`;
+    if (status) status.textContent = `Failed to load dashboard: ${error.message}`;
   }
 }
 
