@@ -280,17 +280,17 @@ async function renderDashboard() {
       </div>
     `;
 
-    document.getElementById('topbarTools').innerHTML = `
-      <div class="field-inline">
-        <label for="timezoneSelect">Dashboard Timezone</label>
+    document.getElementById('navTimezone').innerHTML = `
+      <div class="nav-inline-control">
+        <label for="timezoneSelect">TZ</label>
         <select id="timezoneSelect">
           ${[
-            'America/Los_Angeles',
-            'America/Denver',
-            'America/Chicago',
-            'America/New_York',
-            'America/Phoenix',
-          ].map((zone) => `<option value="${zone}" ${timezone === zone ? 'selected' : ''}>${zone}</option>`).join('')}
+            ['America/Los_Angeles', 'Pacific'],
+            ['America/Denver', 'Mountain'],
+            ['America/Chicago', 'Central'],
+            ['America/New_York', 'Eastern'],
+            ['America/Phoenix', 'Arizona'],
+          ].map(([zone, label]) => `<option value="${zone}" ${timezone === zone ? 'selected' : ''}>${label}</option>`).join('')}
         </select>
       </div>
     `;
