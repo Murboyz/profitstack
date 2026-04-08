@@ -18,6 +18,15 @@ function deltaLabel(current = 0, previous = 0) {
   return delta > 0 ? `${money.format(delta)} above last week` : `${money.format(Math.abs(delta))} below last week`;
 }
 
+function profitLabel(weekRevenue = 0, weeklyBreakEven = 0) {
+  const profit = weekRevenue - weeklyBreakEven;
+  return {
+    amount: profit,
+    text: profit >= 0 ? `${money.format(profit)} profit` : `${money.format(Math.abs(profit))} loss`,
+    className: profit >= 0 ? 'profit-good' : 'profit-bad',
+  };
+}
+
 function readTargets() {
   const defaults = { profitPercentGoal: 10 };
   try {
@@ -183,6 +192,7 @@ async function renderDashboard() {
       weekStartDate: dashboard.weeks.lastWeek.weekStartDate,
     };
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
+    const selectedHistoryProfit = profitLabel(selectedHistoryWeek.scheduledProduction || 0, targetMetrics.weeklyBreakEven);
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
     const lastWeekGoalDelta = (dashboard.weeks.lastWeek.scheduledProduction || 0) - targetMetrics.weeklyGoal;
     const lastWeekGoalLabel = lastWeekGoalDelta >= 0
@@ -292,7 +302,7 @@ async function renderDashboard() {
               <div class="row"><span class="label">Range</span><strong>${selectedHistoryWeek.range}</strong></div>
               <div class="row"><span class="label">Approved Sales</span><strong>${money.format(selectedHistoryWeek.approvedSales)}</strong></div>
               <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(selectedHistoryWeek.scheduledProduction)}</strong></div>
-              <div class="row"><span class="label">Week-over-Week</span><strong>${deltaLabel(currentApprovedSales, selectedHistoryWeek.approvedSales)}</strong></div>
+              <div class="row"><span class="label">Profit</span><strong class="${selectedHistoryProfit.className}">${selectedHistoryProfit.text}</strong></div>
               <div class="tag live">Live</div>
             `)}
             ${panel('Production Outlook', `
