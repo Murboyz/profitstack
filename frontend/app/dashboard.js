@@ -192,7 +192,10 @@ async function renderDashboard() {
       weekStartDate: dashboard.weeks.lastWeek.weekStartDate,
     };
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
-    const selectedHistoryProfit = profitLabel(selectedHistoryWeek.scheduledProduction || 0, targetMetrics.weeklyBreakEven);
+    const selectedHistoryProfit = profitLabel(
+      selectedHistoryWeek.scheduledProduction || 0,
+      selectedHistoryWeek.weeklyBreakEvenSnapshot ?? targetMetrics.weeklyBreakEven,
+    );
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
     const lastWeekGoalDelta = (dashboard.weeks.lastWeek.scheduledProduction || 0) - targetMetrics.weeklyGoal;
     const lastWeekGoalLabel = lastWeekGoalDelta >= 0

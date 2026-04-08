@@ -769,13 +769,18 @@ function formatOrganizationSettings(item, organizationId) {
   };
 }
 
-function formatWeekHistory(rows = []) {
+function formatWeekHistory(rows = [], overrides = []) {
+  const overrideMap = new Map(
+    (overrides || []).map((item) => [`${item.week_start_date}:${item.metric_key}`, Number(item.metric_value)])
+  );
+
   return rows.map((row) => ({
     weekStartDate: row.week_start_date,
     weekEndDate: row.week_end_date,
     range: formatRange(row.week_start_date, row.week_end_date),
     scheduledProduction: Number(row.scheduled_production || 0),
     approvedSales: Number(row.approved_sales || 0),
+    weeklyBreakEvenSnapshot: overrideMap.get(`${row.week_start_date}:weeklyBreakEvenSnapshot`) ?? null,
   }));
 }
 
@@ -862,7 +867,7 @@ const server = http.createServer(async (req, res) => {
           settings: formatOrganizationSettings(organizationSettings, context.organization.id),
           crmConnection: formatDashboardCrmConnection(crmConnection),
           weeks: mergedWeeks,
-          weekHistory: formatWeekHistory(weekMetrics),
+          weekHistory: formatWeekHistory(weekMetrics, overrides),
           overridesApplied: summarizeOverridesByWeek(mergedWeeks, overrides),
         });
       }
@@ -958,6 +963,8 @@ const server = http.createServer(async (req, res) => {
         const body = await readJsonBody(req);
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
         const startedAt = body.startedAt || new Date().toISOString();
+        const organizationSettings = await getOrganizationSettingsByOrg(context.organization.id);
+        const existingOverrides = await getMetricOverridesByOrg(context.organization.id);
 
         try {
           const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection);
@@ -997,6 +1004,32 @@ const server = http.createServer(async (req, res) => {
               updated_at: new Date().toISOString(),
             }))
           );
+
+          const currentWeekStartDate = formatDateOnly(startOfUtcWeek(new Date()));
+          const weeklyBreakEvenSnapshot = organizationSettings?.monthly_expense_target == null
+            ? null
+            : Number(organizationSettings.monthly_expense_target) / 4;
+          const existingSnapshotWeeks = new Set(
+            (existingOverrides || [])
+              .filter((item) => item.metric_key === 'weeklyBreakEvenSnapshot')
+              .map((item) => item.week_start_date)
+          );
+          if (weeklyBreakEvenSnapshot != null) {
+            for (const item of normalizedWeeks) {
+              if (item.week_start_date >= currentWeekStartDate) continue;
+              if (existingSnapshotWeeks.has(item.week_start_date)) continue;
+              await upsertMetricOverride({
+                id: crypto.randomUUID(),
+                organization_id: context.organization.id,
+                week_start_date: item.week_start_date,
+                metric_key: 'weeklyBreakEvenSnapshot',
+                metric_value: weeklyBreakEvenSnapshot,
+                reason: 'Locked past-week break-even snapshot',
+                created_by_user_id: context.user?.id || null,
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
 
           const finishedAt = new Date().toISOString();
           const syncRun = await insertSyncRun({
