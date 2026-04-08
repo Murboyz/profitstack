@@ -128,7 +128,6 @@ function bindTargetInputs(baseTargets) {
     renderDashboard();
   };
 
-  document.getElementById('saveTargetsButton').addEventListener('click', save);
   ['monthlyExpenseTarget', 'profitPercentGoal']
     .forEach((id) => document.getElementById(id).addEventListener('change', save));
 }
@@ -229,9 +228,9 @@ async function renderDashboard() {
             <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="10" />
           </div>
           <div class="actions">
-            <button id="saveTargetsButton" class="btn-primary" type="button">Save + Recalculate</button>
             <button id="refreshButton" type="button">Refresh Data</button>
           </div>
+          <div class="muted">Targets auto-save when you change them.</div>
 
           <div class="card">
             <h3>Data Status</h3>
