@@ -40,6 +40,9 @@ async function loadStatusText() {
 function sendJson(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -48,7 +51,12 @@ function sendJson(res, status, payload) {
 }
 
 function sendText(res, status, text, type = 'text/plain; charset=utf-8') {
-  res.writeHead(status, { 'Content-Type': type });
+  res.writeHead(status, {
+    'Content-Type': type,
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
   res.end(text);
 }
 
