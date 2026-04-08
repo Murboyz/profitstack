@@ -386,19 +386,31 @@ function incrementWeekMetric(weekMap, dateValue, updater) {
 }
 
 async function fetchJsonWithCookie(url, sessionCookie) {
-  const response = await fetch(url, {
-    headers: {
-      Cookie: sessionCookie,
-      Accept: 'application/json, text/plain, */*',
-      Referer: 'https://pro.housecallpro.com/app/reporting',
-      Origin: 'https://pro.housecallpro.com',
-      'User-Agent': 'ProfitStack/0.1',
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`HCP fetch failed (${response.status}) for ${url}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Cookie: sessionCookie,
+        Accept: 'application/json, text/plain, */*',
+        Referer: 'https://pro.housecallpro.com/app/reporting',
+        Origin: 'https://pro.housecallpro.com',
+        'User-Agent': 'ProfitStack/0.1',
+      },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`HCP fetch failed (${response.status}) for ${url}`);
+    }
+    return response.json();
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`HCP fetch timed out for ${url}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return response.json();
 }
 
 async function getBrowserCdpPages() {
