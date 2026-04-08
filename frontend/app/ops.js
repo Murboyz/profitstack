@@ -27,7 +27,7 @@ function render(data) {
 
   document.getElementById('workingOn').textContent = data.workingOn || 'No task recorded';
   document.getElementById('updatedAt').textContent = `Last update: ${formatTime(data.updatedAt)}`;
-  document.getElementById('jobName').textContent = data.jobName || 'ProfitStack autonomous build pass';
+  document.getElementById('jobName').textContent = data.jobName || 'The Nut Report autonomous build pass';
   document.getElementById('history').innerHTML = renderHistory(data.history || []);
   document.getElementById('raw').textContent = JSON.stringify(data, null, 2);
 }

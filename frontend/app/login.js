@@ -63,7 +63,7 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     if (!res.ok) throw new Error(`Magic link send failed with ${res.status}`);
     const data = await res.json();
     clearCurrentUserEmail();
-    result.textContent = `Redirecting you into ProfitStack…`;
+    result.textContent = `Redirecting you into The Nut Report…`;
     window.location.href = data.actionLink;
   } catch (error) {
     clearCurrentUserEmail();
