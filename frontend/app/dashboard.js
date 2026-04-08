@@ -5,6 +5,7 @@ const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 const TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
 const ACTIVE_WEEK_STORAGE_KEY = 'profitstack_dashboard_active_week';
 const AUTO_SYNC_STORAGE_KEY = 'profitstack_dashboard_auto_sync_done';
+const TIMEZONE_STORAGE_KEY = 'profitstack_dashboard_timezone';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -39,6 +40,14 @@ function readActiveWeek() {
 
 function writeActiveWeek(value) {
   localStorage.setItem(ACTIVE_WEEK_STORAGE_KEY, value);
+}
+
+function readTimezone(defaultTimezone = 'America/Chicago') {
+  return localStorage.getItem(TIMEZONE_STORAGE_KEY) || defaultTimezone;
+}
+
+function writeTimezone(value) {
+  localStorage.setItem(TIMEZONE_STORAGE_KEY, value);
 }
 
 function parseNumber(value) {
@@ -136,7 +145,8 @@ async function renderDashboard() {
     const lastApprovedSales = dashboard.weeks.lastWeek.approvedSales || 0;
     const currentScheduled = dashboard.weeks.currentWeek.scheduledProduction || 0;
     const latestSyncRun = (syncRuns.items || [])[0] || null;
-    const timezone = session.organization.timezone || 'America/Chicago';
+    const organizationTimezone = session.organization.timezone || 'America/Chicago';
+    const timezone = readTimezone(organizationTimezone);
     const nextThreeScheduled = (dashboard.weeks.nextWeek.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus2.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus3.scheduledProduction || 0);
@@ -172,6 +182,18 @@ async function renderDashboard() {
             <label for="profitPercentGoal">Profit % Goal</label>
             <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="10" />
           </div>
+          <div class="field">
+            <label for="timezoneSelect">Dashboard Timezone</label>
+            <select id="timezoneSelect">
+              ${[
+                'America/Los_Angeles',
+                'America/Denver',
+                'America/Chicago',
+                'America/New_York',
+                'America/Phoenix',
+              ].map((zone) => `<option value="${zone}" ${timezone === zone ? 'selected' : ''}>${zone}</option>`).join('')}
+            </select>
+          </div>
           <div class="actions">
             <button id="saveTargetsButton" class="btn-primary" type="button">Save + Recalculate</button>
             <button id="refreshButton" type="button">Refresh Data</button>
@@ -181,6 +203,7 @@ async function renderDashboard() {
             <h3>Data Status</h3>
             <div class="row"><span class="label">CRM</span><strong>${crmConnection.status || 'unknown'}</strong></div>
             <div class="row"><span class="label">Last Sync Status</span><strong>${latestSyncRun?.status || 'none yet'}</strong></div>
+            <div class="row"><span class="label">Dashboard Timezone</span><strong>${timezone}</strong></div>
             <div class="row"><span class="label">Last Sync Finished</span><strong>${formatDateTime(latestSyncRun?.finishedAt, timezone)}</strong></div>
             <div class="row"><span class="label">Last Sync Records</span><strong>${latestSyncRun?.recordsPulled ?? 0}</strong></div>
             <div class="row"><span class="label">Last Sync Error</span><strong>${latestSyncRun?.errorMessage || crmConnection.lastError || 'none'}</strong></div>
@@ -270,6 +293,10 @@ async function renderDashboard() {
     `;
 
     bindTargetInputs();
+    document.getElementById('timezoneSelect').addEventListener('change', (event) => {
+      writeTimezone(event.target.value);
+      renderDashboard();
+    });
     document.getElementById('refreshButton').addEventListener('click', async () => {
       try {
         status.textContent = 'Running live CRM sync…';
