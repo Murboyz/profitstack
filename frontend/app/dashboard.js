@@ -185,10 +185,14 @@ async function renderDashboard() {
     const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
-    const liveSalesFallback = activeWeekApprovedSales || currentApprovedSales || 0;
+    const currentWeekApprovedDisplay = currentApprovedSales + (parseNumber(dashboard.settings?.salesToday ?? 0) || 0);
+    const activeWeekApprovedDisplay = activeWeekKey === 'currentWeek'
+      ? currentWeekApprovedDisplay
+      : activeWeekApprovedSales;
+    const liveSalesFallback = activeWeekKey === 'currentWeek' ? currentWeekApprovedDisplay : (activeWeekApprovedSales || currentApprovedSales || 0);
     const salesToday = parseNumber(dashboard.settings?.salesToday ?? savedTargets.salesToday ?? 0) || liveSalesFallback;
-    const salesWeek = liveSalesFallback + (salesToday && salesToday !== liveSalesFallback ? salesToday : 0);
-    const salesMonth = (parseNumber(savedTargets.salesMonth || 0) || liveSalesFallback) + (salesToday && salesToday !== liveSalesFallback ? salesToday : 0);
+    const salesWeek = liveSalesFallback;
+    const salesMonth = (parseNumber(savedTargets.salesMonth || 0) || currentWeekApprovedDisplay || liveSalesFallback);
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
@@ -295,7 +299,7 @@ async function renderDashboard() {
             <div class="week-shell ${activeWeekKey === 'currentWeek' ? 'active' : ''}" data-week="currentWeek">
               <div class="title">Current Week</div>
               <div class="range">${dashboard.weeks.currentWeek.range}</div>
-              <div class="mini-note">${money.format(currentScheduled)} scheduled · ${money.format(currentApprovedSales)} sales</div>
+              <div class="mini-note">${money.format(currentScheduled)} scheduled · ${money.format(currentWeekApprovedDisplay)} sales</div>
             </div>
             <div class="week-shell ${activeWeekKey === 'nextWeek' ? 'active' : ''}" data-week="nextWeek">
               <div class="title">Next Week</div>
@@ -308,7 +312,7 @@ async function renderDashboard() {
             ${panel('Current Week', `
               <div class="row"><span class="label">Range</span><strong>${activeWeek.range}</strong></div>
               <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(activeWeekScheduled)}</strong></div>
-              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
+              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(activeWeekApprovedDisplay)}</strong></div>
               <div class="row"><span class="label">Last Sync</span><strong>${formatDateTime(crmConnection.last_sync_at || crmConnection.lastSyncAt, timezone)}</strong></div>
               <div class="tag live">Live</div>
             `)}
