@@ -510,9 +510,25 @@ async function fetchHousecallProSnapshot(crmConnection) {
     const calendarUrl = new URL('https://pro.housecallpro.com/api/scheduling/calendar_items/web/organization_calendar_items');
     calendarUrl.searchParams.set('start_date', rangeStart.toISOString());
     calendarUrl.searchParams.set('end_date', rangeEnd.toISOString());
+
+    const estimates = [];
+    let page = 1;
+    let keepGoing = true;
+    while (keepGoing && page <= 12) {
+      const estimatesUrl = new URL('https://pro.housecallpro.com/beta/estimates');
+      estimatesUrl.searchParams.set('page', String(page));
+      estimatesUrl.searchParams.set('page_size', '200');
+      const res = await fetchJsonWithCookie(estimatesUrl.toString(), sessionCookie);
+      const items = res.data || [];
+      if (!items.length) break;
+      estimates.push(...items);
+      keepGoing = items.some((item) => item.created_at && item.created_at >= rangeStart.toISOString());
+      page += 1;
+    }
+
     payload = {
       calendarItems: (await fetchJsonWithCookie(calendarUrl.toString(), sessionCookie)).calendar_items || [],
-      estimates: [],
+      estimates,
     };
   }
 
