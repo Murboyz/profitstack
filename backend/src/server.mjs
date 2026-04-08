@@ -389,6 +389,29 @@ function incrementWeekMetric(weekMap, dateValue, updater) {
   updater(bucket);
 }
 
+function getSpanAllocationByWeek(weekMap, startValue, endValue, totalAmount) {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || !(totalAmount > 0) || end <= start) return [];
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / dayMs));
+  const allocations = [];
+
+  for (const bucket of weekMap.values()) {
+    const weekStart = new Date(`${bucket.weekStartDate}T00:00:00.000Z`);
+    const weekEndExclusive = new Date(`${bucket.weekEndDate}T23:59:59.999Z`);
+    weekEndExclusive.setUTCMilliseconds(weekEndExclusive.getUTCMilliseconds() + 1);
+    const overlapStart = Math.max(start.getTime(), weekStart.getTime());
+    const overlapEnd = Math.min(end.getTime(), weekEndExclusive.getTime());
+    if (overlapEnd <= overlapStart) continue;
+    const overlapDays = Math.max(1, Math.ceil((overlapEnd - overlapStart) / dayMs));
+    allocations.push({ weekKey: bucket.key, amount: totalAmount * (overlapDays / totalDays) });
+  }
+
+  return allocations;
+}
+
 async function fetchJsonWithCookie(url, sessionCookie) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
@@ -597,6 +620,23 @@ async function fetchHousecallProSnapshot(crmConnection) {
       incrementWeekMetric(weekMap, segment.scheduled_date, (bucket) => {
         bucket.scheduledProduction += share;
       });
+    }
+  }
+
+  for (const job of payload.jobDetails || []) {
+    const totalAmount = toCurrencyNumber(job.total_amount || 0);
+    const scheduleStart = job.schedule?.data?.start_time;
+    const scheduleEnd = job.schedule?.data?.end_time;
+    const allocations = getSpanAllocationByWeek(weekMap, scheduleStart, scheduleEnd, totalAmount);
+    if (allocations.length <= 1) continue;
+
+    incrementWeekMetric(weekMap, job.scheduled_date, (bucket) => {
+      bucket.scheduledProduction -= totalAmount;
+    });
+    for (const allocation of allocations) {
+      const bucket = weekMap.get(allocation.weekKey);
+      if (!bucket) continue;
+      bucket.scheduledProduction += allocation.amount;
     }
   }
 
