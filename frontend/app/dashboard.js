@@ -161,6 +161,10 @@ async function renderDashboard() {
     const salesToday = parseNumber(savedTargets.salesToday || 0);
     const salesMonth = parseNumber(savedTargets.salesMonth || 0);
     const salesYear = parseNumber(savedTargets.salesYear || 0);
+    const previousWeekHistory = (dashboard.weekHistory || [])
+      .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
+      .slice(-6)
+      .reverse();
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
     const lastWeekGoalDelta = (dashboard.weeks.lastWeek.scheduledProduction || 0) - targetMetrics.weeklyGoal;
@@ -275,6 +279,12 @@ async function renderDashboard() {
               <div class="row"><span class="label">Next 3 Weeks Total</span><strong>${money.format(nextThreeScheduled)}</strong></div>
               <div class="tag live">Live</div>
             `)}
+            ${panel('Previous Week Snapshot History', previousWeekHistory.length
+              ? `${previousWeekHistory.map((week) => `
+                <div class="row"><span class="label">${week.range}</span><strong>${money.format(week.scheduledProduction)} scheduled · ${money.format(week.approvedSales)} sales</strong></div>
+              `).join('')}<div class="tag live">Live</div>`
+              : '<div class="row"><span class="label">History</span><strong>Not enough week history yet</strong></div>'
+            )}
           </div>
         </section>
       </div>
@@ -282,7 +292,7 @@ async function renderDashboard() {
 
     document.getElementById('navTimezone').innerHTML = `
       <div class="nav-inline-control">
-        <label for="timezoneSelect">TZ</label>
+        <label for="timezoneSelect"><strong>Time Zone</strong></label>
         <select id="timezoneSelect">
           ${[
             ['America/Los_Angeles', 'Pacific'],

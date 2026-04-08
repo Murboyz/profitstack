@@ -769,6 +769,16 @@ function formatOrganizationSettings(item, organizationId) {
   };
 }
 
+function formatWeekHistory(rows = []) {
+  return rows.map((row) => ({
+    weekStartDate: row.week_start_date,
+    weekEndDate: row.week_end_date,
+    range: formatRange(row.week_start_date, row.week_end_date),
+    scheduledProduction: Number(row.scheduled_production || 0),
+    approvedSales: Number(row.approved_sales || 0),
+  }));
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return sendJson(res, 200, { ok: true });
   const requestUrl = new URL(req.url, 'http://127.0.0.1');
@@ -852,6 +862,7 @@ const server = http.createServer(async (req, res) => {
           settings: formatOrganizationSettings(organizationSettings, context.organization.id),
           crmConnection: formatDashboardCrmConnection(crmConnection),
           weeks: mergedWeeks,
+          weekHistory: formatWeekHistory(weekMetrics),
           overridesApplied: summarizeOverridesByWeek(mergedWeeks, overrides),
         });
       }
