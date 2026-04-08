@@ -27,16 +27,17 @@ function profitLabel(weekRevenue = 0, weeklyBreakEven = 0) {
   };
 }
 
-function readTargets() {
+function readTargets(fallback = {}) {
   const defaults = { profitPercentGoal: 10 };
   try {
     const parsed = JSON.parse(localStorage.getItem(TARGETS_STORAGE_KEY) || '{}');
-    const profitPercentGoal = Number(parsed?.profitPercentGoal || 0) === 0
+    const merged = { ...defaults, ...fallback, ...parsed };
+    const profitPercentGoal = Number(merged?.profitPercentGoal || 0) === 0
       ? 10
-      : parsed.profitPercentGoal;
-    return { ...defaults, ...parsed, profitPercentGoal };
+      : merged.profitPercentGoal;
+    return { ...merged, profitPercentGoal };
   } catch {
-    return defaults;
+    return { ...defaults, ...fallback };
   }
 }
 
@@ -103,24 +104,31 @@ function formatDateTime(value, timeZone = 'America/Chicago') {
   }).format(date);
 }
 
-function collectTargetInputs() {
-  const savedTargets = readTargets();
+function collectTargetInputs(baseTargets = {}) {
   return {
-    ...savedTargets,
-    monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget')?.value ?? savedTargets.monthlyExpenseTarget,
-    profitPercentGoal: document.getElementById('profitPercentGoal')?.value ?? savedTargets.profitPercentGoal,
+    ...baseTargets,
+    monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget')?.value ?? baseTargets.monthlyExpenseTarget,
+    profitPercentGoal: document.getElementById('profitPercentGoal')?.value ?? baseTargets.profitPercentGoal,
+    opportunityCount: baseTargets.opportunityCount,
+    salesToday: baseTargets.salesToday,
+    salesMonth: baseTargets.salesMonth,
+    salesYear: baseTargets.salesYear,
   };
 }
 
-function bindTargetInputs() {
-  const save = () => {
-    writeTargets(collectTargetInputs());
+function bindTargetInputs(baseTargets) {
+  const save = async () => {
+    const payload = collectTargetInputs(baseTargets);
+    writeTargets(payload);
+    await apiFetch('/api/account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
     renderDashboard();
   };
 
   document.getElementById('saveTargetsButton').addEventListener('click', save);
-  ['monthlyExpenseTarget', 'profitPercentGoal']
-    .forEach((id) => document.getElementById(id).addEventListener('change', save));
 }
 
 async function loadJson(path) {
@@ -172,7 +180,7 @@ async function renderDashboard() {
     const activeWeek = dashboard.weeks[activeWeekKey] || dashboard.weeks.currentWeek;
     const activeWeekApprovedSales = activeWeek.approvedSales || 0;
     const activeWeekScheduled = activeWeek.scheduledProduction || 0;
-    const savedTargets = readTargets();
+    const savedTargets = readTargets(dashboard.settings || {});
     const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
@@ -335,7 +343,7 @@ async function renderDashboard() {
       </div>
     `;
 
-    bindTargetInputs();
+    bindTargetInputs(savedTargets);
     document.getElementById('timezoneSelect').addEventListener('change', (event) => {
       writeTimezone(event.target.value);
       renderDashboard();
