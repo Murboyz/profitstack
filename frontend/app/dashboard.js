@@ -7,6 +7,7 @@ const ACTIVE_WEEK_STORAGE_KEY = 'profitstack_dashboard_active_week';
 const AUTO_SYNC_STORAGE_KEY = 'profitstack_dashboard_auto_sync_done';
 const TIMEZONE_STORAGE_KEY = 'profitstack_dashboard_timezone';
 const HISTORY_WEEK_STORAGE_KEY = 'profitstack_dashboard_history_week';
+const SNAPSHOT_BREAK_EVEN_STORAGE_KEY = 'profitstack_dashboard_snapshot_break_even';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -69,6 +70,20 @@ function writeHistoryWeek(value) {
   localStorage.setItem(HISTORY_WEEK_STORAGE_KEY, value);
 }
 
+function readSnapshotBreakEvenLocks() {
+  try {
+    return JSON.parse(localStorage.getItem(SNAPSHOT_BREAK_EVEN_STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function writeSnapshotBreakEvenLock(weekStartDate, value) {
+  const locks = readSnapshotBreakEvenLocks();
+  locks[weekStartDate] = value;
+  localStorage.setItem(SNAPSHOT_BREAK_EVEN_STORAGE_KEY, JSON.stringify(locks));
+}
+
 function parseNumber(value) {
   return Number(String(value ?? '').replace(/[^0-9.]/g, '')) || 0;
 }
@@ -109,26 +124,19 @@ function collectTargetInputs(baseTargets = {}) {
     ...baseTargets,
     monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget')?.value ?? baseTargets.monthlyExpenseTarget,
     profitPercentGoal: document.getElementById('profitPercentGoal')?.value ?? baseTargets.profitPercentGoal,
-    opportunityCount: baseTargets.opportunityCount,
-    salesToday: baseTargets.salesToday,
-    salesMonth: baseTargets.salesMonth,
-    salesYear: baseTargets.salesYear,
   };
 }
 
 function bindTargetInputs(baseTargets) {
-  const save = async () => {
+  const save = () => {
     const payload = collectTargetInputs(baseTargets);
     writeTargets(payload);
-    await apiFetch('/api/account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
     renderDashboard();
   };
 
   document.getElementById('saveTargetsButton').addEventListener('click', save);
+  ['monthlyExpenseTarget', 'profitPercentGoal']
+    .forEach((id) => document.getElementById(id).addEventListener('change', save));
 }
 
 async function loadJson(path) {
@@ -204,10 +212,14 @@ async function renderDashboard() {
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
     const selectedHistoryScheduled = selectedHistoryWeek.scheduledProductionSnapshot ?? selectedHistoryWeek.scheduledProduction ?? 0;
     const selectedHistoryApproved = selectedHistoryWeek.approvedSalesSnapshot ?? selectedHistoryWeek.approvedSales ?? 0;
-    const selectedHistoryProfit = profitLabel(
-      selectedHistoryScheduled,
-      selectedHistoryWeek.weeklyBreakEvenSnapshot ?? targetMetrics.weeklyBreakEven,
-    );
+    const snapshotBreakEvenLocks = readSnapshotBreakEvenLocks();
+    const selectedHistoryBreakEven = selectedHistoryWeek.weeklyBreakEvenSnapshot
+      ?? snapshotBreakEvenLocks[selectedHistoryWeek.weekStartDate]
+      ?? targetMetrics.weeklyBreakEven;
+    if (selectedHistoryWeek.weekStartDate && snapshotBreakEvenLocks[selectedHistoryWeek.weekStartDate] == null) {
+      writeSnapshotBreakEvenLock(selectedHistoryWeek.weekStartDate, selectedHistoryBreakEven);
+    }
+    const selectedHistoryProfit = profitLabel(selectedHistoryScheduled, selectedHistoryBreakEven);
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
     const lastWeekGoalDelta = (dashboard.weeks.lastWeek.scheduledProduction || 0) - targetMetrics.weeklyGoal;
     const lastWeekGoalLabel = lastWeekGoalDelta >= 0
