@@ -197,11 +197,15 @@ async function renderDashboard() {
       range: dashboard.weeks.lastWeek.range,
       scheduledProduction: dashboard.weeks.lastWeek.scheduledProduction,
       approvedSales: lastApprovedSales,
+      scheduledProductionSnapshot: dashboard.weeks.lastWeek.scheduledProduction,
+      approvedSalesSnapshot: lastApprovedSales,
       weekStartDate: dashboard.weeks.lastWeek.weekStartDate,
     };
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
+    const selectedHistoryScheduled = selectedHistoryWeek.scheduledProductionSnapshot ?? selectedHistoryWeek.scheduledProduction ?? 0;
+    const selectedHistoryApproved = selectedHistoryWeek.approvedSalesSnapshot ?? selectedHistoryWeek.approvedSales ?? 0;
     const selectedHistoryProfit = profitLabel(
-      selectedHistoryWeek.scheduledProduction || 0,
+      selectedHistoryScheduled,
       selectedHistoryWeek.weeklyBreakEvenSnapshot ?? targetMetrics.weeklyBreakEven,
     );
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
@@ -311,8 +315,8 @@ async function renderDashboard() {
                 </select>
               </div>
               <div class="row"><span class="label">Range</span><strong>${selectedHistoryWeek.range}</strong></div>
-              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(selectedHistoryWeek.approvedSales)}</strong></div>
-              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(selectedHistoryWeek.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">Approved Sales</span><strong>${money.format(selectedHistoryApproved)}</strong></div>
+              <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(selectedHistoryScheduled)}</strong></div>
               <div class="row"><span class="label">Profit</span><strong class="${selectedHistoryProfit.className}">${selectedHistoryProfit.text}</strong></div>
               <div class="tag live">Live</div>
             `)}

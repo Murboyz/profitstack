@@ -780,6 +780,8 @@ function formatWeekHistory(rows = [], overrides = []) {
     range: formatRange(row.week_start_date, row.week_end_date),
     scheduledProduction: Number(row.scheduled_production || 0),
     approvedSales: Number(row.approved_sales || 0),
+    scheduledProductionSnapshot: overrideMap.get(`${row.week_start_date}:scheduledProductionSnapshot`) ?? null,
+    approvedSalesSnapshot: overrideMap.get(`${row.week_start_date}:approvedSalesSnapshot`) ?? null,
     weeklyBreakEvenSnapshot: overrideMap.get(`${row.week_start_date}:weeklyBreakEvenSnapshot`) ?? null,
   }));
 }
@@ -1009,22 +1011,30 @@ const server = http.createServer(async (req, res) => {
           const weeklyBreakEvenSnapshot = organizationSettings?.monthly_expense_target == null
             ? null
             : Number(organizationSettings.monthly_expense_target) / 4;
-          const existingSnapshotWeeks = new Set(
+          const existingSnapshotKeys = new Set(
             (existingOverrides || [])
-              .filter((item) => item.metric_key === 'weeklyBreakEvenSnapshot')
-              .map((item) => item.week_start_date)
+              .filter((item) => ['scheduledProductionSnapshot', 'approvedSalesSnapshot', 'weeklyBreakEvenSnapshot'].includes(item.metric_key))
+              .map((item) => `${item.week_start_date}:${item.metric_key}`)
           );
-          if (weeklyBreakEvenSnapshot != null) {
-            for (const item of normalizedWeeks) {
-              if (item.week_start_date >= currentWeekStartDate) continue;
-              if (existingSnapshotWeeks.has(item.week_start_date)) continue;
+          for (const item of normalizedWeeks) {
+            if (item.week_start_date >= currentWeekStartDate) continue;
+
+            const snapshotOverrides = [
+              ['scheduledProductionSnapshot', Number(item.scheduled_production || 0), 'Locked past-week scheduled production snapshot'],
+              ['approvedSalesSnapshot', Number(item.approved_sales || 0), 'Locked past-week approved sales snapshot'],
+              ['weeklyBreakEvenSnapshot', weeklyBreakEvenSnapshot, 'Locked past-week break-even snapshot'],
+            ].filter(([, value]) => value != null);
+
+            for (const [metricKey, metricValue, reason] of snapshotOverrides) {
+              const snapshotKey = `${item.week_start_date}:${metricKey}`;
+              if (existingSnapshotKeys.has(snapshotKey)) continue;
               await upsertMetricOverride({
                 id: crypto.randomUUID(),
                 organization_id: context.organization.id,
                 week_start_date: item.week_start_date,
-                metric_key: 'weeklyBreakEvenSnapshot',
-                metric_value: weeklyBreakEvenSnapshot,
-                reason: 'Locked past-week break-even snapshot',
+                metric_key: metricKey,
+                metric_value: metricValue,
+                reason,
                 created_by_user_id: context.user?.id || null,
                 updated_at: new Date().toISOString(),
               });
