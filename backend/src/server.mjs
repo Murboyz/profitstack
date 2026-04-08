@@ -375,6 +375,10 @@ function toCurrencyNumber(rawValue) {
   return Number(rawValue) / 100;
 }
 
+function getBaseInvoiceNumber(invoiceNumber) {
+  return String(invoiceNumber || '').replace(/-\d+$/, '');
+}
+
 function incrementWeekMetric(weekMap, dateValue, updater) {
   if (!dateValue) return;
   const date = new Date(dateValue);
@@ -566,6 +570,34 @@ async function fetchHousecallProSnapshot(crmConnection) {
     incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
       bucket.scheduledProduction += toCurrencyNumber(item.attributes?.amount);
     });
+  }
+
+  const jobFamilies = new Map();
+  for (const job of payload.jobDetails || []) {
+    const baseInvoice = getBaseInvoiceNumber(job.invoice_number);
+    if (!baseInvoice) continue;
+    const family = jobFamilies.get(baseInvoice) || [];
+    family.push(job);
+    jobFamilies.set(baseInvoice, family);
+  }
+
+  for (const family of jobFamilies.values()) {
+    if (family.length < 2) continue;
+    const positiveSegments = family.filter((job) => toCurrencyNumber(job.total_amount || 0) > 0);
+    if (positiveSegments.length !== 1) continue;
+
+    const totalAmount = toCurrencyNumber(positiveSegments[0].total_amount || 0);
+    if (!totalAmount) continue;
+
+    const share = totalAmount / family.length;
+    incrementWeekMetric(weekMap, positiveSegments[0].scheduled_date, (bucket) => {
+      bucket.scheduledProduction -= totalAmount;
+    });
+    for (const segment of family) {
+      incrementWeekMetric(weekMap, segment.scheduled_date, (bucket) => {
+        bucket.scheduledProduction += share;
+      });
+    }
   }
 
   for (const estimate of payload.estimates || []) {
