@@ -538,9 +538,26 @@ async function fetchHousecallProSnapshot(crmConnection) {
       page += 1;
     }
 
+    const jobs = [];
+    for (let page = 1; page <= 8; page += 1) {
+      const jobsUrl = new URL('https://pro.housecallpro.com/alpha/jobs/jobs_list');
+      jobsUrl.searchParams.set('page', String(page));
+      jobsUrl.searchParams.set('page_size', '200');
+      const res = await fetchJsonWithCookie(jobsUrl.toString(), sessionCookie);
+      const items = res?.data?.data || [];
+      if (!items.length) break;
+      jobs.push(...items);
+    }
+
+    const jobDetails = [];
+    for (const job of jobs.slice(0, 200)) {
+      jobDetails.push(await fetchJsonWithCookie(`https://pro.housecallpro.com/alpha/jobs/${job.id}`, sessionCookie));
+    }
+
     payload = {
       calendarItems: (await fetchJsonWithCookie(calendarUrl.toString(), sessionCookie)).calendar_items || [],
       estimates,
+      jobDetails,
     };
   }
 
@@ -566,6 +583,22 @@ async function fetchHousecallProSnapshot(crmConnection) {
       incrementWeekMetric(weekMap, estimate.completed_at || estimate.scheduled_date || createdAt, (bucket) => {
         bucket.approvedSales += value;
       });
+    }
+  }
+
+  const jobCreatedApprovedSales = new Map();
+  for (const job of payload.jobDetails || []) {
+    const totalAmount = toCurrencyNumber(job.total_amount || 0);
+    if (!totalAmount) continue;
+    incrementWeekMetric(weekMap, job.created_at, (bucket) => {
+      jobCreatedApprovedSales.set(bucket.key, (jobCreatedApprovedSales.get(bucket.key) || 0) + totalAmount);
+    });
+  }
+
+  for (const bucket of weekMap.values()) {
+    const fallbackApprovedSales = jobCreatedApprovedSales.get(bucket.key) || 0;
+    if (!bucket.approvedSales && fallbackApprovedSales) {
+      bucket.approvedSales = fallbackApprovedSales;
     }
   }
 
