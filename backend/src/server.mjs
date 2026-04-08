@@ -810,77 +810,109 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST' && pathname === '/api/sync-runs/execute') {
         const body = await readJsonBody(req);
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
-        const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection);
-        const snapshotInput = body.snapshot
-          || fetchedSnapshot
-          || crmConnection?.encrypted_credentials?.fields?.manualSnapshot
-          || crmConnection?.encrypted_credentials?.fields?.snapshot
-          || null;
+        const startedAt = body.startedAt || new Date().toISOString();
 
-        if (!snapshotInput) {
-          return sendJson(res, 400, { error: 'No snapshot payload found to sync' });
-        }
+        try {
+          const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection);
+          const snapshotInput = body.snapshot
+            || fetchedSnapshot
+            || crmConnection?.encrypted_credentials?.fields?.manualSnapshot
+            || crmConnection?.encrypted_credentials?.fields?.snapshot
+            || null;
 
-        const normalizedWeeks = normalizeSnapshotPayload(snapshotInput);
-        const snapshotRow = await insertCrmSnapshot({
-          id: crypto.randomUUID(),
-          organization_id: context.organization.id,
-          crm_connection_id: crmConnection?.id || null,
-          provider: crmConnection?.provider || body.provider || 'manual_import',
-          source_label: body.sourceLabel || 'manual sync snapshot',
-          payload: snapshotInput,
-          captured_by_user_id: context.user?.id || null,
-        });
+          if (!snapshotInput) {
+            throw new Error('No snapshot payload found to sync');
+          }
 
-        const persistedMetrics = await upsertWeekMetrics(
-          normalizedWeeks.map((item) => ({
+          const normalizedWeeks = normalizeSnapshotPayload(snapshotInput);
+          const snapshotRow = await insertCrmSnapshot({
             id: crypto.randomUUID(),
             organization_id: context.organization.id,
-            week_start_date: item.week_start_date,
-            week_end_date: item.week_end_date,
-            scheduled_production: item.scheduled_production,
-            approved_sales: item.approved_sales,
-            completed_production: item.completed_production,
-            opportunities: item.opportunities,
-            source_confidence: item.source_confidence,
-            source_version: item.source_version,
-            updated_at: new Date().toISOString(),
-          }))
-        );
-
-        const finishedAt = new Date().toISOString();
-        const syncRun = await insertSyncRun({
-          id: crypto.randomUUID(),
-          organization_id: context.organization.id,
-          crm_connection_id: crmConnection?.id || null,
-          started_at: body.startedAt || finishedAt,
-          finished_at: finishedAt,
-          status: 'success',
-          records_pulled: normalizedWeeks.length,
-          error_message: null,
-          raw_snapshot_path: `crm_snapshots:${snapshotRow?.[0]?.id || 'unknown'}`,
-        });
-
-        if (crmConnection?.id) {
-          await upsertCrmConnection({
-            id: crmConnection.id,
-            organization_id: context.organization.id,
-            provider: crmConnection.provider,
-            status: 'connected',
-            auth_type: crmConnection.auth_type,
-            encrypted_credentials: crmConnection.encrypted_credentials,
-            last_sync_at: finishedAt,
-            last_error: null,
+            crm_connection_id: crmConnection?.id || null,
+            provider: crmConnection?.provider || body.provider || 'manual_import',
+            source_label: body.sourceLabel || 'manual sync snapshot',
+            payload: snapshotInput,
+            captured_by_user_id: context.user?.id || null,
           });
-        }
 
-        return sendJson(res, 200, {
-          ok: true,
-          message: `Synced ${normalizedWeeks.length} week records`,
-          syncRun: formatSyncRuns(syncRun || [])[0] || null,
-          snapshotId: snapshotRow?.[0]?.id || null,
-          metricsWritten: persistedMetrics?.length || 0,
-        });
+          const persistedMetrics = await upsertWeekMetrics(
+            normalizedWeeks.map((item) => ({
+              id: crypto.randomUUID(),
+              organization_id: context.organization.id,
+              week_start_date: item.week_start_date,
+              week_end_date: item.week_end_date,
+              scheduled_production: item.scheduled_production,
+              approved_sales: item.approved_sales,
+              completed_production: item.completed_production,
+              opportunities: item.opportunities,
+              source_confidence: item.source_confidence,
+              source_version: item.source_version,
+              updated_at: new Date().toISOString(),
+            }))
+          );
+
+          const finishedAt = new Date().toISOString();
+          const syncRun = await insertSyncRun({
+            id: crypto.randomUUID(),
+            organization_id: context.organization.id,
+            crm_connection_id: crmConnection?.id || null,
+            started_at: startedAt,
+            finished_at: finishedAt,
+            status: 'success',
+            records_pulled: normalizedWeeks.length,
+            error_message: null,
+            raw_snapshot_path: `crm_snapshots:${snapshotRow?.[0]?.id || 'unknown'}`,
+          });
+
+          if (crmConnection?.id) {
+            await upsertCrmConnection({
+              id: crmConnection.id,
+              organization_id: context.organization.id,
+              provider: crmConnection.provider,
+              status: 'connected',
+              auth_type: crmConnection.auth_type,
+              encrypted_credentials: crmConnection.encrypted_credentials,
+              last_sync_at: finishedAt,
+              last_error: null,
+            });
+          }
+
+          return sendJson(res, 200, {
+            ok: true,
+            message: `Synced ${normalizedWeeks.length} week records`,
+            syncRun: formatSyncRuns(syncRun || [])[0] || null,
+            snapshotId: snapshotRow?.[0]?.id || null,
+            metricsWritten: persistedMetrics?.length || 0,
+          });
+        } catch (error) {
+          const finishedAt = new Date().toISOString();
+          await insertSyncRun({
+            id: crypto.randomUUID(),
+            organization_id: context.organization.id,
+            crm_connection_id: crmConnection?.id || null,
+            started_at: startedAt,
+            finished_at: finishedAt,
+            status: 'failed',
+            records_pulled: 0,
+            error_message: error.message,
+            raw_snapshot_path: null,
+          });
+
+          if (crmConnection?.id) {
+            await upsertCrmConnection({
+              id: crmConnection.id,
+              organization_id: context.organization.id,
+              provider: crmConnection.provider,
+              status: crmConnection.status || 'connected',
+              auth_type: crmConnection.auth_type,
+              encrypted_credentials: crmConnection.encrypted_credentials,
+              last_sync_at: crmConnection.last_sync_at,
+              last_error: error.message,
+            });
+          }
+
+          return sendJson(res, 500, { error: error.message });
+        }
       }
       if (req.method === 'GET' && pathname === '/api/organizations/me') {
         return sendJson(res, 200, context.organization || {});
