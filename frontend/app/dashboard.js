@@ -182,18 +182,6 @@ async function renderDashboard() {
             <label for="profitPercentGoal">Profit % Goal</label>
             <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="10" />
           </div>
-          <div class="field">
-            <label for="timezoneSelect">Dashboard Timezone</label>
-            <select id="timezoneSelect">
-              ${[
-                'America/Los_Angeles',
-                'America/Denver',
-                'America/Chicago',
-                'America/New_York',
-                'America/Phoenix',
-              ].map((zone) => `<option value="${zone}" ${timezone === zone ? 'selected' : ''}>${zone}</option>`).join('')}
-            </select>
-          </div>
           <div class="actions">
             <button id="saveTargetsButton" class="btn-primary" type="button">Save + Recalculate</button>
             <button id="refreshButton" type="button">Refresh Data</button>
@@ -289,6 +277,21 @@ async function renderDashboard() {
             `)}
           </div>
         </section>
+      </div>
+    `;
+
+    document.getElementById('topbarTools').innerHTML = `
+      <div class="field-inline">
+        <label for="timezoneSelect">Dashboard Timezone</label>
+        <select id="timezoneSelect">
+          ${[
+            'America/Los_Angeles',
+            'America/Denver',
+            'America/Chicago',
+            'America/New_York',
+            'America/Phoenix',
+          ].map((zone) => `<option value="${zone}" ${timezone === zone ? 'selected' : ''}>${zone}</option>`).join('')}
+        </select>
       </div>
     `;
 

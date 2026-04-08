@@ -22,6 +22,9 @@
     .title h1 { margin: 0; font-size: 30px; }
     .title p { margin: 8px 0 0; color: var(--muted); max-width: 760px; line-height: 1.5; }
     .badge { border: 1px solid rgba(91,140,255,.35); background: rgba(91,140,255,.12); color: #d5e2ff; padding: 10px 14px; border-radius: 999px; font-size: 13px; }
+    .topbar-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .topbar-tools .field-inline { min-width: 240px; }
+    .topbar-tools label { margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
     .nav { margin: 10px 0 0; color: var(--muted); }
     .panel { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 18px 50px rgba(0,0,0,.25); padding: 18px; margin-bottom: 16px; }
     .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
@@ -90,7 +93,10 @@
         <p>The live dashboard shell is back in prototype mode: same feel, but every card is either live data or clearly manual instead of pretending.</p>
         <div class="nav"><a href="./index.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./session.html">Session</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></div>
       </div>
-      <div class="badge">ProfitStack · Service Business Dashboard</div>
+      <div class="topbar-tools">
+        <div id="topbarTools"></div>
+        <div class="badge">ProfitStack · Service Business Dashboard</div>
+      </div>
     </div>
 
     <div class="panel" id="sessionBanner">Loading session…</div>
