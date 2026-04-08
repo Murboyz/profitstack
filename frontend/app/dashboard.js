@@ -4,6 +4,7 @@ requireLogin();
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
 const ACTIVE_WEEK_STORAGE_KEY = 'profitstack_dashboard_active_week';
+const AUTO_SYNC_STORAGE_KEY = 'profitstack_dashboard_auto_sync_done';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -263,6 +264,20 @@ async function renderDashboard() {
         status.textContent = `Live sync failed: ${error.message}`;
       }
     });
+
+    if (!sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY)) {
+      sessionStorage.setItem(AUTO_SYNC_STORAGE_KEY, '1');
+      try {
+        status.textContent = 'Running automatic live CRM sync…';
+        const syncResult = await executeLiveSync();
+        status.textContent = syncResult.message || 'Automatic live CRM sync complete.';
+        await renderDashboard();
+        return;
+      } catch (error) {
+        status.textContent = `Automatic live sync failed: ${error.message}`;
+      }
+    }
+
     document.querySelectorAll('.week-shell[data-week]').forEach((node) => {
       node.addEventListener('click', () => {
         writeActiveWeek(node.dataset.week);
