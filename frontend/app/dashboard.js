@@ -215,9 +215,9 @@ async function renderDashboard() {
 
     app.innerHTML = `
       <div class="layout">
-        <section class="panel">
-          <h2>Onboarding Flow</h2>
-          <div class="clientbar"><strong>Mode:</strong> set the target, refresh the live data, coach from the numbers.</div>
+        <section class="panel control-panel">
+          <h2>Control Panel</h2>
+          <div class="clientbar"><strong>Live controls:</strong> adjust targets, sync fresh data, and coach from the numbers.</div>
 
           <div class="field">
             <label for="monthlyExpenseTarget">Monthly Expense Target</label>
@@ -304,14 +304,14 @@ async function renderDashboard() {
           </div>
 
           <div class="two">
-            ${panel('Current Week View', `
+            ${panel('Current Week', `
               <div class="row"><span class="label">Range</span><strong>${activeWeek.range}</strong></div>
               <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(activeWeekScheduled)}</strong></div>
               <div class="row"><span class="label">Approved Sales</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
               <div class="row"><span class="label">Last Sync</span><strong>${formatDateTime(crmConnection.last_sync_at || crmConnection.lastSyncAt, timezone)}</strong></div>
               <div class="tag live">Live</div>
             `)}
-            ${panel('Sales Rollup', `
+            ${panel('Sales Performance', `
               <div class="row"><span class="label">Sales Today</span><strong>${money.format(salesToday)}</strong></div>
               <div class="row"><span class="label">Sales This Week</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
               <div class="row"><span class="label">Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>

@@ -28,11 +28,12 @@
     .nav-links a:hover { transform: translateY(-1px); border-color: rgba(91,140,255,.45); box-shadow: 0 14px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.05); }
     .nav-inline-control label { margin: 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
     .panel { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.28); padding: 20px; margin-bottom: 16px; backdrop-filter: blur(10px); }
-    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
-    .card { padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); margin-bottom: 14px; }
-    .card h3, .panel h2 { margin: 0 0 8px; }
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 22px; align-items: start; }
+    .card { padding: 14px; border-radius: 18px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.02) 100%); margin-bottom: 14px; }
+    .card h3, .panel h2 { margin: 0 0 10px; }
+    .panel h2 { font-size: 20px; letter-spacing: -.02em; }
     .card p { font-size: 13px; color: var(--muted); line-height: 1.45; margin: 0; }
-    .clientbar { margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(91,140,255,.10); border: 1px solid rgba(91,140,255,.22); color: #dbe6ff; font-size: 13px; line-height: 1.45; }
+    .clientbar { margin-bottom: 18px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(91,140,255,.16) 0%, rgba(91,140,255,.08) 100%); border: 1px solid rgba(91,140,255,.24); color: #dbe6ff; font-size: 13px; line-height: 1.45; }
     .stepbar { display: grid; gap: 10px; margin-bottom: 18px; }
     .step { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
     .step strong { font-size: 14px; }
@@ -58,8 +59,8 @@
     .stat.blue .v { color: #a9c2ff; }
     .stat.green .v { color: #8cf0c4; }
     .stat.yellow .v { color: #ffd666; }
-    .scoreline { margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 14px; }
-    .scoreline .big { font-size: 22px; font-weight: 800; }
+    .scoreline { margin-bottom: 18px; padding: 18px 20px; border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.025) 100%); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 14px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+    .scoreline .big { font-size: 26px; font-weight: 900; letter-spacing: -.02em; }
     .scoreline .small { color: var(--muted); font-size: 13px; }
     .scoreline.good { border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.12); }
     .scoreline.bad { border-color: rgba(251,191,36,.32); background: rgba(251,191,36,.12); }
@@ -74,7 +75,8 @@
     .week-shell .title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
     .week-shell .range { margin-top: 6px; font-size: 18px; font-weight: 800; }
     .week-shell .mini-note { margin-top: 10px; color: var(--muted); font-size: 13px; }
-    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .control-panel { position: sticky; top: 18px; }
     .row { display: flex; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
     .row:last-child { border-bottom: 0; }
     .row .label, .muted { color: var(--muted); }
