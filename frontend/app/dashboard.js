@@ -61,6 +61,21 @@ function computeCompanySpo(approvedSales = 0, opportunityCount = 0) {
   return approvedSales / opportunityCount;
 }
 
+function formatDateTime(value, timeZone = 'America/Chicago') {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone,
+    timeZoneName: 'short',
+  }).format(date);
+}
+
 function collectTargetInputs() {
   const savedTargets = readTargets();
   return {
@@ -121,6 +136,7 @@ async function renderDashboard() {
     const lastApprovedSales = dashboard.weeks.lastWeek.approvedSales || 0;
     const currentScheduled = dashboard.weeks.currentWeek.scheduledProduction || 0;
     const latestSyncRun = (syncRuns.items || [])[0] || null;
+    const timezone = session.organization.timezone || 'America/Chicago';
     const nextThreeScheduled = (dashboard.weeks.nextWeek.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus2.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus3.scheduledProduction || 0);
@@ -165,7 +181,7 @@ async function renderDashboard() {
             <h3>Data Status</h3>
             <div class="row"><span class="label">CRM</span><strong>${crmConnection.status || 'unknown'}</strong></div>
             <div class="row"><span class="label">Last Sync Status</span><strong>${latestSyncRun?.status || 'none yet'}</strong></div>
-            <div class="row"><span class="label">Last Sync Finished</span><strong>${latestSyncRun?.finishedAt || '—'}</strong></div>
+            <div class="row"><span class="label">Last Sync Finished</span><strong>${formatDateTime(latestSyncRun?.finishedAt, timezone)}</strong></div>
             <div class="row"><span class="label">Last Sync Records</span><strong>${latestSyncRun?.recordsPulled ?? 0}</strong></div>
             <div class="row"><span class="label">Last Sync Error</span><strong>${latestSyncRun?.errorMessage || crmConnection.lastError || 'none'}</strong></div>
             <div class="row"><span class="label">Sync Runs</span><strong>${(syncRuns.items || []).length}</strong></div>
@@ -198,7 +214,7 @@ async function renderDashboard() {
               <div class="small">Scheduled production vs weekly goal</div>
               <div class="big">${targetMetrics.paceLabel}</div>
             </div>
-            <div class="small">Selected week · ${activeWeek.range}</div>
+            <div class="small">Current Week · ${activeWeek.range}</div>
           </div>
 
           <div class="week-nav">
@@ -220,11 +236,11 @@ async function renderDashboard() {
           </div>
 
           <div class="two">
-            ${panel('Selected Week View', `
+            ${panel('Current Week View', `
               <div class="row"><span class="label">Range</span><strong>${activeWeek.range}</strong></div>
               <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(activeWeekScheduled)}</strong></div>
               <div class="row"><span class="label">Approved Sales</span><strong>${money.format(activeWeekApprovedSales)}</strong></div>
-              <div class="row"><span class="label">Last Sync</span><strong>${crmConnection.last_sync_at || crmConnection.lastSyncAt || '—'}</strong></div>
+              <div class="row"><span class="label">Last Sync</span><strong>${formatDateTime(crmConnection.last_sync_at || crmConnection.lastSyncAt, timezone)}</strong></div>
               <div class="tag live">Live</div>
             `)}
             ${panel('Sales Rollup', `
