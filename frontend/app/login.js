@@ -50,6 +50,33 @@ if (existing) {
 document.getElementById('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const result = document.getElementById('result');
+
+  try {
+    const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) throw new Error(`Password sign-in failed with ${res.status}`);
+    const data = await res.json();
+    setAccessToken(data.access_token);
+    setCurrentUserEmail(email);
+    result.textContent = 'Signed in. Redirecting…';
+    window.location.href = './index.html';
+  } catch (error) {
+    clearCurrentUserEmail();
+    result.textContent = `Login failed: ${error.message}`;
+  }
+});
+
+document.getElementById('magicLinkButton').addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim();
   const result = document.getElementById('result');
 
   try {
@@ -67,6 +94,6 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     window.location.href = data.actionLink;
   } catch (error) {
     clearCurrentUserEmail();
-    result.textContent = `Login failed: ${error.message}`;
+    result.textContent = `Magic link failed: ${error.message}`;
   }
 });
