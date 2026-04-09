@@ -8,6 +8,7 @@ import {
   getSupabaseEnv,
   getAuthUser,
   generateMagicLink,
+  generateRecoveryLink,
   getUserByAuthUserId,
   getUserByEmail,
   linkUserAuthIdentity,
@@ -851,6 +852,27 @@ const server = http.createServer(async (req, res) => {
 
         const redirectTo = `${getRequestOrigin(req)}`;
         const link = await generateMagicLink(email, redirectTo);
+        return sendJson(res, 200, {
+          ok: true,
+          actionLink: link.action_link,
+          redirectTo,
+        });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/auth/recovery-link') {
+        const body = await readJsonBody(req);
+        const email = String(body.email || '').trim().toLowerCase();
+        if (!email) {
+          return sendJson(res, 400, { error: 'Email is required' });
+        }
+
+        const approvedUser = await getUserByEmail(email);
+        if (!approvedUser) {
+          return sendJson(res, 404, { error: 'No approved user found for that email' });
+        }
+
+        const redirectTo = `${getRequestOrigin(req)}/reset-password.html`;
+        const link = await generateRecoveryLink(email, redirectTo);
         return sendJson(res, 200, {
           ok: true,
           actionLink: link.action_link,

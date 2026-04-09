@@ -97,3 +97,25 @@ document.getElementById('magicLinkButton').addEventListener('click', async () =>
     result.textContent = `Magic link failed: ${error.message}`;
   }
 });
+
+document.getElementById('setPasswordButton').addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim();
+  const result = document.getElementById('result');
+
+  try {
+    const res = await fetch('/api/auth/recovery-link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw new Error(`Password setup link failed with ${res.status}`);
+    const data = await res.json();
+    clearCurrentUserEmail();
+    result.textContent = 'Opening password setup…';
+    window.location.href = data.actionLink;
+  } catch (error) {
+    result.textContent = `Password setup failed: ${error.message}`;
+  }
+});
