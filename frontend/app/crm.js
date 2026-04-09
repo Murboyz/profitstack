@@ -35,7 +35,7 @@ async function main() {
         },
       };
       if (!payload.credentials.sessionCookie) {
-        result.textContent = 'Session cookie is required.';
+        result.innerHTML = '<p class="error">Session cookie is required.</p>';
         return;
       }
       const res = await apiFetch('/api/crm-connection', {
@@ -44,11 +44,15 @@ async function main() {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      result.textContent = data.message;
+      if (!res.ok) {
+        result.innerHTML = `<p class="error">${data.error || 'Failed to save CRM connection.'}</p>`;
+        return;
+      }
+      result.innerHTML = `<p class="success">${data.message}</p><p><a href="./index.html">Go back to the dashboard</a> and click <strong>Refresh Data</strong>.</p>`;
       await loadStatus();
     });
   } catch (error) {
-    result.textContent = `Failed to load CRM status: ${error.message}`;
+    result.innerHTML = `<p class="error">Failed to load CRM status: ${error.message}</p>`;
   }
 }
 
