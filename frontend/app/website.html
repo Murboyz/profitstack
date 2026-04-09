@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Nut Report</title>
+  <style>
+    :root {
+      --bg: #09101d;
+      --panel: #0f1728;
+      --text: #eff4ff;
+      --muted: #94a3c7;
+      --line: rgba(255,255,255,.08);
+      --blue: #5b8cff;
+      --green: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: radial-gradient(circle at top, #13203b 0%, #09101d 48%, #070d17 100%); color: var(--text); }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 28px; }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 48px; }
+    .brand { font-size: 22px; font-weight: 900; letter-spacing: -.03em; }
+    .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+    .nav-links a, .cta { display: inline-flex; align-items: center; justify-content: center; padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-weight: 800; box-shadow: 0 10px 24px rgba(0,0,0,.18); }
+    .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
+    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; margin-bottom: 30px; }
+    .eyebrow { display: inline-block; padding: 8px 12px; border-radius: 999px; background: rgba(52,211,153,.14); border: 1px solid rgba(52,211,153,.25); color: #a8f3d1; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { font-size: 64px; line-height: .95; letter-spacing: -.05em; margin: 18px 0 16px; }
+    .sub { font-size: 20px; line-height: 1.5; color: var(--muted); max-width: 720px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    .hero-card, .section, .proof-card { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
+    .hero-card { padding: 22px; }
+    .stat { padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .stat:last-child { border-bottom: 0; }
+    .stat .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .stat .v { margin-top: 6px; font-size: 28px; font-weight: 900; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 24px 0 40px; }
+    .section { padding: 24px; }
+    .section h2 { margin: 0 0 10px; font-size: 28px; }
+    .section p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 18px; }
+    .proof-card { padding: 20px; }
+    .proof-card h3 { margin: 0 0 8px; }
+    .proof-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .footer { margin-top: 42px; padding: 18px 0 30px; color: var(--muted); font-size: 14px; }
+    @media (max-width: 900px) {
+      .hero, .grid, .proof { grid-template-columns: 1fr; }
+      h1 { font-size: 44px; }
+      .nav { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav">
+      <div class="brand">The Nut Report</div>
+      <div class="nav-links">
+        <a href="./website.html">Home</a>
+        <a href="./login.html">Login</a>
+      </div>
+    </div>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Service Business Reporting</div>
+        <h1>Know the number that actually matters this week.</h1>
+        <p class="sub">The Nut Report gives service business owners a clean operating view of scheduled production, approved sales, weekly targets, and the next 3 weeks — without making them fight spreadsheets or pretend dashboards.</p>
+        <div class="actions">
+          <a class="cta primary" href="./login.html">Get Started</a>
+          <a class="cta" href="./index.html">Open the App</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="stat">
+          <div class="k">Scheduled Production</div>
+          <div class="v">This week at a glance</div>
+        </div>
+        <div class="stat">
+          <div class="k">Approved Sales</div>
+          <div class="v">What actually moved</div>
+        </div>
+        <div class="stat">
+          <div class="k">Next 3 Weeks</div>
+          <div class="v">See pressure before it hits</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <div class="section">
+        <h2>Simple</h2>
+        <p>No bloated reporting maze. Just the numbers that help an owner decide what needs attention right now.</p>
+      </div>
+      <div class="section">
+        <h2>Live</h2>
+        <p>Pull live CRM data, refresh it fast, and use it in the same dashboard without side spreadsheets.</p>
+      </div>
+      <div class="section">
+        <h2>Actionable</h2>
+        <p>Know whether you are ahead, behind, or about to get squeezed — before the month does it for you.</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <h2>What you actually get</h2>
+      <div class="proof">
+        <div class="proof-card">
+          <h3>Weekly clarity</h3>
+          <p>See current-week production, approved sales, and the real gap between where you are and where you need to be.</p>
+        </div>
+        <div class="proof-card">
+          <h3>Forward visibility</h3>
+          <p>Track what is coming in the next 3 weeks so you can spot the drop before it becomes a payroll problem.</p>
+        </div>
+        <div class="proof-card">
+          <h3>Owner control</h3>
+          <p>Use one dashboard to coach from the numbers, not from vibes, memory, or whatever someone said in the last meeting.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">The Nut Report — operating visibility for service businesses.</div>
+  </div>
+</body>
+</html>
