@@ -353,6 +353,19 @@ function formatDateOnly(date) {
   return toIsoDate(date);
 }
 
+function formatDateInTimeZone(dateValue, timeZone = 'UTC') {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${lookup.year}-${lookup.month}-${lookup.day}`;
+}
+
 function endOfUtcWeek(start) {
   return addDays(start, 6);
 }
@@ -539,7 +552,7 @@ async function fetchHousecallProViaBrowser(rangeStartIso, rangeEndIso) {
   return evaluateInBrowserPage(page.webSocketDebuggerUrl, expression);
 }
 
-async function fetchHousecallProSnapshot(crmConnection) {
+async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   const fields = crmConnection?.encrypted_credentials?.fields || {};
   const sessionCookie = fields.sessionCookie;
   if (!sessionCookie) return null;
@@ -547,7 +560,7 @@ async function fetchHousecallProSnapshot(crmConnection) {
   const now = new Date();
   const weeks = buildWeekBuckets(now, 5);
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
-  const todayDate = formatDateOnly(now);
+  const todayDate = formatDateInTimeZone(now, timeZone);
   const rangeStart = new Date(`${weeks[0].weekStartDate}T00:00:00.000Z`);
   const rangeEnd = new Date(`${weeks[weeks.length - 1].weekEndDate}T23:59:59.999Z`);
 
@@ -686,7 +699,7 @@ async function fetchHousecallProSnapshot(crmConnection) {
     incrementWeekMetric(weekMap, job.created_at, (bucket) => {
       jobCreatedApprovedSales.set(bucket.key, (jobCreatedApprovedSales.get(bucket.key) || 0) + totalAmount);
     });
-    if (formatDateOnly(new Date(job.created_at)) === todayDate) {
+    if (formatDateInTimeZone(job.created_at, timeZone) === todayDate) {
       salesToday += totalAmount;
     }
   }
@@ -709,10 +722,10 @@ async function fetchHousecallProSnapshot(crmConnection) {
   };
 }
 
-async function fetchSnapshotFromCrmConnection(crmConnection) {
+async function fetchSnapshotFromCrmConnection(crmConnection, timeZone = 'UTC') {
   const fields = crmConnection?.encrypted_credentials?.fields || {};
   if (crmConnection?.provider === 'housecall_pro' && fields.sessionCookie) {
-    return fetchHousecallProSnapshot(crmConnection);
+    return fetchHousecallProSnapshot(crmConnection, timeZone);
   }
   const snapshotUrl = fields.snapshotUrl || fields.exportUrl || fields.reportUrl || null;
   if (!snapshotUrl) return null;
@@ -977,7 +990,7 @@ const server = http.createServer(async (req, res) => {
         const existingOverrides = await getMetricOverridesByOrg(context.organization.id);
 
         try {
-          const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection);
+          const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection, context.organization.timezone || 'UTC');
           const snapshotInput = body.snapshot
             || fetchedSnapshot
             || crmConnection?.encrypted_credentials?.fields?.manualSnapshot
