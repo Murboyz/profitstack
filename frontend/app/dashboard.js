@@ -34,10 +34,7 @@ function readTargets(fallback = {}) {
   try {
     const parsed = JSON.parse(localStorage.getItem(TARGETS_STORAGE_KEY) || '{}');
     const merged = { ...defaults, ...fallback, ...parsed };
-    const profitPercentGoal = Number(merged?.profitPercentGoal || 0) === 0
-      ? 10
-      : merged.profitPercentGoal;
-    return { ...merged, profitPercentGoal };
+    return merged;
   } catch {
     return { ...defaults, ...fallback };
   }
