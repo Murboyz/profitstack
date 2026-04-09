@@ -196,6 +196,8 @@ function buildEmptyWeeks(anchorDate = new Date()) {
           range: formatRange(toIsoDate(weekStart), toIsoDate(weekEnd)),
           scheduledProduction: 0,
           approvedSales: 0,
+          realizedSales3Weeks: 0,
+          capturedSales6Weeks: 0,
         },
       ];
     })
@@ -213,6 +215,8 @@ function buildWeeksFromMetrics(rows) {
         range: formatRange(row.week_start_date, row.week_end_date),
         scheduledProduction: Number(row.scheduled_production || 0),
         approvedSales: row.approved_sales == null ? undefined : Number(row.approved_sales),
+        realizedSales3Weeks: 0,
+        capturedSales6Weeks: 0,
       },
     ])
   );
@@ -248,6 +252,8 @@ function applyOverridesToWeeks(weeks, overrides) {
       ...week,
       scheduledProduction: byWeek[`${weekStart}:scheduledProduction`] ?? week.scheduledProduction,
       approvedSales: byWeek[`${weekStart}:approvedSales`] ?? week.approvedSales,
+      realizedSales3Weeks: byWeek[`${weekStart}:realizedSales3Weeks`] ?? week.realizedSales3Weeks,
+      capturedSales6Weeks: byWeek[`${weekStart}:capturedSales6Weeks`] ?? week.capturedSales6Weeks,
     };
   }
   return merged;
@@ -562,6 +568,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   const weeks = buildWeekBuckets(now, 5);
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
   const todayDate = formatDateInTimeZone(now, timeZone);
+  const jobDetailsById = new Map();
   const rangeStart = new Date(`${weeks[0].weekStartDate}T00:00:00.000Z`);
   const rangeEnd = new Date(`${weeks[weeks.length - 1].weekEndDate}T23:59:59.999Z`);
 
@@ -695,6 +702,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   let salesToday = 0;
   const jobCreatedApprovedSales = new Map();
   for (const job of payload.jobDetails || []) {
+    jobDetailsById.set(job.id, job);
     const totalAmount = toCurrencyNumber(job.total_amount || 0);
     if (!totalAmount) continue;
     incrementWeekMetric(weekMap, job.created_at, (bucket) => {
@@ -702,6 +710,27 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     });
     if (formatDateInTimeZone(job.created_at, timeZone) === todayDate) {
       salesToday += totalAmount;
+    }
+  }
+
+  for (const item of payload.calendarItems || []) {
+    if (String(item.type || '').toLowerCase() !== 'job') continue;
+    if (!item.is_complete) continue;
+    const job = jobDetailsById.get(item.appointable_id || item.job_id);
+    if (!job?.created_at) continue;
+    const productionAmount = toCurrencyNumber(item.attributes?.amount || item.amount || 0);
+    if (!productionAmount) continue;
+    const ageDays = Math.floor((new Date(item.start || item.start_date) - new Date(job.created_at)) / (24 * 60 * 60 * 1000));
+    if (!Number.isFinite(ageDays) || ageDays < 0) continue;
+    if (ageDays <= 21) {
+      incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
+        bucket.realizedSales3Weeks = (bucket.realizedSales3Weeks || 0) + productionAmount;
+      });
+    }
+    if (ageDays <= 42) {
+      incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
+        bucket.capturedSales6Weeks = (bucket.capturedSales6Weeks || 0) + productionAmount;
+      });
     }
   }
 
@@ -802,6 +831,8 @@ function formatWeekHistory(rows = [], overrides = []) {
     range: formatRange(row.week_start_date, row.week_end_date),
     scheduledProduction: Number(row.scheduled_production || 0),
     approvedSales: Number(row.approved_sales || 0),
+    realizedSales3Weeks: overrideMap.get(`${row.week_start_date}:realizedSales3Weeks`) ?? 0,
+    capturedSales6Weeks: overrideMap.get(`${row.week_start_date}:capturedSales6Weeks`) ?? 0,
     scheduledProductionSnapshot: overrideMap.get(`${row.week_start_date}:scheduledProductionSnapshot`) ?? null,
     approvedSalesSnapshot: overrideMap.get(`${row.week_start_date}:approvedSalesSnapshot`) ?? null,
     weeklyBreakEvenSnapshot: overrideMap.get(`${row.week_start_date}:weeklyBreakEvenSnapshot`) ?? null,
@@ -1056,19 +1087,28 @@ const server = http.createServer(async (req, res) => {
             : Number(organizationSettings.monthly_expense_target) / 4;
           const existingSnapshotKeys = new Set(
             (existingOverrides || [])
-              .filter((item) => ['scheduledProductionSnapshot', 'approvedSalesSnapshot', 'weeklyBreakEvenSnapshot'].includes(item.metric_key))
+              .filter((item) => ['scheduledProductionSnapshot', 'approvedSalesSnapshot', 'weeklyBreakEvenSnapshot', 'realizedSales3Weeks', 'capturedSales6Weeks'].includes(item.metric_key))
               .map((item) => `${item.week_start_date}:${item.metric_key}`)
           );
+          const rawWeeks = Array.isArray(snapshotInput?.weeks) ? snapshotInput.weeks : [];
+          const rawWeekMap = new Map(rawWeeks.map((item) => [item.weekStartDate, item]));
           for (const item of normalizedWeeks) {
-            if (item.week_start_date >= currentWeekStartDate) continue;
-
+            const rawWeek = rawWeekMap.get(item.week_start_date) || {};
             const snapshotOverrides = [
-              ['scheduledProductionSnapshot', Number(item.scheduled_production || 0), 'Locked past-week scheduled production snapshot'],
-              ['approvedSalesSnapshot', Number(item.approved_sales || 0), 'Locked past-week approved sales snapshot'],
-              ['weeklyBreakEvenSnapshot', weeklyBreakEvenSnapshot, 'Locked past-week break-even snapshot'],
-            ].filter(([, value]) => value != null);
+              ['realizedSales3Weeks', Number(rawWeek.realizedSales3Weeks || 0), 'Computed realized sales within 3 weeks'],
+              ['capturedSales6Weeks', Number(rawWeek.capturedSales6Weeks || 0), 'Computed captured sales within 6 weeks'],
+            ];
+            if (item.week_start_date < currentWeekStartDate) {
+              snapshotOverrides.push(
+                ['scheduledProductionSnapshot', Number(item.scheduled_production || 0), 'Locked past-week scheduled production snapshot'],
+                ['approvedSalesSnapshot', Number(item.approved_sales || 0), 'Locked past-week approved sales snapshot'],
+                ['weeklyBreakEvenSnapshot', weeklyBreakEvenSnapshot, 'Locked past-week break-even snapshot'],
+              );
+            }
 
-            for (const [metricKey, metricValue, reason] of snapshotOverrides) {
+            const filteredOverrides = snapshotOverrides.filter(([, value]) => value != null);
+
+            for (const [metricKey, metricValue, reason] of filteredOverrides) {
               const snapshotKey = `${item.week_start_date}:${metricKey}`;
               if (existingSnapshotKeys.has(snapshotKey)) continue;
               await upsertMetricOverride({
