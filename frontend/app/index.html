@@ -88,6 +88,11 @@
     .session-banner-label, .session-banner-meta { color: var(--muted); }
     .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
     .session-banner-value { font-size: 18px; font-weight: 700; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(5,10,18,.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+    .modal-card { width: min(560px, 100%); background: linear-gradient(180deg, #111a2e 0%, #0d1526 100%); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
+    .modal-card h3 { margin: 0 0 10px; font-size: 24px; }
+    .modal-card p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+    .modal-card .actions { margin-top: 16px; }
     a { color: #7fb0ff; }
     @media (max-width: 980px) {
       .layout, .stats, .two, .week-nav { grid-template-columns: 1fr; }

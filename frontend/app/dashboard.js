@@ -7,6 +7,8 @@ const ACTIVE_WEEK_STORAGE_KEY = 'profitstack_dashboard_active_week';
 const AUTO_SYNC_STORAGE_KEY = 'profitstack_dashboard_auto_sync_done';
 const TIMEZONE_STORAGE_KEY = 'profitstack_dashboard_timezone';
 const HISTORY_WEEK_STORAGE_KEY = 'profitstack_dashboard_history_week';
+const EXPENSE_REMINDER_TEST_SEEN_KEY = 'profitstack_expense_reminder_test_seen';
+const EXPENSE_REMINDER_MONTH_DONE_KEY = 'profitstack_expense_reminder_month_done';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -67,6 +69,21 @@ function readHistoryWeek(defaultValue) {
 
 function writeHistoryWeek(value) {
   localStorage.setItem(HISTORY_WEEK_STORAGE_KEY, value);
+}
+
+function getCurrentMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function isFirstMondayOfMonth(date = new Date()) {
+  return date.getDay() === 1 && date.getDate() <= 7;
+}
+
+function shouldShowExpenseReminder(date = new Date()) {
+  const monthKey = getCurrentMonthKey(date);
+  const completedMonth = localStorage.getItem(EXPENSE_REMINDER_MONTH_DONE_KEY);
+  if (!localStorage.getItem(EXPENSE_REMINDER_TEST_SEEN_KEY)) return true;
+  return isFirstMondayOfMonth(date) && completedMonth !== monthKey;
 }
 
 function parseNumber(value) {
@@ -218,6 +235,8 @@ async function renderDashboard() {
       ? `${money.format(lastWeekGoalDelta)} over goal`
       : `${money.format(Math.abs(lastWeekGoalDelta))} below goal`;
 
+    const showExpenseReminder = shouldShowExpenseReminder();
+
     app.innerHTML = `
       <div class="layout">
         <section class="panel control-panel">
@@ -345,6 +364,21 @@ async function renderDashboard() {
           </div>
         </section>
       </div>
+      ${showExpenseReminder ? `
+        <div class="modal-backdrop" id="expenseReminderModal">
+          <div class="modal-card">
+            <h3>Update Monthly Expense Target</h3>
+            <p>Before moving forward, enter this month’s estimated expenses. This reminder will come back on the first Monday of each new month.</p>
+            <div class="field">
+              <label for="expenseReminderInput">Estimated Monthly Expenses</label>
+              <input id="expenseReminderInput" value="${monthlyExpenseTarget || ''}" placeholder="35000" />
+            </div>
+            <div class="actions">
+              <button id="expenseReminderSave" class="btn-primary" type="button">Save Monthly Expenses</button>
+            </div>
+          </div>
+        </div>
+      ` : ''}
     `;
 
     bindTargetInputs(savedTargets);
@@ -352,6 +386,17 @@ async function renderDashboard() {
       writeTimezone(event.target.value);
       renderDashboard();
     });
+    const expenseReminderSave = document.getElementById('expenseReminderSave');
+    if (expenseReminderSave) {
+      expenseReminderSave.addEventListener('click', () => {
+        const reminderValue = parseNumber(document.getElementById('expenseReminderInput')?.value || 0);
+        if (!reminderValue) return;
+        document.getElementById('monthlyExpenseTarget').value = reminderValue;
+        document.getElementById('monthlyExpenseTarget').dispatchEvent(new Event('change'));
+        localStorage.setItem(EXPENSE_REMINDER_TEST_SEEN_KEY, '1');
+        localStorage.setItem(EXPENSE_REMINDER_MONTH_DONE_KEY, getCurrentMonthKey());
+      });
+    }
     const historyWeekSelect = document.getElementById('historyWeekSelect');
     if (historyWeekSelect) {
       historyWeekSelect.addEventListener('change', (event) => {
