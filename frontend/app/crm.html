@@ -28,19 +28,17 @@
     <div class="panel" id="sessionBanner">Loading session…</div>
     <div class="panel" id="statusCard">Loading…</div>
     <div class="panel">
-      <h2>CRM Connection</h2>
+      <h2>Connect Your CRM</h2>
+      <p>Start with Housecall Pro. Save the connection here, then use <strong>Refresh Data</strong> on the dashboard to pull live numbers.</p>
       <form id="crmForm">
-        <label for="provider">Provider</label>
+        <label for="provider">CRM Provider</label>
         <select id="provider"><option value="housecall_pro">Housecall Pro</option></select>
-        <label for="authType">Auth Type</label>
-        <select id="authType"><option value="session_or_oauth">Session or OAuth</option></select>
-        <label for="accountLabel">Account Label</label>
+        <label for="accountLabel">Connection Name</label>
         <input id="accountLabel" value="Primary Housecall Pro account" />
-        <label for="credentialsJson">Credential JSON</label>
-        <textarea id="credentialsJson">{
-  "sessionCookie": "replace-me",
-  "locationId": "replace-me"
-}</textarea>
+        <label for="sessionCookie">Housecall Pro Session Cookie</label>
+        <textarea id="sessionCookie" placeholder="Paste the session cookie here"></textarea>
+        <label for="locationId">Location ID (optional)</label>
+        <input id="locationId" placeholder="Leave blank if unknown" />
         <button type="submit">Save CRM Connection</button>
       </form>
       <div id="result"></div>
