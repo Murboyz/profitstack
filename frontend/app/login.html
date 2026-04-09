@@ -17,7 +17,7 @@
   <div class="wrap">
     <div class="panel">
       <h1>The Nut Report Login</h1>
-      <p>Sign in with email and password. If needed, you can still use a magic link fallback.</p>
+      <p>Sign in with email and password.</p>
       <form id="loginForm">
         <label for="email">Email</label>
         <input id="email" value="chad@stopworkingbroke.com" type="email" />
@@ -25,10 +25,8 @@
         <input id="password" type="password" placeholder="Enter your password" />
         <button type="submit">Sign In</button>
       </form>
-      <button id="magicLinkButton" type="button">Use Magic Link Instead</button>
-      <button id="setPasswordButton" type="button">Create / Reset Password</button>
       <div id="result"></div>
-      <div class="help">This is not public signup. The email still needs to exist in the app database to resolve the right organization after login.</div>
+      <div class="help">This is not public signup. The email still needs to exist in the app database to resolve the right organization after login. Set or change your password from the Account page after signing in.</div>
     </div>
   </div>
   <script type="module" src="./login.js"></script>
