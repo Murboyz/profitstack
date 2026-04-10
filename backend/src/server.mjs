@@ -611,7 +611,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     const calendarJobIds = new Set(
       calendarItems
         .filter((item) => String(item.type || '').toLowerCase() === 'job')
-        .map((item) => item.appointable_id)
+        .flatMap((item) => [item.appointable_id, item.job_id])
         .filter(Boolean)
     );
     const recentJobIds = new Set(jobs.slice(0, 200).map((job) => job.id).filter(Boolean));
