@@ -111,6 +111,23 @@ async function fetchJobDetailsThisWeek(cookie) {
   return details;
 }
 
+function getMonthAllocatedAmount(monthKey, startValue, endValue, totalAmount) {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || !(totalAmount > 0) || end <= start) return 0;
+
+  const [year, month] = monthKey.split('-').map(Number);
+  const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const monthEndExclusive = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / dayMs));
+  const overlapStart = Math.max(start.getTime(), monthStart.getTime());
+  const overlapEnd = Math.min(end.getTime(), monthEndExclusive.getTime());
+  if (overlapEnd <= overlapStart) return 0;
+  const overlapDays = Math.max(1, Math.ceil((overlapEnd - overlapStart) / dayMs));
+  return totalAmount * (overlapDays / totalDays);
+}
+
 function computeExpectedSales(jobDetails) {
   const now = new Date();
   const today = formatDateInTimeZone(now, timeZone);
@@ -120,6 +137,7 @@ function computeExpectedSales(jobDetails) {
   let salesToday = 0;
   let salesWeek = 0;
   let salesMonth = 0;
+  let monthScheduledProduction = 0;
 
   for (const job of jobDetails) {
     const total = toCurrencyNumber(job.total_amount || 0);
@@ -128,9 +146,19 @@ function computeExpectedSales(jobDetails) {
     if (createdDate === today) salesToday += total;
     if (startOfWeek(job.created_at, timeZone) === currentWeekStart) salesWeek += total;
     if (createdDate.slice(0, 7) === currentMonth) salesMonth += total;
+
+    const allocatedMonthAmount = getMonthAllocatedAmount(currentMonth, job.schedule?.data?.start_time, job.schedule?.data?.end_time, total);
+    if (allocatedMonthAmount > 0) {
+      monthScheduledProduction += allocatedMonthAmount;
+      continue;
+    }
+    const scheduledDate = formatDateInTimeZone(job.scheduled_date || job.schedule?.data?.start_time, timeZone);
+    if (scheduledDate.slice(0, 7) === currentMonth) {
+      monthScheduledProduction += total;
+    }
   }
 
-  return { salesToday, salesWeek, salesMonth };
+  return { salesToday, salesWeek, salesMonth, monthScheduledProduction };
 }
 
 function normalizeMoney(value) {
@@ -145,12 +173,14 @@ const actual = {
   salesToday: normalizeMoney(dashboard?.settings?.salesToday || 0),
   salesWeek: normalizeMoney(dashboard?.weeks?.currentWeek?.approvedSales || 0),
   salesMonth: normalizeMoney(dashboard?.settings?.salesMonth || 0),
+  monthScheduledProduction: normalizeMoney(dashboard?.settings?.salesYear || 0),
 };
 
 const expectedNormalized = {
   salesToday: normalizeMoney(expected.salesToday),
   salesWeek: normalizeMoney(expected.salesWeek),
   salesMonth: normalizeMoney(expected.salesMonth),
+  monthScheduledProduction: normalizeMoney(expected.monthScheduledProduction),
 };
 
 const failures = Object.entries(expectedNormalized)
