@@ -206,6 +206,21 @@ async function renderDashboard() {
       : activeWeekApprovedSales;
     const salesWeek = currentWeekApprovedDisplay;
     const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
+    const currentMonthKey = getCurrentMonthKey(new Date());
+    const monthScheduledProduction = [
+      dashboard.weeks.lastWeek,
+      dashboard.weeks.currentWeek,
+      dashboard.weeks.nextWeek,
+      dashboard.weeks.weekPlus2,
+      dashboard.weeks.weekPlus3,
+    ].filter(Boolean).reduce((sum, week) => {
+      const start = new Date(`${week.weekStartDate}T00:00:00`);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      const overlapsCurrentMonth = getCurrentMonthKey(start) === currentMonthKey || getCurrentMonthKey(end) === currentMonthKey;
+      return overlapsCurrentMonth ? sum + (week.scheduledProduction || 0) : sum;
+    }, 0);
+    const monthlyProductionDelta = monthScheduledProduction - monthlyExpenseTarget;
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
@@ -290,10 +305,10 @@ async function renderDashboard() {
               <div class="v">${money.format(targetMetrics.weeklyGoal)}</div>
               <div class="note">Break-even + profit goal</div>
             </div>
-            <div class="stat yellow">
-              <div class="k">Company SPO</div>
-              <div class="v">${money.format(companySpo)}</div>
-              <div class="note">Approved sales ÷ opportunities</div>
+            <div class="stat ${monthlyProductionDelta >= 0 ? 'green' : 'red'}">
+              <div class="k">Month Production</div>
+              <div class="v">${money.format(monthScheduledProduction)}</div>
+              <div class="note">${monthlyProductionDelta >= 0 ? money.format(monthlyProductionDelta) + ' over target' : money.format(Math.abs(monthlyProductionDelta)) + ' under target'}</div>
             </div>
           </div>
 
