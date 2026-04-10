@@ -565,7 +565,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   if (!sessionCookie) return null;
 
   const now = new Date();
-  const weeks = buildWeekBuckets(now, 5);
+  const weeks = buildWeekBuckets(now, 7);
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
   const todayDate = formatDateInTimeZone(now, timeZone);
   const jobDetailsById = new Map();
