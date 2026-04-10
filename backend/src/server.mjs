@@ -629,10 +629,16 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     };
   }
 
+  for (const job of payload.jobDetails || []) {
+    jobDetailsById.set(job.id, job);
+  }
+
   for (const item of payload.calendarItems || []) {
     if (String(item.type || '').toLowerCase() !== 'job') continue;
+    const job = jobDetailsById.get(item.appointable_id || item.job_id);
+    const scheduledAmount = toCurrencyNumber(item.attributes?.amount || item.amount || job?.total_amount || 0);
     incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
-      bucket.scheduledProduction += toCurrencyNumber(item.attributes?.amount);
+      bucket.scheduledProduction += scheduledAmount;
     });
   }
 
