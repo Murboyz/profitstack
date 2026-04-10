@@ -1,5 +1,6 @@
 import { apiFetch, getCurrentUserEmail, requireLogin } from './auth.js';
 import { renderSessionBanner } from './session-banner.js';
+import { buildNutReportSalesRollups } from './nut-report-metrics.js';
 requireLogin();
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
@@ -199,14 +200,15 @@ async function renderDashboard() {
     const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
-    const salesToday = 0;
-    const currentWeekApprovedDisplay = currentApprovedSales;
+    const salesRollups = buildNutReportSalesRollups(dashboard);
+    const salesToday = salesRollups.salesToday;
+    const currentWeekApprovedDisplay = salesRollups.currentWeekApprovedDisplay;
     const activeWeekApprovedDisplay = activeWeekKey === 'currentWeek'
       ? currentWeekApprovedDisplay
       : activeWeekApprovedSales;
     const liveSalesFallback = activeWeekKey === 'currentWeek' ? currentWeekApprovedDisplay : (activeWeekApprovedSales || currentApprovedSales || 0);
-    const salesWeek = currentWeekApprovedDisplay;
-    const salesMonth = currentWeekApprovedDisplay;
+    const salesWeek = salesRollups.salesWeek;
+    const salesMonth = salesRollups.salesMonth;
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
