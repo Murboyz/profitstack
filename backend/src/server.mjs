@@ -714,6 +714,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
 
   for (const item of payload.calendarItems || []) {
     if (String(item.type || '').toLowerCase() !== 'job') continue;
+    if (!item.is_complete) continue;
     const job = jobDetailsById.get(item.appointable_id || item.job_id);
     if (!job?.created_at) continue;
     const productionAmount = toCurrencyNumber(item.attributes?.amount || item.amount || 0);
