@@ -197,8 +197,8 @@ async function renderDashboard() {
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
     const salesRollups = {
       salesToday: parseNumber(dashboard.settings?.salesToday ?? 0),
-      salesWeek: currentApprovedSales,
-      salesMonth: parseNumber(dashboard.settings?.salesMonth ?? 0),
+      salesWeek: parseNumber(dashboard.weeks?.currentWeek?.capturedSales6Weeks ?? 0),
+      salesMonth: parseNumber(dashboard.weeks?.currentWeek?.capturedSales6Weeks ?? 0),
     };
     const salesToday = salesRollups.salesToday;
     const currentWeekApprovedDisplay = salesRollups.salesWeek;
