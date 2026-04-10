@@ -568,6 +568,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   const weeks = buildWeekBuckets(now, 5);
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
   const todayDate = formatDateInTimeZone(now, timeZone);
+  const currentMonthKey = todayDate.slice(0, 7);
   const jobDetailsById = new Map();
   const rangeStart = new Date(`${weeks[0].weekStartDate}T00:00:00.000Z`);
   const rangeEnd = new Date(`${weeks[weeks.length - 1].weekEndDate}T23:59:59.999Z`);
@@ -700,6 +701,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   }
 
   let salesToday = 0;
+  let salesMonth = 0;
   const jobCreatedApprovedSales = new Map();
   for (const job of payload.jobDetails || []) {
     jobDetailsById.set(job.id, job);
@@ -728,8 +730,12 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
       incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
         bucket.capturedSales6Weeks = (bucket.capturedSales6Weeks || 0) + productionAmount;
       });
-      if (formatDateInTimeZone(item.start || item.start_date, timeZone) === todayDate) {
+      const productionDate = formatDateInTimeZone(item.start || item.start_date, timeZone);
+      if (productionDate === todayDate) {
         salesToday += productionAmount;
+      }
+      if (productionDate.slice(0, 7) === currentMonthKey) {
+        salesMonth += productionAmount;
       }
     }
   }
@@ -747,7 +753,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     fetchedAt: new Date().toISOString(),
     rollups: {
       salesToday,
-      salesMonth: 0,
+      salesMonth,
     },
     weeks,
   };
