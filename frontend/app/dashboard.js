@@ -123,6 +123,9 @@ function collectTargetInputs(baseTargets = {}) {
     monthlyExpenseTarget: document.getElementById('monthlyExpenseTarget')?.value ?? baseTargets.monthlyExpenseTarget,
     profitPercentGoal: document.getElementById('profitPercentGoal')?.value ?? baseTargets.profitPercentGoal,
     opportunityCount: baseTargets.opportunityCount,
+    salesToday: baseTargets.salesToday,
+    salesMonth: baseTargets.salesMonth,
+    salesYear: baseTargets.salesYear,
   };
 }
 
