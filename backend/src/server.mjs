@@ -708,9 +708,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     incrementWeekMetric(weekMap, job.created_at, (bucket) => {
       jobCreatedApprovedSales.set(bucket.key, (jobCreatedApprovedSales.get(bucket.key) || 0) + totalAmount);
     });
-    if (formatDateInTimeZone(job.created_at, timeZone) === todayDate) {
-      salesToday += totalAmount;
-    }
   }
 
   for (const item of payload.calendarItems || []) {
@@ -731,6 +728,9 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
       incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
         bucket.capturedSales6Weeks = (bucket.capturedSales6Weeks || 0) + productionAmount;
       });
+      if (formatDateInTimeZone(item.start || item.start_date, timeZone) === todayDate) {
+        salesToday += productionAmount;
+      }
     }
   }
 
