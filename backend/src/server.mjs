@@ -971,9 +971,9 @@ const server = http.createServer(async (req, res) => {
           monthly_expense_target: toNumberOrNull(body.monthlyExpenseTarget),
           profit_percent_goal: toNumberOrNull(body.profitPercentGoal),
           opportunity_count: toIntegerOrNull(body.opportunityCount),
-          sales_today: toNumberOrNull(body.salesToday),
-          sales_month: toNumberOrNull(body.salesMonth),
-          sales_year: toNumberOrNull(body.salesYear),
+          sales_today: null,
+          sales_month: null,
+          sales_year: null,
           updated_by_user_id: context.user?.id || null,
           updated_at: new Date().toISOString(),
         });
@@ -1146,14 +1146,14 @@ const server = http.createServer(async (req, res) => {
             raw_snapshot_path: `crm_snapshots:${snapshotRow?.[0]?.id || 'unknown'}`,
           });
 
-          if (organizationSettings?.id || snapshotInput?.rollups?.salesToday != null) {
+          if (organizationSettings?.id || snapshotInput?.rollups?.salesToday != null || snapshotInput?.rollups?.salesMonth != null) {
             await upsertOrganizationSettings({
               organization_id: context.organization.id,
               monthly_expense_target: organizationSettings?.monthly_expense_target ?? null,
               profit_percent_goal: organizationSettings?.profit_percent_goal ?? null,
               opportunity_count: organizationSettings?.opportunity_count ?? null,
-              sales_today: snapshotInput?.rollups?.salesToday ?? organizationSettings?.sales_today ?? null,
-              sales_month: organizationSettings?.sales_month ?? null,
+              sales_today: snapshotInput?.rollups?.salesToday ?? null,
+              sales_month: snapshotInput?.rollups?.salesMonth ?? null,
               sales_year: organizationSettings?.sales_year ?? null,
               updated_by_user_id: context.user?.id || null,
               updated_at: finishedAt,
