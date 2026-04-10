@@ -251,7 +251,7 @@ function applyOverridesToWeeks(weeks, overrides) {
     merged[key] = {
       ...week,
       scheduledProduction: byWeek[`${weekStart}:scheduledProduction`] ?? week.scheduledProduction,
-      approvedSales: byWeek[`${weekStart}:approvedSales`] ?? week.approvedSales,
+      approvedSales: week.approvedSales,
       realizedSales3Weeks: byWeek[`${weekStart}:realizedSales3Weeks`] ?? week.realizedSales3Weeks,
       capturedSales6Weeks: byWeek[`${weekStart}:capturedSales6Weeks`] ?? week.capturedSales6Weeks,
     };
