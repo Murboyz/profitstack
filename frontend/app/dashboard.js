@@ -195,18 +195,14 @@ async function renderDashboard() {
     const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
-    const salesRollups = {
-      salesToday: parseNumber(dashboard.settings?.salesToday ?? 0),
-      salesWeek: currentApprovedSales,
-      salesMonth: parseNumber(dashboard.settings?.salesMonth ?? 0),
-    };
-    const salesToday = salesRollups.salesToday;
-    const currentWeekApprovedDisplay = salesRollups.salesWeek;
+    const salesToday = parseNumber(dashboard.settings?.salesToday ?? 0);
+    const currentWeekApprovedDisplay = currentApprovedSales;
     const activeWeekApprovedDisplay = activeWeekKey === 'currentWeek'
       ? currentWeekApprovedDisplay
       : activeWeekApprovedSales;
-    const salesWeek = salesRollups.salesWeek;
-    const salesMonth = salesRollups.salesMonth;
+    const liveSalesFallback = activeWeekKey === 'currentWeek' ? currentWeekApprovedDisplay : (activeWeekApprovedSales || currentApprovedSales || 0);
+    const salesWeek = currentWeekApprovedDisplay;
+    const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
