@@ -195,8 +195,6 @@ async function renderDashboard() {
     const activeWeek = dashboard.weeks[activeWeekKey] || dashboard.weeks.currentWeek;
     const activeWeekApprovedSales = activeWeek.approvedSales || 0;
     const activeWeekScheduled = activeWeek.scheduledProduction || 0;
-    const activeWeekRealizedSales3Weeks = activeWeek.realizedSales3Weeks || 0;
-    const activeWeekCapturedSales6Weeks = activeWeek.capturedSales6Weeks || 0;
     const savedTargets = readTargets(dashboard.settings || {});
     const monthlyExpenseTarget = parseNumber(savedTargets.monthlyExpenseTarget || 0);
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
@@ -338,8 +336,6 @@ async function renderDashboard() {
               <div class="row"><span class="label">Sales Today</span><strong>${money.format(salesToday)}</strong></div>
               <div class="row"><span class="label">Sales This Week</span><strong>${money.format(salesWeek)}</strong></div>
               <div class="row"><span class="label">Sales This Month</span><strong>${money.format(salesMonth)}</strong></div>
-              <div class="row"><span class="label">Realized Sales (3 Weeks)</span><strong>${money.format(activeWeekRealizedSales3Weeks)}</strong></div>
-              <div class="row"><span class="label">Captured Sales (6 Weeks)</span><strong>${money.format(activeWeekCapturedSales6Weeks)}</strong></div>
               <div class="tag manual">Manual + live</div>
             `)}
             ${panel('Last Week Snapshot', `
