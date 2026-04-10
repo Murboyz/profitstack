@@ -217,8 +217,12 @@ async function renderDashboard() {
       const start = new Date(`${week.weekStartDate}T00:00:00`);
       const end = new Date(start);
       end.setDate(end.getDate() + 6);
-      const overlapsCurrentMonth = getCurrentMonthKey(start) === currentMonthKey || getCurrentMonthKey(end) === currentMonthKey;
-      return overlapsCurrentMonth ? sum + (week.scheduledProduction || 0) : sum;
+      let daysInCurrentMonth = 0;
+      for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+        if (getCurrentMonthKey(cursor) === currentMonthKey) daysInCurrentMonth += 1;
+      }
+      if (!daysInCurrentMonth) return sum;
+      return sum + ((week.scheduledProduction || 0) * (daysInCurrentMonth / 7));
     }, 0);
     const monthlyProductionDelta = monthScheduledProduction - monthlyExpenseTarget;
     const previousWeekHistory = (dashboard.weekHistory || [])
