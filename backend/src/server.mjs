@@ -741,10 +741,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   }
 
   for (const bucket of weekMap.values()) {
-    if (bucket.capturedSales6Weeks) {
-      bucket.approvedSales = bucket.capturedSales6Weeks;
-      continue;
-    }
     const fallbackApprovedSales = jobCreatedApprovedSales.get(bucket.key) || 0;
     if (!bucket.approvedSales && fallbackApprovedSales) {
       bucket.approvedSales = fallbackApprovedSales;
