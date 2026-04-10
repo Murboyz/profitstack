@@ -747,6 +747,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     fetchedAt: new Date().toISOString(),
     rollups: {
       salesToday,
+      salesMonth: 0,
     },
     weeks,
   };
