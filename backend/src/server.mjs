@@ -962,9 +962,9 @@ const server = http.createServer(async (req, res) => {
           monthly_expense_target: toNumberOrNull(body.monthlyExpenseTarget),
           profit_percent_goal: toNumberOrNull(body.profitPercentGoal),
           opportunity_count: toIntegerOrNull(body.opportunityCount),
-          sales_today: toNumberOrNull(body.salesToday),
-          sales_month: toNumberOrNull(body.salesMonth),
-          sales_year: toNumberOrNull(body.salesYear),
+          sales_today: null,
+          sales_month: null,
+          sales_year: null,
           updated_by_user_id: context.user?.id || null,
           updated_at: new Date().toISOString(),
         });
