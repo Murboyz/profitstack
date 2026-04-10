@@ -46,3 +46,7 @@ When working ProfitStack:
 - verify the live-served file when a frontend change matters
 - do one change at a time
 - commit each working step cleanly
+- after every committed change, immediately hand off the exact push/deploy step so the work can actually go live
+- if a step does not require Chad's approval, do it automatically instead of telling Chad what needs to be done
+- no Nut Report change is considered complete until after deploy + fresh sync + `node scripts/check-nut-report-regression.js` passes
+- if the regression check fails, the change is not done and the checkpoint has not been safely preserved
