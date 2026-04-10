@@ -202,7 +202,7 @@ async function renderDashboard() {
     const profitPercentGoal = parseNumber(savedTargets.profitPercentGoal || 0);
     const opportunityCount = parseNumber(savedTargets.opportunityCount || 0);
     const salesToday = parseNumber(dashboard.settings?.salesToday ?? savedTargets.salesToday ?? 0);
-    const currentWeekApprovedDisplay = currentApprovedSales + salesToday;
+    const currentWeekApprovedDisplay = currentApprovedSales;
     const activeWeekApprovedDisplay = activeWeekKey === 'currentWeek'
       ? currentWeekApprovedDisplay
       : activeWeekApprovedSales;
