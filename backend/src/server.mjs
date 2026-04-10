@@ -947,9 +947,19 @@ const server = http.createServer(async (req, res) => {
         ]);
         const liveWeeks = buildWeeksFromMetrics(weekMetrics);
         const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
+        const settings = formatOrganizationSettings(organizationSettings, context.organization.id);
+        if (crmConnection?.id) {
+          try {
+            const liveSnapshot = await fetchSnapshotFromCrmConnection(crmConnection, context.organization.timezone || 'UTC');
+            settings.salesToday = liveSnapshot?.rollups?.salesToday ?? settings.salesToday;
+            settings.salesMonth = liveSnapshot?.rollups?.salesMonth ?? settings.salesMonth;
+          } catch {
+            // keep last synced values when live rollup refresh fails
+          }
+        }
         return sendJson(res, 200, {
           organization: formatSession(context).organization,
-          settings: formatOrganizationSettings(organizationSettings, context.organization.id),
+          settings,
           crmConnection: formatDashboardCrmConnection(crmConnection),
           weeks: mergedWeeks,
           weekHistory: formatWeekHistory(weekMetrics, overrides),
