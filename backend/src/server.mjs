@@ -714,7 +714,8 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   for (const item of payload.calendarItems || []) {
     if (String(item.type || '').toLowerCase() !== 'job') continue;
     const productionDate = formatDateInTimeZone(item.start || item.start_date, timeZone);
-    const productionAmount = toCurrencyNumber(item.attributes?.amount || item.amount || 0);
+    const job = jobDetailsById.get(item.appointable_id || item.job_id);
+    const productionAmount = toCurrencyNumber(item.attributes?.amount || item.amount || job?.total_amount || 0);
     if (!productionAmount) continue;
     if (productionDate === todayDate) {
       salesToday += productionAmount;
@@ -722,7 +723,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     if (productionDate.slice(0, 7) === todayDate.slice(0, 7)) {
       salesMonth += productionAmount;
     }
-    const job = jobDetailsById.get(item.appointable_id || item.job_id);
     if (!job?.created_at) continue;
     const ageDays = Math.floor((new Date(item.start || item.start_date) - new Date(job.created_at)) / (24 * 60 * 60 * 1000));
     if (!Number.isFinite(ageDays) || ageDays < 0) continue;
