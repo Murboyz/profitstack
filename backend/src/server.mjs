@@ -381,9 +381,50 @@ function formatDashboardCrmConnection(item) {
   };
 }
 
+function formatCrmConnectionDetail(item) {
+  if (!item) {
+    return {
+      provider: 'not_connected',
+      status: 'not_connected',
+      authType: null,
+      accountLabel: null,
+      savedFields: [],
+      savedAt: null,
+      hasCredentials: false,
+      lastSyncAt: null,
+      lastError: null,
+    };
+  }
+
+  const credentialEnvelope = item.encrypted_credentials || {};
+  return {
+    id: item.id,
+    provider: item.provider,
+    status: item.status,
+    authType: item.auth_type || credentialEnvelope.authType || null,
+    accountLabel: credentialEnvelope.accountLabel || null,
+    savedFields: credentialEnvelope.fieldKeys || [],
+    savedAt: credentialEnvelope.savedAt || null,
+    hasCredentials: Boolean(credentialEnvelope.hasCredentials),
+    lastSyncAt: item.last_sync_at || null,
+    lastError: item.last_error || null,
+  };
+}
+
+function normalizeHousecallSessionCookie(value) {
+  const input = String(value || '').trim();
+  if (!input) return '';
+  if (/^cookie:/i.test(input)) return input.replace(/^cookie:\s*/i, '').trim();
+  return input;
+}
+
 function buildCredentialEnvelope(body, context) {
-  const fields = typeof body.credentials === 'object' && body.credentials !== null ? body.credentials : {};
-  const fieldKeys = Object.keys(fields).filter(Boolean);
+  const rawFields = typeof body.credentials === 'object' && body.credentials !== null ? body.credentials : {};
+  const fields = { ...rawFields };
+  if (body.provider === 'housecall_pro' && fields.sessionCookie) {
+    fields.sessionCookie = normalizeHousecallSessionCookie(fields.sessionCookie);
+  }
+  const fieldKeys = Object.keys(fields).filter((key) => Boolean(key) && fields[key] !== undefined && fields[key] !== null && fields[key] !== '');
   return {
     version: 1,
     provider: body.provider,
@@ -1123,7 +1164,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'GET' && pathname === '/api/crm-connection') {
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
-        return sendJson(res, 200, crmConnection || {});
+        return sendJson(res, 200, formatCrmConnectionDetail(crmConnection));
       }
       if (req.method === 'POST' && pathname === '/api/crm-connection') {
         const body = await readJsonBody(req);
@@ -1138,7 +1179,11 @@ const server = http.createServer(async (req, res) => {
           last_sync_at: new Date().toISOString(),
           last_error: null,
         });
-        return sendJson(res, 200, { ok: true, message: 'CRM connection saved to Supabase', item: saved?.[0] || null });
+        return sendJson(res, 200, {
+          ok: true,
+          message: credentialEnvelope.hasCredentials ? 'Housecall Pro connection saved. Go to the dashboard and click Refresh Data.' : 'CRM connection saved.',
+          item: formatCrmConnectionDetail(saved?.[0] || null),
+        });
       }
       if (req.method === 'GET' && pathname === '/api/overrides') {
         const overrides = await getMetricOverridesByOrg(context.organization.id);

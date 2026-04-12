@@ -2,29 +2,62 @@ import { apiFetch, requireLogin } from './auth.js';
 import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function statusBadgeClass(status) {
+  if (status === 'connected') return 'status-connected';
+  if (status === 'pending') return 'status-pending';
+  return 'status-missing';
+}
+
 async function loadStatus() {
   const app = document.getElementById('statusCard');
   const res = await apiFetch('/api/crm-connection');
   const data = await res.json();
-  const credentialEnvelope = data.encrypted_credentials || {};
+  const status = data.status || 'not_connected';
+  const statusLabel = status.replaceAll('_', ' ');
   app.innerHTML = `
-    <div class="row"><span>Provider</span><strong>${data.provider || '—'}</strong></div>
-    <div class="row"><span>Status</span><strong>${data.status || 'not connected'}</strong></div>
-    <div class="row"><span>Account Label</span><strong>${credentialEnvelope.accountLabel || '—'}</strong></div>
-    <div class="row"><span>Saved Fields</span><strong>${(credentialEnvelope.fieldKeys || []).join(', ') || 'None saved'}</strong></div>
-    <div class="row"><span>Saved At</span><strong>${credentialEnvelope.savedAt || '—'}</strong></div>
-    <div class="row"><span>Last Sync</span><strong>${data.last_sync_at || data.lastSyncAt || '—'}</strong></div>
-    <div class="row"><span>Last Error</span><strong>${data.last_error || data.lastError || 'None'}</strong></div>
+    <div>
+      <div class="status-badge ${statusBadgeClass(status)}">${escapeHtml(statusLabel)}</div>
+    </div>
+    <div>
+      <h3>${escapeHtml(data.provider === 'housecall_pro' ? 'Housecall Pro' : 'CRM Connection')}</h3>
+      <p>${status === 'connected' ? 'Your active Housecall Pro session is saved for this organization.' : 'No active Housecall Pro session is saved yet.'}</p>
+    </div>
+    <div class="row"><span>Connection Name</span><strong>${escapeHtml(data.accountLabel || '—')}</strong></div>
+    <div class="row"><span>Auth Type</span><strong>${escapeHtml(data.authType || '—')}</strong></div>
+    <div class="row"><span>Saved Fields</span><strong>${escapeHtml((data.savedFields || []).join(', ') || 'None saved')}</strong></div>
+    <div class="row"><span>Saved At</span><strong>${escapeHtml(data.savedAt || '—')}</strong></div>
+    <div class="row"><span>Last Sync</span><strong>${escapeHtml(data.lastSyncAt || '—')}</strong></div>
+    <div class="row"><span>Last Error</span><strong>${escapeHtml(data.lastError || 'None')}</strong></div>
   `;
+
+  const saveButton = document.getElementById('saveButton');
+  if (saveButton) {
+    saveButton.textContent = status === 'connected' ? 'Update Housecall Pro Connection' : 'Save Housecall Pro Connection';
+  }
+
+  return data;
 }
 
 async function main() {
   const result = document.getElementById('result');
+  const form = document.getElementById('crmForm');
+
   try {
     await renderSessionBanner();
     await loadStatus();
-    document.getElementById('crmForm').addEventListener('submit', async (event) => {
+
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const saveButton = document.getElementById('saveButton');
       const payload = {
         provider: document.getElementById('provider').value,
         authType: 'session_or_oauth',
@@ -34,25 +67,43 @@ async function main() {
           locationId: document.getElementById('locationId').value.trim() || undefined,
         },
       };
+
       if (!payload.credentials.sessionCookie) {
-        result.innerHTML = '<p class="error">Session cookie is required.</p>';
+        result.innerHTML = '<p class="error">Paste the active Housecall Pro session cookie before saving.</p>';
         return;
       }
-      const res = await apiFetch('/api/crm-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        result.innerHTML = `<p class="error">${data.error || 'Failed to save CRM connection.'}</p>`;
-        return;
+
+      try {
+        if (saveButton) {
+          saveButton.disabled = true;
+          saveButton.textContent = 'Saving…';
+        }
+        result.innerHTML = '<p class="muted">Saving Housecall Pro connection…</p>';
+
+        const res = await apiFetch('/api/crm-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          result.innerHTML = `<p class="error">${escapeHtml(data.error || 'Failed to save CRM connection.')}</p>`;
+          return;
+        }
+
+        result.innerHTML = `<p class="success">${escapeHtml(data.message || 'Housecall Pro connection saved.')}</p><p class="muted" style="margin-top: 8px;">Next: go back to the dashboard and click <strong>Refresh Data</strong>.</p>`;
+        document.getElementById('sessionCookie').value = '';
+        await loadStatus();
+      } catch (error) {
+        result.innerHTML = `<p class="error">${escapeHtml(error.message || 'Failed to save CRM connection.')}</p>`;
+      } finally {
+        if (saveButton) {
+          saveButton.disabled = false;
+        }
       }
-      result.innerHTML = `<p class="success">${data.message}</p><p><a href="./dashboard.html">Go back to the dashboard</a> and click <strong>Refresh Data</strong>.</p>`;
-      await loadStatus();
     });
   } catch (error) {
-    result.innerHTML = `<p class="error">Failed to load CRM status: ${error.message}</p>`;
+    result.innerHTML = `<p class="error">Failed to load CRM status: ${escapeHtml(error.message)}</p>`;
   }
 }
 

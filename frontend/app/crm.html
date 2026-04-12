@@ -5,58 +5,144 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Nut Report CRM</title>
   <style>
-    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
-    .wrap { max-width: 1000px; margin: 0 auto; padding: 28px; }
-    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
-    .row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.06); padding: 10px 0; }
+    :root {
+      --bg: #09101d;
+      --panel: #0f1728;
+      --text: #eef4ff;
+      --muted: #94a3c7;
+      --line: rgba(255,255,255,.08);
+      --blue: #5b8cff;
+      --blue-soft: rgba(91,140,255,.12);
+      --green: #8cf0c4;
+      --green-soft: rgba(52,211,153,.12);
+      --red: #ff9aac;
+      --yellow: #f9dd8d;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 28px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.22); }
+    .hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 20px; align-items: stretch; }
+    .eyebrow { display: inline-block; margin-bottom: 12px; padding: 7px 11px; border-radius: 999px; background: var(--blue-soft); color: #dbe6ff; border: 1px solid rgba(91,140,255,.22); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { margin: 0; line-height: 1.6; color: var(--muted); }
+    .nav { margin-top: 10px; }
+    .nav a { color: #7fb0ff; text-decoration: none; }
+    .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .status-connected { background: var(--green-soft); color: var(--green); border: 1px solid rgba(52,211,153,.24); }
+    .status-pending { background: rgba(249,221,141,.1); color: var(--yellow); border: 1px solid rgba(249,221,141,.22); }
+    .status-missing { background: rgba(255,255,255,.04); color: var(--muted); border: 1px solid rgba(255,255,255,.08); }
+    .stack { display: grid; gap: 14px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
     .row:last-child { border-bottom: 0; }
-    .note { padding: 14px; border-radius: 14px; border: 1px solid rgba(91,140,255,.22); background: rgba(91,140,255,.1); color: #dbe6ff; margin-bottom: 14px; line-height: 1.5; }
-    .success { color: #8cf0c4; }
-    .error { color: #ff9aac; }
-    .session-banner-label, .session-banner-meta { color: #94a3c7; }
+    .row span:first-child { color: var(--muted); }
+    .session-banner-label, .session-banner-meta { color: var(--muted); }
     .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
     .session-banner-value { font-size: 18px; font-weight: 700; }
-    label, input, select, textarea, button { display: block; width: 100%; margin-bottom: 10px; }
-    input, select, textarea, button { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
-    textarea { min-height: 150px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    a { color: #7fb0ff; }
+    .note, .step-card { padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); }
+    .note { background: var(--blue-soft); border-color: rgba(91,140,255,.22); color: #dbe6ff; }
+    .step-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .step-card strong { display: block; margin-bottom: 6px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .button, button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: #111a2e; color: var(--text); text-decoration: none; font-weight: 800; cursor: pointer; }
+    .button.primary, button.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
+    .button.secondary { background: rgba(255,255,255,.02); }
+    form { display: grid; gap: 14px; }
+    label { display: block; font-weight: 700; margin-bottom: 6px; }
+    input, select, textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: #111a2e; color: var(--text); }
+    textarea { min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .field-help { font-size: 14px; color: var(--muted); margin-top: 6px; }
+    .result { margin-top: 12px; }
+    .success { color: var(--green); }
+    .error { color: var(--red); }
+    details { border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 14px 16px; background: rgba(255,255,255,.02); }
+    summary { cursor: pointer; font-weight: 800; }
+    .muted { color: var(--muted); }
+    @media (max-width: 860px) {
+      .hero, .step-grid, .session-banner-grid { grid-template-columns: 1fr; }
+    }
     @media (max-width: 720px) {
       .wrap { padding: 16px; }
-      .row { flex-direction: column; align-items: flex-start; gap: 6px; }
-      .session-banner-grid { grid-template-columns: 1fr; }
+      .row { flex-direction: column; align-items: flex-start; }
+      .actions { flex-direction: column; }
+      .actions .button, .actions button { width: 100%; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="panel">
-      <h1>The Nut Report CRM Status</h1>
-      <p><a href="./dashboard.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></p>
+      <h1>The Nut Report CRM</h1>
+      <p class="nav"><a href="./dashboard.html">Dashboard</a> · <a href="./ops.html">Ops</a> · <a href="./crm.html">CRM</a> · <a href="./overrides.html">Overrides</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a> · <a href="./login.html">Login</a> · <a href="./logout.html">Logout</a></p>
     </div>
+
     <div class="panel" id="sessionBanner">Loading session…</div>
-    <div class="panel" id="statusCard">Loading…</div>
-    <div class="panel">
-      <h2>Connect Your CRM</h2>
-      <p>Start with Housecall Pro. Save the connection here, then use <strong>Refresh Data</strong> on the dashboard to pull live numbers.</p>
-      <div class="note">
-        <strong>How to connect Housecall Pro</strong><br />
-        1. Open Housecall Pro in another tab and make sure you are logged in.<br />
-        2. Copy your current <strong>session cookie</strong> value.<br />
-        3. Paste it below and click <strong>Save CRM Connection</strong>.<br />
-        4. Go back to the dashboard and click <strong>Refresh Data</strong>.
+
+    <section class="hero">
+      <div class="panel">
+        <div class="eyebrow">Housecall Pro Connect</div>
+        <h2>Connect Housecall Pro and start pulling live numbers.</h2>
+        <p>This v1 uses the same Housecall Pro session-based connection we have already been using. Connect it here, then go back to the dashboard and click <strong>Refresh Data</strong>.</p>
+        <div class="actions">
+          <a class="button primary" href="https://pro.housecallpro.com/app" target="_blank" rel="noreferrer">Open Housecall Pro</a>
+          <a class="button secondary" href="./dashboard.html">Back to Dashboard</a>
+        </div>
       </div>
+      <div class="panel stack" id="statusCard">Loading connection status…</div>
+    </section>
+
+    <div class="panel">
+      <h2>How it works</h2>
+      <div class="step-grid" style="margin-top: 14px;">
+        <div class="step-card">
+          <strong>1. Log into Housecall Pro</strong>
+          <p>Use the client’s real HCP login in another tab so the session is active and current.</p>
+        </div>
+        <div class="step-card">
+          <strong>2. Paste the active session</strong>
+          <p>Paste the current HCP cookie string below. Full copied cookie text is okay.</p>
+        </div>
+        <div class="step-card">
+          <strong>3. Refresh your numbers</strong>
+          <p>Once saved, head back to the dashboard and pull the latest production and sales data.</p>
+        </div>
+      </div>
+      <div class="note" style="margin-top: 16px;">
+        <strong>Important</strong><br />This is a session-based connection for speed, not final OAuth. If Housecall Pro logs the client out or expires the session, reconnect it here.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Connect Housecall Pro</h2>
       <form id="crmForm">
-        <label for="provider">CRM Provider</label>
-        <select id="provider"><option value="housecall_pro">Housecall Pro</option></select>
-        <label for="accountLabel">Connection Name</label>
-        <input id="accountLabel" value="Primary Housecall Pro account" />
-        <label for="sessionCookie">Housecall Pro Session Cookie</label>
-        <textarea id="sessionCookie" placeholder="Paste the session cookie here"></textarea>
-        <label for="locationId">Location ID (optional)</label>
-        <input id="locationId" placeholder="Leave blank if unknown" />
-        <button type="submit">Save CRM Connection</button>
+        <div>
+          <label for="provider">CRM Provider</label>
+          <select id="provider">
+            <option value="housecall_pro">Housecall Pro</option>
+          </select>
+        </div>
+        <div>
+          <label for="accountLabel">Connection Name</label>
+          <input id="accountLabel" value="Primary Housecall Pro account" />
+          <div class="field-help">Use something the client will recognize later if they reconnect.</div>
+        </div>
+        <details open>
+          <summary>Paste Housecall Pro session</summary>
+          <div style="margin-top: 14px;">
+            <label for="sessionCookie">Housecall Pro session cookie / cookie string</label>
+            <textarea id="sessionCookie" placeholder="Paste the active Housecall Pro cookie string here"></textarea>
+            <div class="field-help">You can paste the full copied cookie string. The app will clean the `Cookie:` prefix if it is included.</div>
+          </div>
+          <div style="margin-top: 14px;">
+            <label for="locationId">Location ID (optional)</label>
+            <input id="locationId" placeholder="Leave blank if unknown" />
+          </div>
+        </details>
+        <div class="actions">
+          <button class="primary" type="submit" id="saveButton">Save Housecall Pro Connection</button>
+        </div>
       </form>
-      <div id="result"></div>
+      <div class="result" id="result"></div>
     </div>
   </div>
   <script type="module" src="./crm.js"></script>
