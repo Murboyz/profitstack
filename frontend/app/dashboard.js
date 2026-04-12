@@ -146,6 +146,32 @@ function bindTargetInputs(baseTargets) {
     .forEach((id) => document.getElementById(id).addEventListener('change', save));
 }
 
+function bindMobileControlPanelHide() {
+  const controlPanel = document.querySelector('.control-panel');
+  const timezoneField = document.getElementById('timezoneSelect');
+  if (!controlPanel || !timezoneField) return;
+
+  if (window.__profitstackMobileControlPanelHandler) {
+    window.removeEventListener('scroll', window.__profitstackMobileControlPanelHandler);
+    window.removeEventListener('resize', window.__profitstackMobileControlPanelHandler);
+  }
+
+  const mediaQuery = window.matchMedia('(max-width: 980px)');
+  const updateVisibility = () => {
+    if (!mediaQuery.matches) {
+      controlPanel.classList.remove('mobile-hidden');
+      return;
+    }
+    const threshold = timezoneField.getBoundingClientRect().bottom;
+    controlPanel.classList.toggle('mobile-hidden', threshold <= 0);
+  };
+
+  window.__profitstackMobileControlPanelHandler = updateVisibility;
+  updateVisibility();
+  window.addEventListener('scroll', updateVisibility, { passive: true });
+  window.addEventListener('resize', updateVisibility);
+}
+
 async function loadJson(path) {
   const separator = path.includes('?') ? '&' : '?';
   const res = await apiFetch(`${path}${separator}t=${Date.now()}`);
@@ -430,6 +456,7 @@ async function renderDashboard() {
         renderDashboard();
       });
     });
+    bindMobileControlPanelHide();
   } catch (error) {
     if (status) status.textContent = `Failed to load dashboard: ${error.message}`;
   }
