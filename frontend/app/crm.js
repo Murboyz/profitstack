@@ -48,7 +48,7 @@ async function main() {
         result.innerHTML = `<p class="error">${data.error || 'Failed to save CRM connection.'}</p>`;
         return;
       }
-      result.innerHTML = `<p class="success">${data.message}</p><p><a href="./index.html">Go back to the dashboard</a> and click <strong>Refresh Data</strong>.</p>`;
+      result.innerHTML = `<p class="success">${data.message}</p><p><a href="./dashboard.html">Go back to the dashboard</a> and click <strong>Refresh Data</strong>.</p>`;
       await loadStatus();
     });
   } catch (error) {

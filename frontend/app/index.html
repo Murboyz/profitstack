@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Nut Report App</title>
+  <title>The Nut Report</title>
   <style>
     :root {
       --bg: #09101d;
@@ -13,111 +13,128 @@
       --line: rgba(255,255,255,.08);
       --blue: #5b8cff;
       --green: #34d399;
-      --yellow: #fbbf24;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: Inter, Arial, sans-serif; background: linear-gradient(180deg, #08101d 0%, #0b1424 100%); color: var(--text); }
-    .wrap { max-width: 1260px; margin: 0 auto; padding: 28px; }
-    .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
-    .title h1 { margin: 0; font-size: 30px; }
-    .title p { margin: 8px 0 0; color: var(--muted); max-width: 760px; line-height: 1.5; }
-    .badge { border: 1px solid rgba(91,140,255,.35); background: rgba(91,140,255,.12); color: #d5e2ff; padding: 10px 14px; border-radius: 999px; font-size: 13px; }
-    .nav { margin: 14px auto 0; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
-    .nav-links { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
-    .nav-links a { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-size: 13px; font-weight: 700; box-shadow: 0 10px 24px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.04); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-    .nav-links a:hover { transform: translateY(-1px); border-color: rgba(91,140,255,.45); box-shadow: 0 14px 28px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.05); }
-    .nav-inline-control label { margin: 0; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-    .panel { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.28); padding: 20px; margin-bottom: 16px; backdrop-filter: blur(10px); }
-    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 22px; align-items: start; }
-    .card { padding: 14px; border-radius: 18px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.02) 100%); margin-bottom: 14px; }
-    .card h3, .panel h2 { margin: 0 0 10px; }
-    .panel h2 { font-size: 20px; letter-spacing: -.02em; }
-    .card p { font-size: 13px; color: var(--muted); line-height: 1.45; margin: 0; }
-    .clientbar { margin-bottom: 18px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(91,140,255,.16) 0%, rgba(91,140,255,.08) 100%); border: 1px solid rgba(91,140,255,.24); color: #dbe6ff; font-size: 13px; line-height: 1.45; }
-    .stepbar { display: grid; gap: 10px; margin-bottom: 18px; }
-    .step { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
-    .step strong { font-size: 14px; }
-    .step span { color: var(--muted); font-size: 12px; }
-    .step.active { border-color: rgba(91,140,255,.38); background: rgba(91,140,255,.12); }
-    .field { margin-bottom: 14px; }
-    label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 13px; }
-    input, select { width: 100%; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #121d33 0%, #0f1728 100%); color: #eef4ff; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
-    input:focus, select:focus { outline: none; border-color: rgba(91,140,255,.6); box-shadow: 0 0 0 3px rgba(91,140,255,.16); }
-    .nav-inline-control select { width: auto; min-width: 150px; padding: 8px 30px 8px 10px; border-radius: 10px; font-size: 12px; }
-    select { appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, #94a3c7 50%), linear-gradient(135deg, #94a3c7 50%, transparent 50%); background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px); background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; padding-right: 34px; }
-    select option { background: #111a2e; color: #eef4ff; }
-    .actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
-    button { padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; cursor: pointer; font-weight: 800; letter-spacing: .01em; box-shadow: 0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.04); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-    button:hover { transform: translateY(-1px); border-color: rgba(91,140,255,.45); box-shadow: 0 14px 28px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06); }
-    button:active { transform: translateY(0); }
-    .btn-primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); color: #f8fbff; }
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
-    .stat { padding: 18px; border-radius: 20px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: radial-gradient(circle at top, #13203b 0%, #09101d 48%, #070d17 100%); color: var(--text); }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 28px; }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 48px; }
+    .brand { font-size: 22px; font-weight: 900; letter-spacing: -.03em; }
+    .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+    .nav-links a, .cta { display: inline-flex; align-items: center; justify-content: center; padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-weight: 800; box-shadow: 0 10px 24px rgba(0,0,0,.18); }
+    .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
+    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; margin-bottom: 30px; }
+    .eyebrow { display: inline-block; padding: 8px 12px; border-radius: 999px; background: rgba(52,211,153,.14); border: 1px solid rgba(52,211,153,.25); color: #a8f3d1; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { font-size: 64px; line-height: .95; letter-spacing: -.05em; margin: 18px 0 16px; }
+    .sub { font-size: 20px; line-height: 1.5; color: var(--muted); max-width: 720px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    .hero-card, .section, .proof-card { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
+    .hero-card { padding: 22px; }
+    .stat { padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .stat:last-child { border-bottom: 0; }
     .stat .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
-    .stat .v { margin-top: 10px; font-size: 30px; font-weight: 800; }
-    .stat .note { margin-top: 8px; color: var(--muted); font-size: 13px; }
-    .stat.blue .v { color: #a9c2ff; }
-    .stat.green .v { color: #8cf0c4; }
-    .stat.yellow .v { color: #ffd666; }
-    .scoreline { margin-bottom: 18px; padding: 18px 20px; border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.025) 100%); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 14px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
-    .scoreline .big { font-size: 26px; font-weight: 900; letter-spacing: -.02em; }
-    .scoreline .small { color: var(--muted); font-size: 13px; }
-    .scoreline.good { border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.12); }
-    .scoreline.bad { border-color: rgba(251,191,36,.32); background: rgba(251,191,36,.12); }
-    .scoreline.good .big { color: #8cf0c4; }
-    .scoreline.bad .big { color: #ff9aac; }
-    .week-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
-    .week-shell { padding: 16px; border-radius: 18px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.025) 100%); cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-    .week-shell:hover { transform: translateY(-2px); box-shadow: 0 16px 28px rgba(0,0,0,.18); border-color: rgba(91,140,255,.24); }
-    .week-shell.active { border-color: rgba(91,140,255,.38); background: rgba(91,140,255,.12); }
-    .week-shell.good { border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.12); }
-    .week-shell.bad { border-color: rgba(251,113,133,.45); background: rgba(251,113,133,.12); }
-    .week-shell .title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-    .week-shell .range { margin-top: 6px; font-size: 18px; font-weight: 800; }
-    .week-shell .mini-note { margin-top: 10px; color: var(--muted); font-size: 13px; }
-    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .control-panel { position: sticky; top: 18px; }
-    .row { display: flex; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
-    .row:last-child { border-bottom: 0; }
-    .row .label, .muted { color: var(--muted); }
-    .profit-good { color: #8cf0c4; }
-    .profit-bad { color: #ff9aac; }
-    .tag { display: inline-block; margin-top: 10px; padding: 5px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-    .tag.live { background: rgba(52,211,153,.14); color: #9df0cb; border: 1px solid rgba(52,211,153,.24); }
-    .tag.manual { background: rgba(251,191,36,.14); color: #ffe08a; border: 1px solid rgba(251,191,36,.22); }
-    .session-banner-label, .session-banner-meta { color: var(--muted); }
-    .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
-    .session-banner-value { font-size: 18px; font-weight: 700; }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(5,10,18,.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
-    .modal-card { width: min(560px, 100%); background: linear-gradient(180deg, #111a2e 0%, #0d1526 100%); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
-    .modal-card h3 { margin: 0 0 10px; font-size: 24px; }
-    .modal-card p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
-    .modal-card .actions { margin-top: 16px; }
-    a { color: #7fb0ff; }
-    @media (max-width: 980px) {
-      .layout, .stats, .two, .week-nav { grid-template-columns: 1fr; }
-      .topbar { flex-direction: column; }
+    .stat .v { margin-top: 6px; font-size: 28px; font-weight: 900; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 24px 0 40px; }
+    .section { padding: 24px; }
+    .section h2 { margin: 0 0 10px; font-size: 28px; }
+    .section p, .section li { margin: 0; color: var(--muted); line-height: 1.55; }
+    .proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 18px; }
+    .proof-card { padding: 20px; }
+    .proof-card h3 { margin: 0 0 8px; }
+    .proof-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .legal { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 18px; }
+    .footer { margin-top: 42px; padding: 18px 0 30px; color: var(--muted); font-size: 14px; }
+    @media (max-width: 900px) {
+      .hero, .grid, .proof, .legal { grid-template-columns: 1fr; }
+      h1 { font-size: 44px; }
+      .nav { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="topbar">
-      <div class="title">
-        <h1>The Nut Report</h1>
-        <p>The live dashboard shell is back in prototype mode: same feel, but every card is either live data or clearly manual instead of pretending.</p>
-        <div class="nav">
-          <div class="nav-links"><a href="./index.html">Dashboard</a><a href="./ops.html">Ops</a><a href="./session.html">Session</a><a href="./crm.html">CRM</a><a href="./overrides.html">Overrides</a><a href="./sync.html">Sync</a><a href="./account.html">Account</a><a href="./login.html">Login</a><a href="./logout.html">Logout</a></div>
-        </div>
+    <div class="nav">
+      <div class="brand">The Nut Report</div>
+      <div class="nav-links">
+        <a href="./index.html">Home</a>
+        <a href="./signup.html">Sign Up</a>
+        <a href="./login.html">Login</a>
       </div>
-      <div class="badge">The Nut Report · Service Business Dashboard</div>
     </div>
 
-    <div class="panel" id="sessionBanner">Loading session…</div>
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Service Business Reporting</div>
+        <h1>Know the number that actually matters this week.</h1>
+        <p class="sub">The Nut Report gives service business owners a clean operating view of scheduled production, approved sales, weekly targets, and the next 3 weeks, without making them fight spreadsheets or pretend dashboards.</p>
+        <div class="actions">
+          <a class="cta primary" href="./signup.html">Sign Up</a>
+          <a class="cta" href="./login.html">Client Login</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="stat">
+          <div class="k">Scheduled Production</div>
+          <div class="v">This week at a glance</div>
+        </div>
+        <div class="stat">
+          <div class="k">Approved Sales</div>
+          <div class="v">What actually moved</div>
+        </div>
+        <div class="stat">
+          <div class="k">Next 3 Weeks</div>
+          <div class="v">See pressure before it hits</div>
+        </div>
+      </div>
+    </section>
 
-    <div id="app"></div>
+    <div class="grid">
+      <div class="section">
+        <h2>Simple</h2>
+        <p>No bloated reporting maze. Just the numbers that help an owner decide what needs attention right now.</p>
+      </div>
+      <div class="section">
+        <h2>Live</h2>
+        <p>Pull live CRM data, refresh it fast, and use it in the same dashboard without side spreadsheets.</p>
+      </div>
+      <div class="section">
+        <h2>Actionable</h2>
+        <p>Know whether you are ahead, behind, or about to get squeezed before the month does it for you.</p>
+      </div>
+    </div>
+
+    <section class="section">
+      <h2>What you actually get</h2>
+      <div class="proof">
+        <div class="proof-card">
+          <h3>Weekly clarity</h3>
+          <p>See current-week production, approved sales, and the real gap between where you are and where you need to be.</p>
+        </div>
+        <div class="proof-card">
+          <h3>Forward visibility</h3>
+          <p>Track what is coming in the next 3 weeks so you can spot the drop before it becomes a payroll problem.</p>
+        </div>
+        <div class="proof-card">
+          <h3>Owner control</h3>
+          <p>Use one dashboard to coach from the numbers, not from vibes, memory, or whatever someone said in the last meeting.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Billing and policy basics</h2>
+      <div class="legal">
+        <div class="proof-card">
+          <h3>Subscriptions</h3>
+          <p>The Nut Report is sold as a subscription product for service business owners. Billing support and setup questions should go through your onboarding contact or support email.</p>
+        </div>
+        <div class="proof-card">
+          <h3>Privacy and terms</h3>
+          <p>By signing up or logging in, users agree to The Nut Report terms, privacy handling, and CRM data access required to power the reporting dashboard.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">The Nut Report, operating visibility for service businesses.</div>
   </div>
-
-  <script type="module" src="./dashboard.js"></script>
 </body>
 </html>

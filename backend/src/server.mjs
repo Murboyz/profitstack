@@ -1007,7 +1007,7 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 404, { error: 'No approved user found for that email' });
         }
 
-        const redirectTo = `${getRequestOrigin(req)}`;
+        const redirectTo = `${getRequestOrigin(req)}/dashboard.html`;
         const link = await generateMagicLink(email, redirectTo);
         return sendJson(res, 200, {
           ok: true,

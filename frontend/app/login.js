@@ -35,7 +35,7 @@ async function completeMagicLinkLogin() {
   setAccessToken(accessToken);
   setCurrentUserEmail(user.email);
   window.history.replaceState({}, '', './login.html');
-  window.location.href = './index.html';
+  window.location.href = './dashboard.html';
 }
 
 completeMagicLinkLogin().catch((error) => {
@@ -68,7 +68,7 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     setAccessToken(data.access_token);
     setCurrentUserEmail(email);
     result.textContent = 'Signed in. Redirecting…';
-    window.location.href = './index.html';
+    window.location.href = './dashboard.html';
   } catch (error) {
     clearCurrentUserEmail();
     result.textContent = `Login failed: ${error.message}`;
