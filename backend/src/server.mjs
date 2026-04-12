@@ -24,6 +24,7 @@ import {
   getSyncRunsByOrg,
   insertSyncRun,
   insertCrmSnapshot,
+  getLatestCrmSnapshotByOrg,
   revokeSession,
 } from './supabase-client.mjs';
 
@@ -933,15 +934,15 @@ function toIntegerOrNull(value) {
   return Number.isFinite(num) ? num : null;
 }
 
-function formatOrganizationSettings(item, organizationId) {
+function formatOrganizationSettings(item, organizationId, rollups = null) {
   return {
     organizationId,
     monthlyExpenseTarget: item?.monthly_expense_target == null ? null : Number(item.monthly_expense_target),
     profitPercentGoal: item?.profit_percent_goal == null ? null : Number(item.profit_percent_goal),
     opportunityCount: item?.opportunity_count == null ? null : Number(item.opportunity_count),
-    salesToday: item?.sales_today == null ? null : Number(item.sales_today),
-    salesMonth: item?.sales_month == null ? null : Number(item.sales_month),
-    salesYear: item?.sales_year == null ? null : Number(item.sales_year),
+    salesToday: item?.sales_today == null ? Number(rollups?.salesToday ?? 0) : Number(item.sales_today),
+    salesMonth: item?.sales_month == null ? Number(rollups?.salesMonth ?? 0) : Number(item.sales_month),
+    salesYear: item?.sales_year == null ? Number(rollups?.monthScheduledProduction ?? 0) : Number(item.sales_year),
     updatedAt: item?.updated_at || null,
   };
 }
@@ -1056,17 +1057,19 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, formatSession(context));
       }
       if (req.method === 'GET' && pathname === '/api/dashboard') {
-        const [crmConnection, weekMetrics, overrides, organizationSettings] = await Promise.all([
+        const [crmConnection, weekMetrics, overrides, organizationSettings, latestSnapshot] = await Promise.all([
           getCrmConnectionByOrg(context.organization.id),
           getWeekMetricsByOrg(context.organization.id),
           getMetricOverridesByOrg(context.organization.id),
           getOrganizationSettingsByOrg(context.organization.id),
+          getLatestCrmSnapshotByOrg(context.organization.id),
         ]);
         const liveWeeks = buildWeeksFromMetrics(weekMetrics);
         const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
+        const rollups = latestSnapshot?.payload?.rollups || null;
         return sendJson(res, 200, {
           organization: formatSession(context).organization,
-          settings: formatOrganizationSettings(organizationSettings, context.organization.id),
+          settings: formatOrganizationSettings(organizationSettings, context.organization.id, rollups),
           crmConnection: formatDashboardCrmConnection(crmConnection),
           weeks: mergedWeeks,
           weekHistory: formatWeekHistory(weekMetrics, overrides),
