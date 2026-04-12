@@ -1088,14 +1088,27 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'POST' && pathname === '/api/account') {
         const body = await readJsonBody(req);
+        const existingSettings = await getOrganizationSettingsByOrg(context.organization.id);
         const saved = await upsertOrganizationSettings({
           organization_id: context.organization.id,
-          monthly_expense_target: toNumberOrNull(body.monthlyExpenseTarget),
-          profit_percent_goal: toNumberOrNull(body.profitPercentGoal),
-          opportunity_count: toIntegerOrNull(body.opportunityCount),
-          sales_today: null,
-          sales_month: null,
-          sales_year: null,
+          monthly_expense_target: body.monthlyExpenseTarget === undefined
+            ? existingSettings?.monthly_expense_target ?? null
+            : toNumberOrNull(body.monthlyExpenseTarget),
+          profit_percent_goal: body.profitPercentGoal === undefined
+            ? existingSettings?.profit_percent_goal ?? null
+            : toNumberOrNull(body.profitPercentGoal),
+          opportunity_count: body.opportunityCount === undefined
+            ? existingSettings?.opportunity_count ?? null
+            : toIntegerOrNull(body.opportunityCount),
+          sales_today: body.salesToday === undefined
+            ? existingSettings?.sales_today ?? null
+            : toNumberOrNull(body.salesToday),
+          sales_month: body.salesMonth === undefined
+            ? existingSettings?.sales_month ?? null
+            : toNumberOrNull(body.salesMonth),
+          sales_year: body.salesYear === undefined
+            ? existingSettings?.sales_year ?? null
+            : toNumberOrNull(body.salesYear),
           updated_by_user_id: context.user?.id || null,
           updated_at: new Date().toISOString(),
         });
