@@ -4,8 +4,8 @@
 Use this file to bootstrap a new dedicated ProfitStack session without losing the old session context.
 
 ## Current status
-- Estimated completion toward first live pilot shape: **70%**
-- Current stage: **Murphy live pilot path working, metric mapping still needs correction**
+- Estimated completion toward first live pilot shape: **78%**
+- Current stage: **public-facing Core offer, mobile/public UX tightened, reporting-card coupling bug fixed, deeper sales-truth work still pending**
 
 ## Live now
 - Supabase project connected
@@ -84,6 +84,13 @@ When starting a new dedicated ProfitStack session:
 - continue from: **fix Murphy HCP metric mapping**
 
 ## Critical context from today
+- 2026-04-12 lane correction: live Nut Report deploy work must happen in the real repo at `/home/outsidethebusinessbox/.openclaw/workspace/profitstack`, not the workspace-root repo. Earlier root-level commits were the wrong lane. For app/site changes, commit and push inside `profitstack/` only.
+- Pricing is now locked for the current offer: **Core = $197/month**. Future tiers are **Pro** and **Elite**. Stripe naming should use **`The Nut Report - Core`**.
+- Homepage/marketing work shipped today in the ProfitStack repo: screenshot assets live in `frontend/app/assets/`, screenshot cards have clearer labels, clicking screenshots opens a lightbox, hero CTA was rewritten and centered as a card-style signup block, and public/legal pages got a mobile pass.
+- Mobile/dashboard UX work shipped today: core app pages were made mobile-safer, the dashboard control panel now gets out of the way on mobile after the timezone section scrolls past, and extra spacing was added so the Month Production card is visible after that transition.
+- Reporting bug fixed today: changing Monthly Expense Target had been incorrectly affecting reporting cards because `/api/account` saves were coupled to sales rollup fields. Fixes landed in the repo to preserve reporting values on target saves and make dashboard reporting cards fall back to the latest live CRM snapshot rollups instead of depending only on nullable `organization_settings` fields.
+- Today’s key ProfitStack repo commits, in order, were: `8420008` (equal-sized homepage screenshots), `56765ef` (preserve sales reporting on account target save), `82f799a` (use live snapshot rollups for dashboard reporting cards), `78aeb8b` (new screenshots + lightbox), `b0e5d78` (screenshot labels), `e1e462d` (hero headline + CTA), `61ae80e` (restyled signup CTA), `34df901` (center signup CTA across hero), `7288225` (core mobile responsiveness), `8e7a7af` (legal-page mobile polish), `fd91946` (hide mobile control panel after timezone), `0616afe` (mobile spacing above Month Production after panel hide).
+- Current likely tonight pickup order: (1) verify live deployed site reflects the latest ProfitStack repo commits, (2) continue tightening any remaining mobile/UI rough edges only if Chad spots them live, (3) then return to deeper reporting truth work instead of drifting into more surface tweaks.
 - Do not drift into workspace-root or prototype paths; work in `profitstack/` only.
 - After every committed ProfitStack change, immediately give Chad the exact push/deploy step.
 - The live Render app now has working login, CRM save, and Refresh wiring.
