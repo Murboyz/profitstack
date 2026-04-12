@@ -72,6 +72,93 @@ function getRequestOrigin(req) {
   return `${proto}://${hostHeader}`;
 }
 
+function getBillingEnv() {
+  const env = getSupabaseEnv();
+  return {
+    secretKey: env.STRIPE_SECRET_KEY || '',
+    publishableKey: env.STRIPE_PUBLISHABLE_KEY || '',
+    priceId: env.STRIPE_PRICE_ID || '',
+    priceDisplay: env.STRIPE_PRICE_DISPLAY || 'Monthly subscription',
+    supportEmail: env.BILLING_SUPPORT_EMAIL || 'support@example.com',
+    appUrl: env.APP_URL || '',
+  };
+}
+
+function getBillingBaseUrl(req) {
+  const billingEnv = getBillingEnv();
+  return String(billingEnv.appUrl || getRequestOrigin(req)).replace(/\/$/, '');
+}
+
+function buildBillingSummary(req, context) {
+  const billingEnv = getBillingEnv();
+  const configured = Boolean(billingEnv.secretKey && billingEnv.priceId);
+  return {
+    configured,
+    checkoutReady: configured,
+    planName: 'The Nut Report',
+    planInterval: 'month',
+    priceDisplay: billingEnv.priceDisplay,
+    supportEmail: billingEnv.supportEmail,
+    publishableKeyConfigured: Boolean(billingEnv.publishableKey),
+    checkoutPath: configured ? '/api/billing/checkout-session' : null,
+    successUrl: `${getBillingBaseUrl(req)}/account.html?billing=success`,
+    cancelUrl: `${getBillingBaseUrl(req)}/account.html?billing=cancelled`,
+    customerEmail: context?.email || null,
+  };
+}
+
+async function createStripeCheckoutSession({ req, context }) {
+  const billingEnv = getBillingEnv();
+  if (!billingEnv.secretKey || !billingEnv.priceId) {
+    const error = new Error('Stripe billing is not configured yet');
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const successUrl = `${getBillingBaseUrl(req)}/account.html?billing=success&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${getBillingBaseUrl(req)}/account.html?billing=cancelled`;
+  const payload = new URLSearchParams({
+    mode: 'subscription',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    'line_items[0][price]': billingEnv.priceId,
+    'line_items[0][quantity]': '1',
+    customer_email: context.email,
+    client_reference_id: context.organization.id,
+    'metadata[organization_id]': context.organization.id,
+    'metadata[organization_slug]': context.organization.slug || '',
+    'metadata[user_id]': context.user.id,
+    'metadata[user_email]': context.email,
+    'metadata[app]': 'profitstack',
+    billing_address_collection: 'auto',
+    allow_promotion_codes: 'false',
+  });
+
+  const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${billingEnv.secretKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: payload,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.url) {
+    const message = data?.error?.message || `Stripe checkout failed with ${response.status}`;
+    const error = new Error(message);
+    error.statusCode = response.status || 502;
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    url: data.url,
+    successUrl,
+    cancelUrl,
+  };
+}
+
 async function serveStatic(req, res) {
   const requestUrl = new URL(req.url, 'http://127.0.0.1');
   const reqPath = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
@@ -992,7 +1079,12 @@ const server = http.createServer(async (req, res) => {
           organization: formatSession(context).organization,
           user: formatSession(context).user,
           settings: formatOrganizationSettings(settings, context.organization.id),
+          billing: buildBillingSummary(req, context),
         });
+      }
+      if (req.method === 'POST' && pathname === '/api/billing/checkout-session') {
+        const session = await createStripeCheckoutSession({ req, context });
+        return sendJson(res, 200, { ok: true, ...session });
       }
       if (req.method === 'POST' && pathname === '/api/account') {
         const body = await readJsonBody(req);

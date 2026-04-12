@@ -2,6 +2,11 @@ import { apiFetch, requireLogin, getAccessToken } from './auth.js';
 import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 
+const billingMessages = {
+  success: 'Checkout completed. Once Stripe finishes provisioning, billing will show up on your account.',
+  cancelled: 'Checkout was cancelled. You can come back and finish billing anytime.',
+};
+
 async function getFrontendConfig() {
   const res = await fetch('/api/frontend-config');
   if (!res.ok) throw new Error(`Frontend config failed with ${res.status}`);
@@ -12,12 +17,10 @@ async function main() {
   const app = document.getElementById('app');
   try {
     await renderSessionBanner();
-    const [orgRes, userRes] = await Promise.all([
-      apiFetch('/api/organizations/me'),
-      apiFetch('/api/users/me')
-    ]);
-    const org = await orgRes.json();
-    const user = await userRes.json();
+    const accountRes = await apiFetch('/api/account');
+    const account = await accountRes.json();
+    const { organization: org, user, billing } = account;
+    const billingState = new URLSearchParams(window.location.search).get('billing');
     app.innerHTML = `
       <div class="panel">
         <h2>Organization</h2>
@@ -31,7 +34,37 @@ async function main() {
         <p><strong>Email:</strong> ${user.email}</p>
         <p><strong>Role:</strong> ${user.role}</p>
       </div>
+      <div class="panel">
+        <h2>Billing</h2>
+        <p><strong>Plan:</strong> ${billing.planName}</p>
+        <p><strong>Price:</strong> ${billing.priceDisplay}</p>
+        <p><strong>Status:</strong> ${billing.configured ? 'Ready for checkout' : 'Not configured yet'}</p>
+        <p><strong>Checkout Email:</strong> ${billing.customerEmail || user.email}</p>
+        <p><strong>Billing Support:</strong> ${billing.supportEmail}</p>
+        <button id="startBillingButton" type="button" ${billing.checkoutReady ? '' : 'disabled'}>
+          ${billing.checkoutReady ? 'Start subscription checkout' : 'Billing unavailable'}
+        </button>
+        <div id="billingInlineResult">${billingState ? (billingMessages[billingState] || '') : ''}</div>
+      </div>
     `;
+
+    document.getElementById('startBillingButton')?.addEventListener('click', async () => {
+      const button = document.getElementById('startBillingButton');
+      const inlineResult = document.getElementById('billingInlineResult');
+      button.disabled = true;
+      button.textContent = 'Opening Stripe checkout…';
+      inlineResult.textContent = '';
+      try {
+        const res = await apiFetch('/api/billing/checkout-session', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || `Checkout failed with ${res.status}`);
+        window.location.href = data.url;
+      } catch (error) {
+        inlineResult.textContent = `Billing checkout failed: ${error.message}`;
+        button.disabled = false;
+        button.textContent = 'Start subscription checkout';
+      }
+    });
 
     document.getElementById('passwordForm').addEventListener('submit', async (event) => {
       event.preventDefault();
