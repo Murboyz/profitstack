@@ -23,6 +23,12 @@
     p, li { color: var(--muted); line-height: 1.6; }
     ul { padding-left: 18px; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    @media (max-width: 720px) {
+      .wrap { padding: 16px; }
+      h1 { font-size: 34px; }
+      .actions { flex-direction: column; }
+      .actions .cta { width: 100%; }
+    }
   </style>
 </head>
 <body>

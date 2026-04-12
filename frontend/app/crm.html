@@ -20,6 +20,11 @@
     input, select, textarea, button { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
     textarea { min-height: 150px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     a { color: #7fb0ff; }
+    @media (max-width: 720px) {
+      .wrap { padding: 16px; }
+      .row { flex-direction: column; align-items: flex-start; gap: 6px; }
+      .session-banner-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>

@@ -11,6 +11,11 @@
     .muted { color: #94a3c7; }
     .actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
     a { color: #eef4ff; text-decoration: none; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; }
+    @media (max-width: 720px) {
+      .wrap { margin: 24px auto; padding: 16px; }
+      .actions { flex-direction: column; }
+      .actions a { text-align: center; }
+    }
   </style>
 </head>
 <body>

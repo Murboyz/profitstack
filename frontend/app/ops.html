@@ -22,6 +22,12 @@
     .actions { display: flex; gap: 10px; flex-wrap: wrap; }
     button, a.button { padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; text-decoration: none; cursor: pointer; }
     pre { white-space: pre-wrap; margin: 0; }
+    @media (max-width: 720px) {
+      .wrap { padding: 16px; }
+      .hero { grid-template-columns: 1fr; }
+      .row { flex-direction: column; align-items: flex-start; }
+      .actions > * { width: 100%; text-align: center; }
+    }
   </style>
 </head>
 <body>

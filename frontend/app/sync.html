@@ -17,6 +17,10 @@
     input, select, textarea, button { padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
     textarea { min-height: 180px; resize: vertical; }
     a { color: #7fb0ff; }
+    @media (max-width: 720px) {
+      .wrap { padding: 16px; }
+      .row, .session-banner-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
