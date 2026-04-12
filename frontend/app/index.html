@@ -29,6 +29,17 @@
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
     .hero-card, .section, .proof-card { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
     .hero-card { padding: 22px; }
+    .shot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 12px 0 34px; }
+    .shot-card { padding: 22px; border-radius: 22px; border: 1px solid var(--line); background: rgba(15,23,40,.92); box-shadow: 0 20px 60px rgba(0,0,0,.28); }
+    .shot-card.bad { border-color: rgba(248,113,113,.38); background: linear-gradient(180deg, rgba(127,29,29,.22) 0%, rgba(15,23,40,.95) 100%); }
+    .shot-card.good { border-color: rgba(52,211,153,.38); background: linear-gradient(180deg, rgba(6,78,59,.24) 0%, rgba(15,23,40,.95) 100%); }
+    .shot-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .shot-value { margin-top: 12px; font-size: 42px; font-weight: 900; letter-spacing: -.04em; }
+    .shot-card.bad .shot-value { color: #fda4af; }
+    .shot-card.good .shot-value { color: #86efac; }
+    .shot-note { margin-top: 10px; color: var(--muted); line-height: 1.55; }
+    .shot-list { margin-top: 16px; display: grid; gap: 10px; }
+    .shot-row { display: flex; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.06); color: #dbe6ff; }
     .stat { padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
     .stat:last-child { border-bottom: 0; }
     .stat .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
@@ -44,7 +55,7 @@
     .legal { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 18px; }
     .footer { margin-top: 42px; padding: 18px 0 30px; color: var(--muted); font-size: 14px; }
     @media (max-width: 900px) {
-      .hero, .grid, .proof, .legal { grid-template-columns: 1fr; }
+      .hero, .grid, .proof, .legal, .shot-grid { grid-template-columns: 1fr; }
       h1 { font-size: 44px; }
       .nav { flex-direction: column; align-items: flex-start; }
     }
@@ -83,6 +94,29 @@
         <div class="stat">
           <div class="k">Next 3 Weeks</div>
           <div class="v">See pressure before it hits</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="shot-grid">
+      <div class="shot-card bad">
+        <div class="shot-label">Monthly expenses not entered</div>
+        <div class="shot-value">$18,400 short</div>
+        <p class="shot-note">The dashboard flags the gap fast when scheduled production is trailing the weekly goal and monthly expenses are not dialed in.</p>
+        <div class="shot-list">
+          <div class="shot-row"><span>Scheduled Production</span><strong>$21,865</strong></div>
+          <div class="shot-row"><span>Weekly Goal</span><strong>$40,265</strong></div>
+          <div class="shot-row"><span>Status</span><strong>Behind target</strong></div>
+        </div>
+      </div>
+      <div class="shot-card good">
+        <div class="shot-label">Monthly expenses added</div>
+        <div class="shot-value">On track</div>
+        <p class="shot-note">Once monthly expenses are in, the Nut Report turns the same numbers into a cleaner weekly target and an easier read on what good looks like.</p>
+        <div class="shot-list">
+          <div class="shot-row"><span>Scheduled Production</span><strong>$41,250</strong></div>
+          <div class="shot-row"><span>Weekly Goal</span><strong>$39,800</strong></div>
+          <div class="shot-row"><span>Status</span><strong>Ahead of target</strong></div>
         </div>
       </div>
     </section>
