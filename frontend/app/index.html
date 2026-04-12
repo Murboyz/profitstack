@@ -31,6 +31,19 @@
     .hero-card { padding: 22px; }
     .shot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 12px 0 34px; }
     .shot-card { padding: 18px; border-radius: 22px; border: 1px solid var(--line); background: rgba(15,23,40,.92); box-shadow: 0 20px 60px rgba(0,0,0,.28); }
+    .shot-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .shot-header h3 { margin: 0; font-size: 18px; }
+    .shot-header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .shot-zoom {
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, #16213a 0%, #111a2e 100%);
+      color: #eef4ff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 800;
+      white-space: nowrap;
+    }
     .shot-frame {
       width: 100%;
       height: 420px;
@@ -41,11 +54,62 @@
       overflow: hidden;
       background: rgba(255,255,255,.02);
       border: 1px solid rgba(255,255,255,.06);
+      cursor: zoom-in;
     }
     .shot-frame img {
       width: 100%;
       height: 100%;
       object-fit: contain;
+      display: block;
+    }
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      background: rgba(4, 10, 18, .88);
+      z-index: 9999;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox-card {
+      width: min(1400px, 100%);
+      max-height: 100%;
+      background: rgba(15,23,40,.96);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    .lightbox-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .lightbox-bar h3 { margin: 0; font-size: 20px; }
+    .lightbox-bar p { margin: 4px 0 0; color: var(--muted); }
+    .lightbox-close {
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, #16213a 0%, #111a2e 100%);
+      color: #eef4ff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+    .lightbox-image-wrap {
+      max-height: calc(100vh - 180px);
+      overflow: auto;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.02);
+    }
+    .lightbox-image-wrap img {
+      width: 100%;
+      height: auto;
       display: block;
     }
     .stat { padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
@@ -108,13 +172,27 @@
 
     <section class="shot-grid">
       <div class="shot-card">
-        <div class="shot-frame">
-          <img src="./assets/home-report-1.png" alt="The Nut Report dashboard example showing weekly break-even, weekly goal, and current production status" />
+        <div class="shot-header">
+          <div>
+            <h3>Lower expense target example</h3>
+            <p>How the dashboard reads when break-even is set tighter.</p>
+          </div>
+          <button class="shot-zoom" type="button" data-shot-title="Lower expense target example" data-shot-caption="How the dashboard reads when break-even is set tighter." data-shot-src="./assets/home-report-1.png">Click to enlarge</button>
+        </div>
+        <div class="shot-frame" data-shot-title="Lower expense target example" data-shot-caption="How the dashboard reads when break-even is set tighter." data-shot-src="./assets/home-report-1.png">
+          <img src="./assets/home-report-1.png" alt="The Nut Report dashboard example with a lower monthly expense target and stronger weekly pacing." />
         </div>
       </div>
       <div class="shot-card">
-        <div class="shot-frame">
-          <img src="./assets/home-report-2.png" alt="The Nut Report dashboard example showing updated target numbers and production status" />
+        <div class="shot-header">
+          <div>
+            <h3>Higher expense target example</h3>
+            <p>See how the same production looks when the target gets heavier.</p>
+          </div>
+          <button class="shot-zoom" type="button" data-shot-title="Higher expense target example" data-shot-caption="See how the same production looks when the target gets heavier." data-shot-src="./assets/home-report-2.png">Click to enlarge</button>
+        </div>
+        <div class="shot-frame" data-shot-title="Higher expense target example" data-shot-caption="See how the same production looks when the target gets heavier." data-shot-src="./assets/home-report-2.png">
+          <img src="./assets/home-report-2.png" alt="The Nut Report dashboard example with a higher monthly expense target and tighter weekly pacing." />
         </div>
       </div>
     </section>
@@ -186,5 +264,54 @@
 
     <div class="footer">The Nut Report, operating visibility for service businesses. · <a href="./privacy.html">Privacy</a> · <a href="./terms.html">Terms</a> · <a href="./refunds.html">Refunds & Cancellation</a></div>
   </div>
+
+  <div class="lightbox" id="shotLightbox" aria-hidden="true">
+    <div class="lightbox-card">
+      <div class="lightbox-bar">
+        <div>
+          <h3 id="shotLightboxTitle">Dashboard preview</h3>
+          <p id="shotLightboxCaption"></p>
+        </div>
+        <button class="lightbox-close" id="shotLightboxClose" type="button">Close</button>
+      </div>
+      <div class="lightbox-image-wrap">
+        <img id="shotLightboxImage" src="" alt="Expanded dashboard screenshot" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const lightbox = document.getElementById('shotLightbox');
+    const lightboxImage = document.getElementById('shotLightboxImage');
+    const lightboxTitle = document.getElementById('shotLightboxTitle');
+    const lightboxCaption = document.getElementById('shotLightboxCaption');
+    const lightboxClose = document.getElementById('shotLightboxClose');
+
+    function openShotLightbox(source) {
+      lightboxImage.src = source.dataset.shotSrc;
+      lightboxTitle.textContent = source.dataset.shotTitle || 'Dashboard preview';
+      lightboxCaption.textContent = source.dataset.shotCaption || '';
+      lightbox.classList.add('open');
+      lightbox.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeShotLightbox() {
+      lightbox.classList.remove('open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      lightboxImage.src = '';
+    }
+
+    document.querySelectorAll('[data-shot-src]').forEach((node) => {
+      node.addEventListener('click', () => openShotLightbox(node));
+    });
+
+    lightboxClose.addEventListener('click', closeShotLightbox);
+    lightbox.addEventListener('click', (event) => {
+      if (event.target === lightbox) closeShotLightbox();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && lightbox.classList.contains('open')) closeShotLightbox();
+    });
+  </script>
 </body>
 </html>
