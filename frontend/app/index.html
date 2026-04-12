@@ -27,6 +27,32 @@
     h1 { font-size: 64px; line-height: .95; letter-spacing: -.05em; margin: 18px 0 16px; }
     .sub { font-size: 20px; line-height: 1.5; color: var(--muted); max-width: 720px; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; justify-content: center; }
+    .cta-card {
+      width: min(320px, 100%);
+      margin-top: 28px;
+      display: flex;
+      justify-content: center;
+    }
+    .cta-card .cta {
+      width: 100%;
+      min-height: 108px;
+      border-radius: 22px;
+      flex-direction: column;
+      gap: 6px;
+      text-align: center;
+      padding: 18px 20px;
+    }
+    .cta-main {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+    .cta-sub {
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      opacity: .92;
+    }
     .hero-card, .section, .proof-card { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
     .hero-card { padding: 22px; }
     .shot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 12px 0 34px; }
@@ -150,7 +176,12 @@
         <h1>Know the numbers that actually matters in real time to make money.</h1>
         <p class="sub">The Nut Report gives service business owners a clean operating view of scheduled production, approved sales, weekly targets, and the next 3 weeks, without making them fight spreadsheets or pretend dashboards.</p>
         <div class="actions">
-          <a class="cta primary" href="./signup.html">Get your numbers now</a>
+          <div class="cta-card">
+            <a class="cta primary" href="./signup.html">
+              <span class="cta-main">SIGN UP</span>
+              <span class="cta-sub">GET YOUR NUMBERS NOW</span>
+            </a>
+          </div>
         </div>
       </div>
       <div class="hero-card">
