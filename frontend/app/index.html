@@ -23,6 +23,7 @@
     .nav-links a, .cta { display: inline-flex; align-items: center; justify-content: center; padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-weight: 800; box-shadow: 0 10px 24px rgba(0,0,0,.18); }
     .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
     .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: center; margin-bottom: 30px; }
+    .hero-cta { grid-column: 1 / -1; display: flex; justify-content: center; }
     .eyebrow { display: inline-block; padding: 8px 12px; border-radius: 999px; background: rgba(52,211,153,.14); border: 1px solid rgba(52,211,153,.25); color: #a8f3d1; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     h1 { font-size: 64px; line-height: .95; letter-spacing: -.05em; margin: 18px 0 16px; }
     .sub { font-size: 20px; line-height: 1.5; color: var(--muted); max-width: 720px; }
@@ -175,14 +176,6 @@
         <div class="eyebrow">Service Business Reporting</div>
         <h1>Know the numbers that actually matters in real time to make money.</h1>
         <p class="sub">The Nut Report gives service business owners a clean operating view of scheduled production, approved sales, weekly targets, and the next 3 weeks, without making them fight spreadsheets or pretend dashboards.</p>
-        <div class="actions">
-          <div class="cta-card">
-            <a class="cta primary" href="./signup.html">
-              <span class="cta-main">SIGN UP</span>
-              <span class="cta-sub">GET YOUR NUMBERS NOW</span>
-            </a>
-          </div>
-        </div>
       </div>
       <div class="hero-card">
         <div class="stat">
@@ -196,6 +189,16 @@
         <div class="stat">
           <div class="k">Next 3 Weeks</div>
           <div class="v">See pressure before it hits</div>
+        </div>
+      </div>
+      <div class="hero-cta">
+        <div class="actions">
+          <div class="cta-card">
+            <a class="cta primary" href="./signup.html">
+              <span class="cta-main">SIGN UP</span>
+              <span class="cta-sub">GET YOUR NUMBERS NOW</span>
+            </a>
+          </div>
         </div>
       </div>
     </section>
