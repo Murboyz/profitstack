@@ -420,9 +420,9 @@ async function renderDashboard() {
         <div class="modal-backdrop" id="crmDisconnectedModal">
           <div class="modal-card">
             <h3>Housecall Pro is disconnected</h3>
-            <p>For the best reconnect experience, use a computer. Your reporting is still visible right now, but the next live refresh needs Housecall Pro reconnected.</p>
+            <p>For the best reconnect experience, use a computer. If Housecall Pro is already logged in on this computer, the reconnect should open already signed in. If not, log in there, then come back to see the reporting and connection on your dashboard. Your reporting is still visible right now, but the next live refresh needs Housecall Pro reconnected.</p>
             <div class="actions">
-              <a href="./crm.html?onboarding=connect-crm" class="btn-primary" id="crmReconnectLink">Reconnect Housecall Pro</a>
+              <a href="./crm.html?onboarding=connect-crm" class="btn-primary" id="crmReconnectLink">Login / Reconnect Housecall Pro</a>
               <button id="crmDisconnectedContinue" type="button">Keep viewing dashboard</button>
             </div>
           </div>
