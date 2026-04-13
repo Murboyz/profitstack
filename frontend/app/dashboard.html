@@ -34,6 +34,9 @@
     .panel h2 { font-size: 20px; letter-spacing: -.02em; }
     .card p { font-size: 13px; color: var(--muted); line-height: 1.45; margin: 0; }
     .clientbar { margin-bottom: 18px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(180deg, rgba(91,140,255,.16) 0%, rgba(91,140,255,.08) 100%); border: 1px solid rgba(91,140,255,.24); color: #dbe6ff; font-size: 13px; line-height: 1.45; }
+    .alertbar { margin-bottom: 18px; padding: 16px 18px; border-radius: 16px; background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.26); color: #ffe08a; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+    .alertbar strong { color: #fff1bf; }
+    .alertbar a { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-size: 13px; font-weight: 800; white-space: nowrap; }
     .stepbar { display: grid; gap: 10px; margin-bottom: 18px; }
     .step { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
     .step strong { font-size: 14px; }
@@ -112,7 +115,7 @@
       .layout, .stats, .two, .week-nav { grid-template-columns: 1fr; }
       .topbar { flex-direction: column; }
       .session-banner-grid { grid-template-columns: 1fr; }
-      .row, .scoreline { flex-direction: column; align-items: flex-start; }
+      .row, .scoreline, .alertbar { flex-direction: column; align-items: flex-start; }
       .control-panel { position: relative; top: 0; }
     }
   </style>

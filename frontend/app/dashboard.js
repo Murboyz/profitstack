@@ -307,6 +307,15 @@ async function renderDashboard() {
         </section>
 
         <section>
+          ${crmConnection.status === 'disconnected' ? `
+            <div class="alertbar">
+              <div>
+                <strong>Housecall Pro is disconnected.</strong><br />
+                Your last synced numbers are still here, but the next refresh needs a reconnect.
+              </div>
+              <a href="./crm.html?onboarding=connect-crm">Reconnect Housecall Pro</a>
+            </div>
+          ` : ''}
           <div class="stats">
             <div class="stat blue">
               <div class="k">Weekly Break-Even</div>
