@@ -47,11 +47,22 @@ async function loadStatus() {
   return data;
 }
 
+function renderOnboardingMessage() {
+  const mode = new URLSearchParams(window.location.search).get('onboarding');
+  const result = document.getElementById('result');
+  if (mode === 'connect-crm' && result) {
+    result.innerHTML = '<p class="muted">Next step: connect Housecall Pro here, then you will go straight to the dashboard.</p>';
+  }
+}
+
 async function main() {
   const result = document.getElementById('result');
   const form = document.getElementById('crmForm');
 
   try {
+     await renderSessionBanner();
++    renderOnboardingMessage();
+     await loadStatus();
     await renderSessionBanner();
     await loadStatus();
 
