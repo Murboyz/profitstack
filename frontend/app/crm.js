@@ -91,9 +91,12 @@ async function main() {
           return;
         }
 
-        result.innerHTML = `<p class="success">${escapeHtml(data.message || 'Housecall Pro connection saved.')}</p><p class="muted" style="margin-top: 8px;">Next: go back to the dashboard and click <strong>Refresh Data</strong>.</p>`;
+        result.innerHTML = `<p class="success">${escapeHtml(data.message || 'Housecall Pro connection saved.')}</p><p class="muted" style="margin-top: 8px;">Sending you to the dashboard now so you can click <strong>Refresh Data</strong>.</p>`;
         document.getElementById('sessionCookie').value = '';
         await loadStatus();
+        window.setTimeout(() => {
+          window.location.href = './dashboard.html?crm=connected';
+        }, 1200);
       } catch (error) {
         result.innerHTML = `<p class="error">${escapeHtml(error.message || 'Failed to save CRM connection.')}</p>`;
       } finally {

@@ -17,6 +17,22 @@ async function getFrontendConfig() {
   return res.json();
 }
 
+async function getPostLoginDestination(accessToken, fallbackEmail = '') {
+  try {
+    const res = await fetch('/api/crm-connection', {
+      headers: {
+        ...(fallbackEmail ? { 'X-User-Email': fallbackEmail } : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+    if (!res.ok) return './dashboard.html';
+    const crmConnection = await res.json();
+    return crmConnection?.status === 'connected' ? './dashboard.html' : './crm.html?onboarding=connect-crm';
+  } catch {
+    return './dashboard.html';
+  }
+}
+
 async function completeMagicLinkLogin() {
   const hash = new URLSearchParams(window.location.hash.slice(1));
   const accessToken = hash.get('access_token');
@@ -35,7 +51,7 @@ async function completeMagicLinkLogin() {
   setAccessToken(accessToken);
   setCurrentUserEmail(user.email);
   window.history.replaceState({}, '', './login.html');
-  window.location.href = './dashboard.html';
+  window.location.href = await getPostLoginDestination(accessToken, user.email);
 }
 
 completeMagicLinkLogin().catch((error) => {
@@ -68,7 +84,7 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     setAccessToken(data.access_token);
     setCurrentUserEmail(email);
     result.textContent = 'Signed in. Redirecting…';
-    window.location.href = './dashboard.html';
+    window.location.href = await getPostLoginDestination(data.access_token, email);
   } catch (error) {
     clearCurrentUserEmail();
     result.textContent = `Login failed: ${error.message}`;
