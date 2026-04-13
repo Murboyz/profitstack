@@ -87,7 +87,7 @@
           <strong>Best on desktop for the first connection</strong><br />You can review the dashboard on mobile, but the initial Housecall Pro connection is much smoother on desktop because HCP session capture is awkward on mobile.
         </div>
         <div class="note" style="margin-top: 12px; margin-bottom: 0; background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.08); color: var(--muted);">
-          <strong>Faster path:</strong> if you loaded the Chrome helper from <code>browser-helper/hcp-chrome-extension/</code>, keep this Nut Report tab open, click the helper, and it can capture the active Housecall Pro session for you.
+          <strong>Best current flow:</strong> keep this Nut Report tab open, log into Housecall Pro in the same Chrome profile, then click the Chrome helper to connect automatically.
         </div>
         <div class="actions">
           <a class="button primary" href="https://pro.housecallpro.com/app" target="_blank" rel="noreferrer">Connect Housecall Pro</a>
@@ -98,23 +98,23 @@
     </section>
 
     <div class="panel">
-      <h2>How it works</h2>
+      <h2>Desktop connect flow</h2>
       <div class="step-grid" style="margin-top: 14px;">
         <div class="step-card">
-          <strong>1. Connect Housecall Pro</strong>
-          <p>Use the top button to go straight into Housecall Pro and make sure the client login is active and current.</p>
+          <strong>1. Stay logged into The Nut Report</strong>
+          <p>Keep this Nut Report tab open in Chrome. The helper uses this tab to know which account to connect.</p>
         </div>
         <div class="step-card">
-          <strong>2. Paste the active session</strong>
-          <p>Paste the current HCP cookie string below. Full copied cookie text is okay.</p>
+          <strong>2. Log into Housecall Pro</strong>
+          <p>Use the top button to go straight into Housecall Pro and make sure the client login is active in the same Chrome profile.</p>
         </div>
         <div class="step-card">
-          <strong>3. Refresh your numbers</strong>
-          <p>Once saved, head back to the dashboard and pull the latest production and sales data.</p>
+          <strong>3. Click the Chrome helper</strong>
+          <p>Use the helper to capture the active HCP session and connect it automatically to this account.</p>
         </div>
       </div>
       <div class="note" style="margin-top: 16px;">
-        <strong>Important</strong><br />This is a session-based connection for speed, not final OAuth. If Housecall Pro logs the client out or expires the session, reconnect it here. On Sunday night, the dashboard may already roll into the next week if your reporting week starts Monday.
+        <strong>Then do this</strong><br />Come back to the dashboard and click <strong>Refresh Data</strong>. If Housecall Pro logs the client out later, reconnect the same way. On Sunday night, the dashboard may already roll into the next week if your reporting week starts Monday.
       </div>
     </div>
 
@@ -132,8 +132,8 @@
           <input id="accountLabel" value="Primary Housecall Pro account" />
           <div class="field-help">Use something the client will recognize later if they reconnect.</div>
         </div>
-        <details open>
-          <summary>Paste Housecall Pro session</summary>
+        <details>
+          <summary>Fallback only: paste Housecall Pro session manually</summary>
           <div style="margin-top: 14px;">
             <label for="sessionCookie">Housecall Pro session cookie / cookie string</label>
             <textarea id="sessionCookie" placeholder="Paste the active Housecall Pro cookie string here"></textarea>
