@@ -4,8 +4,8 @@
 Use this file to bootstrap a new dedicated ProfitStack session without losing the old session context.
 
 ## Current status
-- Estimated completion toward first live pilot shape: **78%**
-- Current stage: **public-facing Core offer, mobile/public UX tightened, reporting-card coupling bug fixed, deeper sales-truth work still pending**
+- Estimated completion toward first live pilot shape: **82%**
+- Current stage: **public-facing Core offer tightened, helper-based HCP connection path built, Chrome Web Store install/distribution still blocking true client self-serve, deeper sales-truth work still pending**
 
 ## Live now
 - Supabase project connected
@@ -65,12 +65,13 @@ Use this file to bootstrap a new dedicated ProfitStack session without losing th
 - Current problem: Murphy metrics are still wrong because the HCP mapper is undercounting / not populating approved sales and opportunities
 
 ## Remaining major tasks
-1. fix Murphy HCP metric mapping so live numbers are trusted
-2. prove Murphy live flow cleanly end-to-end
-3. remove temporary debug UI once stable
-4. replace login shell with real Supabase Auth
-5. add row-level security / stronger tenant hardening
-6. improve onboarding and go-to-market assets
+1. finish Chrome Web Store distribution/install path for the HCP helper so clients do not need manual extension loading help
+2. fix Murphy HCP metric mapping so live numbers are trusted
+3. prove Murphy live flow cleanly end-to-end with the new helper-based connection path
+4. remove temporary debug UI once stable
+5. replace login shell with real Supabase Auth
+6. add row-level security / stronger tenant hardening
+7. improve onboarding and go-to-market assets
 
 ## Important note
 This project got mixed with unrelated lead-machine heartbeat traffic because the current webchat UI exposes only one visible chat session. The ProfitStack project itself was **not deleted**.
@@ -84,6 +85,14 @@ When starting a new dedicated ProfitStack session:
 - continue from: **fix Murphy HCP metric mapping**
 
 ## Critical context from today
+- Late 2026-04-12 lane update: Chad rejected the fake web-only HCP auto-connect flow. The honest product direction is now a Housecall Pro Chrome helper for desktop connect/reconnect, with mobile for viewing/reporting only. Reason: HCP does not expose an open API/OAuth path we can rely on, and a normal website cannot automatically capture HCP login from another tab/domain.
+- The smallest real HCP helper path is now built in-repo at `browser-helper/hcp-chrome-extension/` with backend hookup in `backend/src/server.mjs`. Commit: `75af163` (`Add Housecall Pro Chrome helper capture path`). It reads the active Nut Report session from a logged-in Chrome tab, captures HCP cookies from `pro.housecallpro.com`, and posts them to `/api/crm-connection/hcp-helper` so the existing CRM connection model can store them.
+- CRM/login/dashboard UX was heavily revised today around connection state: cleaner HCP connection screen, safer CRM status endpoint, disconnect without clearing saved numbers, dashboard reconnect banner, disconnected-CRM popup on dashboard login, and copy clarifications around desktop reconnect behavior. Important commits in this lane included: `5be2436`, `d742199`, `4c88f0c`, `2141e86`, `e8d22a6`, `06bb16b`, `5f9e70b`, `8ff0f3a`, `6f3e180`, `94edf6d`, and `4a4ba01`.
+- Extension/distribution state at end of session: the helper engine works, but the client-friendly install path does not. Chad explicitly does not want a future where he must hand-hold each client through extension install. The correct next lane is Chrome Web Store distribution, not more fake connection-page polishing.
+- Submission prep work is now in repo: `browser-helper/package-extension.sh` creates `browser-helper/dist/profitstack-hcp-helper.zip` without relying on host `zip`, and `browser-helper/CHROME_WEB_STORE_SUBMISSION.md` contains the draft single-purpose statement, privacy behavior statement, and test instructions. Commits: `b172098` and `f480729`.
+- Privacy page was updated specifically for Chrome expectations. `frontend/app/privacy.html` now includes `Data Usage`, `Information We Collect`, `How We Use Information`, `Data Sharing`, and `Data Security` sections with explicit CRM-data/no-sale language and contact info. Commits: `546d781` and `26cebb0`.
+- Important hard truth for tomorrow: if the live app says `not connected`, do not trust it as truly updating via the old path. Local/browser-linked dev behavior and live product behavior are now separate realities. The live product should be treated as not reliably updating until the new connection path is fully completed and actually connected.
+- Current best next-step order for tomorrow is: (1) finish Chrome Web Store publish-ready assets + install path, (2) once that path is credible, retest the full client onboarding flow from login to connected HCP to dashboard refresh, (3) only then return to Murphy data-truth / approved-sales work.
 - 2026-04-12 lane correction: live Nut Report deploy work must happen in the real repo at `/home/outsidethebusinessbox/.openclaw/workspace/profitstack`, not the workspace-root repo. Earlier root-level commits were the wrong lane. For app/site changes, commit and push inside `profitstack/` only.
 - Pricing is now locked for the current offer: **Core = $197/month**. Future tiers are **Pro** and **Elite**. Stripe naming should use **`The Nut Report - Core`**.
 - Homepage/marketing work shipped today in the ProfitStack repo: screenshot assets live in `frontend/app/assets/`, screenshot cards have clearer labels, clicking screenshots opens a lightbox, hero CTA was rewritten and centered as a card-style signup block, and public/legal pages got a mobile pass.
