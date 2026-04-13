@@ -422,7 +422,7 @@ async function renderDashboard() {
             <h3>Housecall Pro is disconnected</h3>
             <p>For the best reconnect experience, use a computer. If Housecall Pro is already logged in on this computer, the reconnect should open already signed in. If not, log in there, then come back to see the reporting and connection on your dashboard. Your reporting is still visible right now, but the next live refresh needs Housecall Pro reconnected.</p>
             <div class="actions">
-              <a href="https://pro.housecallpro.com/app" target="_blank" rel="noreferrer" class="btn-primary" id="crmReconnectLink">Login / Reconnect Housecall Pro</a>
+              <a href="https://pro.housecallpro.com/app/log_in" target="_blank" rel="noreferrer" class="btn-primary" id="crmReconnectLink">Login / Reconnect Housecall Pro</a>
               <button id="crmDisconnectedContinue" type="button">Keep viewing dashboard</button>
             </div>
           </div>
