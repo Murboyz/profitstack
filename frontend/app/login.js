@@ -27,7 +27,7 @@ async function getPostLoginDestination(accessToken, fallbackEmail = '') {
     });
     if (!res.ok) return './dashboard.html';
     const crmConnection = await res.json();
-    return crmConnection?.status === 'connected' ? './dashboard.html' : './crm.html?onboarding=connect-crm';
+    return crmConnection?.status === 'connected' ? './dashboard.html' : './dashboard.html?crm=disconnected';
   } catch {
     return './dashboard.html';
   }

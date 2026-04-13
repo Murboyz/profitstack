@@ -9,6 +9,7 @@ const TIMEZONE_STORAGE_KEY = 'profitstack_dashboard_timezone';
 const HISTORY_WEEK_STORAGE_KEY = 'profitstack_dashboard_history_week';
 const EXPENSE_REMINDER_TEST_SEEN_KEY = 'profitstack_expense_reminder_test_seen';
 const EXPENSE_REMINDER_MONTH_DONE_KEY = 'profitstack_expense_reminder_month_done';
+const CRM_DISCONNECTED_NOTICE_KEY = 'profitstack_crm_disconnected_notice_seen';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -260,6 +261,11 @@ async function renderDashboard() {
       : `${money.format(Math.abs(lastWeekGoalDelta))} below goal`;
 
     const showExpenseReminder = shouldShowExpenseReminder();
+    const disconnectedNoticeForced = new URLSearchParams(window.location.search).get('crm') === 'disconnected';
+    const showDisconnectedModal = crmConnection.status === 'disconnected' && (disconnectedNoticeForced || !sessionStorage.getItem(CRM_DISCONNECTED_NOTICE_KEY));
+    if (crmConnection.status === 'connected') {
+      sessionStorage.removeItem(CRM_DISCONNECTED_NOTICE_KEY);
+    }
 
     app.innerHTML = `
       <div class="layout">
@@ -410,6 +416,18 @@ async function renderDashboard() {
           </div>
         </div>
       ` : ''}
+      ${showDisconnectedModal ? `
+        <div class="modal-backdrop" id="crmDisconnectedModal">
+          <div class="modal-card">
+            <h3>Housecall Pro is disconnected</h3>
+            <p>For the best reconnect experience, use a computer. Your reporting is still visible right now, but the next live refresh needs Housecall Pro reconnected.</p>
+            <div class="actions">
+              <a href="./crm.html?onboarding=connect-crm" class="btn-primary" id="crmReconnectLink">Reconnect Housecall Pro</a>
+              <button id="crmDisconnectedContinue" type="button">Keep viewing dashboard</button>
+            </div>
+          </div>
+        </div>
+      ` : ''}
     `;
 
     bindTargetInputs(savedTargets);
@@ -426,6 +444,23 @@ async function renderDashboard() {
         document.getElementById('monthlyExpenseTarget').dispatchEvent(new Event('change'));
         localStorage.setItem(EXPENSE_REMINDER_TEST_SEEN_KEY, '1');
         localStorage.setItem(EXPENSE_REMINDER_MONTH_DONE_KEY, getCurrentMonthKey());
+      });
+    }
+    const crmDisconnectedContinue = document.getElementById('crmDisconnectedContinue');
+    if (crmDisconnectedContinue) {
+      crmDisconnectedContinue.addEventListener('click', () => {
+        sessionStorage.setItem(CRM_DISCONNECTED_NOTICE_KEY, '1');
+        const modal = document.getElementById('crmDisconnectedModal');
+        if (modal) modal.remove();
+        const url = new URL(window.location.href);
+        url.searchParams.delete('crm');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+      });
+    }
+    const crmReconnectLink = document.getElementById('crmReconnectLink');
+    if (crmReconnectLink) {
+      crmReconnectLink.addEventListener('click', () => {
+        sessionStorage.setItem(CRM_DISCONNECTED_NOTICE_KEY, '1');
       });
     }
     const historyWeekSelect = document.getElementById('historyWeekSelect');
@@ -446,7 +481,7 @@ async function renderDashboard() {
       }
     });
 
-    if (!sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY)) {
+    if (!sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY) && crmConnection.status !== 'disconnected') {
       sessionStorage.setItem(AUTO_SYNC_STORAGE_KEY, '1');
       try {
         if (status) status.textContent = 'Running automatic live CRM sync…';
