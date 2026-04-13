@@ -764,14 +764,20 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     const jobIds = [...new Set([...calendarJobIds, ...recentJobIds])];
 
     const jobDetails = [];
+    const recentJobDetails = [];
     for (const jobId of jobIds) {
-      jobDetails.push(await fetchJsonWithCookie(`https://pro.housecallpro.com/alpha/jobs/${jobId}`, sessionCookie));
+      const detail = await fetchJsonWithCookie(`https://pro.housecallpro.com/alpha/jobs/${jobId}`, sessionCookie);
+      jobDetails.push(detail);
+      if (recentJobIds.has(jobId)) {
+        recentJobDetails.push(detail);
+      }
     }
 
     payload = {
       calendarItems,
       estimates,
       jobDetails,
+      rollupJobDetails: recentJobDetails,
     };
   }
 
@@ -855,7 +861,8 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   let salesMonth = 0;
   let monthScheduledProduction = 0;
   const jobCreatedApprovedSales = new Map();
-  for (const job of payload.jobDetails || []) {
+  const rollupJobDetails = payload.rollupJobDetails || payload.jobDetails || [];
+  for (const job of rollupJobDetails) {
     jobDetailsById.set(job.id, job);
     const totalAmount = toCurrencyNumber(job.total_amount || 0);
     if (!totalAmount) continue;
