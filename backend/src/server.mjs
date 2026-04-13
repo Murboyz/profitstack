@@ -1185,6 +1185,34 @@ const server = http.createServer(async (req, res) => {
           item: formatCrmConnectionDetail(saved?.[0] || null),
         });
       }
+      if (req.method === 'POST' && pathname === '/api/crm-connection/disconnect') {
+        const existing = await getCrmConnectionByOrg(context.organization.id);
+        const saved = await upsertCrmConnection({
+          id: existing?.id || '50000000-0000-0000-0000-000000000001',
+          organization_id: context.organization.id,
+          provider: existing?.provider || 'housecall_pro',
+          status: 'disconnected',
+          auth_type: existing?.auth_type || 'session_or_oauth',
+          encrypted_credentials: {
+            version: 1,
+            provider: existing?.provider || 'housecall_pro',
+            authType: existing?.auth_type || 'session_or_oauth',
+            accountLabel: existing?.encrypted_credentials?.accountLabel || null,
+            savedAt: new Date().toISOString(),
+            savedByUserId: context.user?.id || null,
+            hasCredentials: false,
+            fieldKeys: [],
+            fields: {},
+          },
+          last_sync_at: existing?.last_sync_at || null,
+          last_error: existing?.last_error || null,
+        });
+        return sendJson(res, 200, {
+          ok: true,
+          message: 'Housecall Pro disconnected. Your last synced numbers were kept.',
+          item: formatCrmConnectionDetail(saved?.[0] || null),
+        });
+      }
       if (req.method === 'GET' && pathname === '/api/overrides') {
         const overrides = await getMetricOverridesByOrg(context.organization.id);
         return sendJson(res, 200, { items: formatOverrides(overrides) });
