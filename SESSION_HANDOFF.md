@@ -4,8 +4,8 @@
 Use this file to bootstrap a new dedicated ProfitStack session without losing the old session context.
 
 ## Current status
-- Estimated completion toward first live pilot shape: **82%**
-- Current stage: **public-facing Core offer tightened, helper-based HCP connection path built, Chrome Web Store install/distribution still blocking true client self-serve, deeper sales-truth work still pending**
+- Estimated completion toward first live pilot shape: **86%**
+- Current stage: **helper-based HCP connection path built, live HCP auth/session recovery path proven again, Murphy number-truth materially tightened, Chrome Web Store install/distribution still blocking true client self-serve**
 
 ## Live now
 - Supabase project connected
@@ -61,12 +61,13 @@ Use this file to bootstrap a new dedicated ProfitStack session without losing th
 - Murphy
 - user: `outsidethebusinessbox@gmail.com`
 - Murphy org login works via magic link
-- Murphy CRM connection is saved and sync runs succeed
-- Current problem: Murphy metrics are still wrong because the HCP mapper is undercounting / not populating approved sales and opportunities
+- Murphy CRM connection is saved and live sync runs succeed again
+- Sales Today / current-week approved sales / sales month now line up on live after session recovery + live sync
+- Remaining numbers lane is narrower: keep validating month scheduled production / any remaining drift instead of treating the whole HCP mapper as broken
 
 ## Remaining major tasks
 1. finish Chrome Web Store distribution/install path for the HCP helper so clients do not need manual extension loading help
-2. fix Murphy HCP metric mapping so live numbers are trusted
+2. finish Murphy number-truth validation, especially month scheduled production / any remaining edge-case drift
 3. prove Murphy live flow cleanly end-to-end with the new helper-based connection path
 4. remove temporary debug UI once stable
 5. replace login shell with real Supabase Auth
@@ -82,9 +83,14 @@ When starting a new dedicated ProfitStack session:
 - read `profitstack/LAUNCH_FREEZE.md`
 - read `profitstack/V1_METRIC_CONTRACT.md`
 - read `profitstack/MURPHY_LIVE_FLOW.md`
-- continue from: **fix Murphy HCP metric mapping**
+- continue from: **validate and finish the remaining Murphy month-production truth lane, then return to Chrome Web Store/install-distribution work**
 
 ## Critical context from today
+- 2026-04-13 recovery breakthrough: the old HCP auth path was recovered from the OpenClaw managed browser profile cookie store, not from a new connection flow. The stale 401 problem turned out to be expired saved session data plus browser-attach confusion. Pulling decrypted Housecall Pro cookies from `/home/outsidethebusinessbox/.openclaw/browser/openclaw/user-data/Default/Cookies` restored direct HCP API access.
+- After writing the recovered session cookie back into the `crm_connections` row for Murphy org `2cece8f2-b17c-49fc-a4a1-91c45b68cae8`, a real live sync succeeded again on Render via `/api/sync-runs/execute` with sync run `36312a09-8b5e-4c06-84c7-8898e6a50528` and snapshot `afbd6a0d-9969-4d9d-a193-6f2b7c74492d`.
+- Post-recovery validation tightened the numbers lane substantially: after live sync, `sales_today = 500`, current-week `approved_sales = 500`, and `sales_month = 53979.1` matched the regression script again.
+- The remaining regression gap was isolated to `monthScheduledProduction`. Root cause: the month rollup in `backend/src/server.mjs` was counting extra calendar-only jobs outside the recent 200-job lane used by the regression script. The exact overcount found was `15731`, driven mainly by invoice `10277` contributing `15406` plus invoice `9175` contributing `325`.
+- Fix was committed first on recovery branch `recovery/numbers-pre-extension` as `aa62c5c` (`Limit month rollups to recent job lane`), then cherry-picked cleanly onto `main` as `0b6335c` without disturbing extension/helper work.
 - Late 2026-04-12 lane update: Chad rejected the fake web-only HCP auto-connect flow. The honest product direction is now a Housecall Pro Chrome helper for desktop connect/reconnect, with mobile for viewing/reporting only. Reason: HCP does not expose an open API/OAuth path we can rely on, and a normal website cannot automatically capture HCP login from another tab/domain.
 - The smallest real HCP helper path is now built in-repo at `browser-helper/hcp-chrome-extension/` with backend hookup in `backend/src/server.mjs`. Commit: `75af163` (`Add Housecall Pro Chrome helper capture path`). It reads the active Nut Report session from a logged-in Chrome tab, captures HCP cookies from `pro.housecallpro.com`, and posts them to `/api/crm-connection/hcp-helper` so the existing CRM connection model can store them.
 - CRM/login/dashboard UX was heavily revised today around connection state: cleaner HCP connection screen, safer CRM status endpoint, disconnect without clearing saved numbers, dashboard reconnect banner, disconnected-CRM popup on dashboard login, and copy clarifications around desktop reconnect behavior. Important commits in this lane included: `5be2436`, `d742199`, `4c88f0c`, `2141e86`, `e8d22a6`, `06bb16b`, `5f9e70b`, `8ff0f3a`, `6f3e180`, `94edf6d`, and `4a4ba01`.
