@@ -97,10 +97,8 @@ async function main() {
   const form = document.getElementById('crmForm');
 
   try {
-     await renderSessionBanner();
-+    renderOnboardingMessage();
-     await loadStatus();
     await renderSessionBanner();
+    renderOnboardingMessage();
     await loadStatus();
 
     form.addEventListener('submit', async (event) => {

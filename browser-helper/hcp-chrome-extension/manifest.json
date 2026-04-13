@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "ProfitStack HCP Helper",
+  "version": "0.1.0",
+  "description": "Capture the active Housecall Pro browser session and save it to ProfitStack for the logged-in org.",
+  "action": {
+    "default_title": "ProfitStack HCP Helper",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://pro.housecallpro.com/*"
+  ]
+}

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProfitStack HCP Helper</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      width: 340px;
+      font: 14px/1.45 Inter, Arial, sans-serif;
+      color: #eef4ff;
+      background: #09101d;
+    }
+    h1 { font-size: 16px; margin: 0 0 8px; }
+    p { margin: 0 0 10px; color: #a8b7d9; }
+    .card {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 12px;
+      background: #0f1728;
+      margin-bottom: 12px;
+    }
+    label { display: block; font-weight: 700; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: #111a2e;
+      color: #eef4ff;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: wait; }
+    .status { white-space: pre-wrap; }
+    .ok { color: #8cf0c4; }
+    .error { color: #ff9aac; }
+    .muted { color: #94a3c7; font-size: 12px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body>
+  <h1>ProfitStack HCP Helper</h1>
+  <p>Run this while your active Chrome tab is an open Nut Report page, and while Housecall Pro is already logged in in the same Chrome profile.</p>
+
+  <div class="card">
+    <label for="accountLabel">Connection name</label>
+    <input id="accountLabel" value="Primary Housecall Pro account" />
+  </div>
+
+  <button id="connectButton">Capture HCP session and connect</button>
+  <div id="status" class="status card muted" style="margin-top:12px;">Ready.</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

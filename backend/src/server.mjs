@@ -1185,6 +1185,51 @@ const server = http.createServer(async (req, res) => {
           item: formatCrmConnectionDetail(saved?.[0] || null),
         });
       }
+      if (req.method === 'POST' && pathname === '/api/crm-connection/hcp-helper') {
+        const body = await readJsonBody(req);
+        const cookies = Array.isArray(body.cookies) ? body.cookies : [];
+        const cookieHeader = String(body.cookieHeader || '').trim();
+        const sessionCookie = cookieHeader || cookies
+          .filter((item) => item?.name && item?.value)
+          .map((item) => `${item.name}=${item.value}`)
+          .join('; ');
+
+        if (!sessionCookie) {
+          return sendJson(res, 400, { error: 'No Housecall Pro cookies were provided by the browser helper' });
+        }
+
+        const credentialEnvelope = buildCredentialEnvelope({
+          provider: 'housecall_pro',
+          authType: 'session_or_oauth',
+          accountLabel: body.accountLabel || 'Primary Housecall Pro account',
+          credentials: {
+            sessionCookie,
+            locationId: body.locationId || undefined,
+            helperSource: 'hcp_chrome_extension',
+            helperVersion: body.helperVersion || 1,
+            helperCapturedAt: body.capturedAt || new Date().toISOString(),
+            helperCookieNames: cookies.map((item) => item?.name).filter(Boolean),
+          },
+        }, context);
+
+        const existing = await getCrmConnectionByOrg(context.organization.id);
+        const saved = await upsertCrmConnection({
+          id: existing?.id || '50000000-0000-0000-0000-000000000001',
+          organization_id: context.organization.id,
+          provider: 'housecall_pro',
+          status: credentialEnvelope.hasCredentials ? 'connected' : 'pending',
+          auth_type: 'session_or_oauth',
+          encrypted_credentials: credentialEnvelope,
+          last_sync_at: existing?.last_sync_at || new Date().toISOString(),
+          last_error: null,
+        });
+
+        return sendJson(res, 200, {
+          ok: true,
+          message: 'Housecall Pro connection saved from Chrome helper. Go to the dashboard and click Refresh Data.',
+          item: formatCrmConnectionDetail(saved?.[0] || null),
+        });
+      }
       if (req.method === 'POST' && pathname === '/api/crm-connection/disconnect') {
         const existing = await getCrmConnectionByOrg(context.organization.id);
         const saved = await upsertCrmConnection({
