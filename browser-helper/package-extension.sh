@@ -21,7 +21,7 @@ with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
     for path in sorted(ext_dir.rglob('*')):
         if path.is_dir():
             continue
-        if path.name == '.DS_Store' or '__MACOSX' in path.parts:
+        if path.name in {'.DS_Store', 'generate_icons.py'} or '__MACOSX' in path.parts:
             continue
         zf.write(path, path.relative_to(ext_dir))
 
