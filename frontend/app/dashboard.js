@@ -152,41 +152,56 @@ function bindSetupGuidance(setupMode) {
 
   const monthlyField = document.getElementById('monthlyExpenseTarget')?.closest('.field');
   const profitField = document.getElementById('profitPercentGoal')?.closest('.field');
+  const timezoneField = document.getElementById('timezoneSelect')?.closest('.field');
   const refreshButton = document.getElementById('refreshButton');
   const monthlyInput = document.getElementById('monthlyExpenseTarget');
   const profitInput = document.getElementById('profitPercentGoal');
   const timezoneSelect = document.getElementById('timezoneSelect');
   const helper = document.getElementById('setupHelper');
-  if (!monthlyField || !profitField || !refreshButton || !monthlyInput || !profitInput || !timezoneSelect || !helper) return () => {};
+  if (!monthlyField || !profitField || !timezoneField || !refreshButton || !monthlyInput || !profitInput || !timezoneSelect || !helper) return () => {};
 
-  let activeStep = monthlyInput.value.trim() ? (profitInput.value.trim() || profitInput.value === '0' ? 'refresh' : 'profit') : 'monthly';
+  let activeStep = monthlyInput.value.trim()
+    ? ((profitInput.value.trim() || profitInput.value === '0') ? 'timezone' : 'profit')
+    : 'monthly';
 
   const applyStep = () => {
-    monthlyField.classList.remove('setup-focus', 'setup-done');
-    profitField.classList.remove('setup-focus', 'setup-done');
+    monthlyField.classList.remove('setup-focus', 'setup-done', 'setup-static');
+    profitField.classList.remove('setup-focus', 'setup-done', 'setup-static');
+    timezoneField.classList.remove('setup-focus', 'setup-done', 'setup-static');
     refreshButton.classList.remove('setup-ready');
 
     if (activeStep === 'monthly') {
       helper.innerHTML = '<strong>Step 1:</strong> enter Monthly Expense Target, then press Enter.';
       monthlyField.classList.add('setup-focus');
       profitField.classList.add('setup-done');
+      timezoneField.classList.add('setup-done');
       monthlyInput.focus();
       monthlyInput.select();
       return;
     }
     if (activeStep === 'profit') {
       helper.innerHTML = '<strong>Step 2:</strong> enter Profit % Goal, then press Enter.';
-      monthlyField.classList.add('setup-done');
+      monthlyField.classList.add('setup-static');
       profitField.classList.add('setup-focus');
+      timezoneField.classList.add('setup-done');
       profitInput.focus();
       profitInput.select();
       return;
     }
-    helper.innerHTML = '<strong>Step 3:</strong> confirm your timezone, then click Refresh Data.';
-    monthlyField.classList.add('setup-done');
-    profitField.classList.add('setup-done');
+    if (activeStep === 'timezone') {
+      helper.innerHTML = '<strong>Step 3:</strong> choose your timezone, then press Enter.';
+      monthlyField.classList.add('setup-static');
+      profitField.classList.add('setup-static');
+      timezoneField.classList.add('setup-focus');
+      timezoneSelect.focus();
+      return;
+    }
+    helper.innerHTML = '<strong>Step 4:</strong> click Refresh Data.';
+    monthlyField.classList.add('setup-static');
+    profitField.classList.add('setup-static');
+    timezoneField.classList.add('setup-static');
     refreshButton.classList.add('setup-ready');
-    timezoneSelect.focus();
+    refreshButton.focus();
   };
 
   monthlyInput.addEventListener('keydown', (event) => {
@@ -201,15 +216,30 @@ function bindSetupGuidance(setupMode) {
     if (event.key !== 'Enter') return;
     event.preventDefault();
     profitInput.dispatchEvent(new Event('change'));
+    activeStep = 'timezone';
+    window.setTimeout(applyStep, 50);
+  });
+
+  timezoneSelect.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
     activeStep = 'refresh';
     window.setTimeout(applyStep, 50);
+  });
+
+  timezoneSelect.addEventListener('change', () => {
+    if (activeStep === 'timezone') {
+      activeStep = 'refresh';
+      window.setTimeout(applyStep, 50);
+    }
   });
 
   applyStep();
 
   return () => {
-    monthlyField.classList.remove('setup-focus', 'setup-done');
-    profitField.classList.remove('setup-focus', 'setup-done');
+    monthlyField.classList.remove('setup-focus', 'setup-done', 'setup-static');
+    profitField.classList.remove('setup-focus', 'setup-done', 'setup-static');
+    timezoneField.classList.remove('setup-focus', 'setup-done', 'setup-static');
     refreshButton.classList.remove('setup-ready');
     helper.innerHTML = '';
   };
