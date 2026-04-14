@@ -160,9 +160,7 @@ function bindSetupGuidance(setupMode) {
   const helper = document.getElementById('setupHelper');
   if (!monthlyField || !profitField || !timezoneField || !refreshButton || !monthlyInput || !profitInput || !timezoneSelect || !helper) return () => {};
 
-  let activeStep = monthlyInput.value.trim()
-    ? ((profitInput.value.trim() || profitInput.value === '0') ? 'timezone' : 'profit')
-    : 'monthly';
+  let activeStep = 'monthly';
 
   const applyStep = () => {
     monthlyField.classList.remove('setup-focus', 'setup-done', 'setup-static');
