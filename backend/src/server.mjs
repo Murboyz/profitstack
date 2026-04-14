@@ -586,14 +586,23 @@ function getMonthAllocatedAmount(monthKey, startValue, endValue, totalAmount) {
   return totalAmount * (overlapDays / totalDays);
 }
 
-function incrementMonthMetric(monthMap, dateValue, updater) {
-  if (!dateValue) return;
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return;
-  const monthKey = formatDateInTimeZone(date, 'UTC').slice(0, 7);
-  const bucket = monthMap.get(monthKey);
-  if (!bucket) return;
-  updater(bucket);
+function getWeekAllocatedAmountForMonth(monthKey, weekStartDate, weekEndDate, totalAmount) {
+  if (!(totalAmount > 0) || !weekStartDate || !weekEndDate) return 0;
+
+  const [year, month] = monthKey.split('-').map(Number);
+  const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const monthEndExclusive = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const weekStart = new Date(`${weekStartDate}T00:00:00.000Z`);
+  const weekEndExclusive = new Date(`${weekEndDate}T23:59:59.999Z`);
+  weekEndExclusive.setUTCMilliseconds(weekEndExclusive.getUTCMilliseconds() + 1);
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.ceil((weekEndExclusive.getTime() - weekStart.getTime()) / dayMs));
+  const overlapStart = Math.max(weekStart.getTime(), monthStart.getTime());
+  const overlapEnd = Math.min(weekEndExclusive.getTime(), monthEndExclusive.getTime());
+  if (overlapEnd <= overlapStart) return 0;
+  const overlapDays = Math.max(1, Math.ceil((overlapEnd - overlapStart) / dayMs));
+  return totalAmount * (overlapDays / totalDays);
 }
 
 async function fetchJsonWithCookie(url, sessionCookie) {
@@ -724,7 +733,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   const weeks = buildWeekBuckets(now, 7);
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
   const currentMonthKey = formatDateInTimeZone(now, 'UTC').slice(0, 7);
-  const monthMap = new Map([[currentMonthKey, { key: currentMonthKey, scheduledProduction: 0 }]]);
   const todayDate = formatDateInTimeZone(now, timeZone);
   const jobDetailsById = new Map();
   const rangeStart = new Date(`${weeks[0].weekStartDate}T00:00:00.000Z`);
@@ -804,9 +812,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
       bucket.scheduledProduction += scheduledAmount;
     });
-    incrementMonthMetric(monthMap, item.start || item.start_date, (bucket) => {
-      bucket.scheduledProduction += scheduledAmount;
-    });
   }
 
   const jobFamilies = new Map();
@@ -830,14 +835,8 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     incrementWeekMetric(weekMap, positiveSegments[0].scheduled_date, (bucket) => {
       bucket.scheduledProduction -= totalAmount;
     });
-    incrementMonthMetric(monthMap, positiveSegments[0].scheduled_date, (bucket) => {
-      bucket.scheduledProduction -= totalAmount;
-    });
     for (const segment of family) {
       incrementWeekMetric(weekMap, segment.scheduled_date, (bucket) => {
-        bucket.scheduledProduction += share;
-      });
-      incrementMonthMetric(monthMap, segment.scheduled_date, (bucket) => {
         bucket.scheduledProduction += share;
       });
     }
@@ -853,20 +852,10 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     incrementWeekMetric(weekMap, job.scheduled_date, (bucket) => {
       bucket.scheduledProduction -= totalAmount;
     });
-    incrementMonthMetric(monthMap, job.scheduled_date, (bucket) => {
-      bucket.scheduledProduction -= totalAmount;
-    });
     for (const allocation of allocations) {
       const bucket = weekMap.get(allocation.weekKey);
       if (!bucket) continue;
       bucket.scheduledProduction += allocation.amount;
-    }
-    const monthAllocatedAmount = getMonthAllocatedAmount(currentMonthKey, scheduleStart, scheduleEnd, totalAmount);
-    if (monthAllocatedAmount > 0) {
-      const monthBucket = monthMap.get(currentMonthKey);
-      if (monthBucket) {
-        monthBucket.scheduledProduction += monthAllocatedAmount;
-      }
     }
   }
 
@@ -890,7 +879,15 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
 
   let salesToday = 0;
   let salesMonth = 0;
-  let monthScheduledProduction = Number(monthMap.get(currentMonthKey)?.scheduledProduction || 0);
+  let monthScheduledProduction = 0;
+  for (const bucket of weekMap.values()) {
+    monthScheduledProduction += getWeekAllocatedAmountForMonth(
+      currentMonthKey,
+      bucket.weekStartDate,
+      bucket.weekEndDate,
+      Number(bucket.scheduledProduction || 0)
+    );
+  }
   const jobCreatedApprovedSales = new Map();
   const rollupJobDetails = payload.rollupJobDetails || payload.jobDetails || [];
   for (const job of rollupJobDetails) {
