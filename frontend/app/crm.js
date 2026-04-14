@@ -85,10 +85,12 @@ async function loadStatus() {
 }
 
 function renderOnboardingMessage() {
-  const mode = new URLSearchParams(window.location.search).get('onboarding');
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get('onboarding');
+  const next = params.get('next');
   const result = document.getElementById('result');
   if (mode === 'connect-crm' && result) {
-    result.innerHTML = '<p class="muted">Next step: connect Housecall Pro here, then you will go straight to the dashboard.</p>';
+    result.innerHTML = `<p class="muted">Next step: connect Housecall Pro here, then you will go straight to ${next === 'dashboard-setup' ? 'the final setup step for expenses, profit goal, and timezone.' : 'the dashboard.'}</p>`;
   }
 }
 
@@ -137,11 +139,14 @@ async function main() {
           return;
         }
 
-        result.innerHTML = `<p class="success">${escapeHtml(data.message || 'Housecall Pro connection saved.')}</p><p class="muted" style="margin-top: 8px;">Sending you to the dashboard now so you can click <strong>Refresh Data</strong>.</p>`;
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next');
+        const nextHref = next === 'dashboard-setup' ? './dashboard.html?setup=1&crm=connected' : './dashboard.html?crm=connected';
+        result.innerHTML = `<p class="success">${escapeHtml(data.message || 'Housecall Pro connection saved.')}</p><p class="muted" style="margin-top: 8px;">Sending you to ${next === 'dashboard-setup' ? 'the final setup step' : 'the dashboard'} now.</p>`;
         document.getElementById('sessionCookie').value = '';
         await loadStatus();
         window.setTimeout(() => {
-          window.location.href = './dashboard.html?crm=connected';
+          window.location.href = nextHref;
         }, 1200);
       } catch (error) {
         result.innerHTML = `<p class="error">${escapeHtml(error.message || 'Failed to save CRM connection.')}</p>`;

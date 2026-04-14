@@ -260,8 +260,10 @@ async function renderDashboard() {
       ? `${money.format(lastWeekGoalDelta)} over goal`
       : `${money.format(Math.abs(lastWeekGoalDelta))} below goal`;
 
+    const searchParams = new URLSearchParams(window.location.search);
+    const setupMode = searchParams.get('setup') === '1';
     const showExpenseReminder = shouldShowExpenseReminder();
-    const disconnectedNoticeForced = new URLSearchParams(window.location.search).get('crm') === 'disconnected';
+    const disconnectedNoticeForced = searchParams.get('crm') === 'disconnected';
     const showDisconnectedModal = crmConnection.status === 'disconnected' && (disconnectedNoticeForced || !sessionStorage.getItem(CRM_DISCONNECTED_NOTICE_KEY));
     if (crmConnection.status === 'connected') {
       sessionStorage.removeItem(CRM_DISCONNECTED_NOTICE_KEY);
@@ -313,6 +315,15 @@ async function renderDashboard() {
         </section>
 
         <section>
+          ${setupMode ? `
+            <div class="alertbar">
+              <div>
+                <strong>Finish setup.</strong><br />
+                Enter your monthly expense target, profit % goal, and timezone here, then click <strong>Refresh Data</strong> to open your live Nut Report with your real targets.
+              </div>
+              <a href="#monthlyExpenseTarget" id="finishSetupAnchor">Enter targets below</a>
+            </div>
+          ` : ''}
           ${crmConnection.status === 'disconnected' ? `
             <div class="alertbar">
               <div>
@@ -475,6 +486,9 @@ async function renderDashboard() {
         if (status) status.textContent = 'Running live CRM sync…';
         const syncResult = await executeLiveSync();
         if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
+        const url = new URL(window.location.href);
+        url.searchParams.delete('setup');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
         await renderDashboard();
       } catch (error) {
         if (status) status.textContent = `Live sync failed: ${error.message}`;
