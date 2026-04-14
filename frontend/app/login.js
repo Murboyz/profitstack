@@ -18,6 +18,8 @@ async function getFrontendConfig() {
 }
 
 async function getPostLoginDestination(accessToken, fallbackEmail = '') {
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next');
   try {
     const res = await fetch('/api/crm-connection', {
       headers: {
@@ -25,11 +27,16 @@ async function getPostLoginDestination(accessToken, fallbackEmail = '') {
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
     });
-    if (!res.ok) return './dashboard.html';
+    if (!res.ok) return next === 'dashboard-setup' ? './crm.html?onboarding=connect-crm&next=dashboard-setup' : './dashboard.html';
     const crmConnection = await res.json();
+    if (next === 'dashboard-setup') {
+      return crmConnection?.status === 'connected'
+        ? './dashboard.html?setup=1&crm=connected'
+        : './crm.html?onboarding=connect-crm&next=dashboard-setup';
+    }
     return crmConnection?.status === 'connected' ? './dashboard.html' : './dashboard.html?crm=disconnected';
   } catch {
-    return './dashboard.html';
+    return next === 'dashboard-setup' ? './crm.html?onboarding=connect-crm&next=dashboard-setup' : './dashboard.html';
   }
 }
 
@@ -50,7 +57,9 @@ async function completeMagicLinkLogin() {
   const user = await userRes.json();
   setAccessToken(accessToken);
   setCurrentUserEmail(user.email);
-  window.history.replaceState({}, '', './login.html');
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next');
+  window.history.replaceState({}, '', next ? `./login.html?next=${encodeURIComponent(next)}` : './login.html');
   window.location.href = await getPostLoginDestination(accessToken, user.email);
 }
 

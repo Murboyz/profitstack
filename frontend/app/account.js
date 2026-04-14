@@ -21,7 +21,15 @@ async function main() {
     const account = await accountRes.json();
     const { organization: org, user, billing } = account;
     const billingState = new URLSearchParams(window.location.search).get('billing');
+    const setupState = new URLSearchParams(window.location.search).get('setup');
     app.innerHTML = `
+      ${setupState === 'dashboard-setup' ? `
+        <div class="panel">
+          <h2>Setup in progress</h2>
+          <p>Your billing is done. If your login works, continue into CRM connection and dashboard setup.</p>
+          <p><a href="./crm.html?onboarding=connect-crm&next=dashboard-setup">Continue setup</a></p>
+        </div>
+      ` : ''}
       <div class="panel">
         <h2>Organization</h2>
         <p><strong>Name:</strong> ${org.name}</p>
