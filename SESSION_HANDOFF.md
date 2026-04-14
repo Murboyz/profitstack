@@ -4,8 +4,8 @@
 Use this file to bootstrap a new dedicated ProfitStack session without losing the old session context.
 
 ## Current status
-- Estimated completion toward first live pilot shape: **86%**
-- Current stage: **helper-based HCP connection path built, live HCP auth/session recovery path proven again, Murphy number-truth materially tightened, Chrome Web Store install/distribution still blocking true client self-serve**
+- Estimated completion toward first live pilot shape: **89%**
+- Current stage: **Chrome helper submitted for review, live HCP auth/session recovery proven again, Murphy number-truth materially tightened, Stripe checkout is alive, but paid-user onboarding flow after payment still needs cleanup before launch**
 
 ## Live now
 - Supabase project connected
@@ -66,13 +66,15 @@ Use this file to bootstrap a new dedicated ProfitStack session without losing th
 - Remaining numbers lane is narrower: keep validating month scheduled production / any remaining drift instead of treating the whole HCP mapper as broken
 
 ## Remaining major tasks
-1. finish Chrome Web Store distribution/install path for the HCP helper so clients do not need manual extension loading help
-2. finish Murphy number-truth validation, especially month scheduled production / any remaining edge-case drift
-3. prove Murphy live flow cleanly end-to-end with the new helper-based connection path
-4. remove temporary debug UI once stable
-5. replace login shell with real Supabase Auth
-6. add row-level security / stronger tenant hardening
-7. improve onboarding and go-to-market assets
+1. tighten the paid-user onboarding flow after Stripe checkout so payment leads cleanly into account creation/login and then HCP connection
+2. verify the latest post-payment success page and CTA changes are truly live on Render
+3. finish Chrome Web Store distribution/install path for the HCP helper so clients do not need manual extension loading help
+4. finish Murphy number-truth validation, especially month scheduled production / any remaining edge-case drift
+5. prove Murphy live flow cleanly end-to-end with the new helper-based connection path
+6. remove temporary debug UI once stable
+7. replace login shell with real Supabase Auth
+8. add row-level security / stronger tenant hardening
+9. improve onboarding and go-to-market assets
 
 ## Important note
 This project got mixed with unrelated lead-machine heartbeat traffic because the current webchat UI exposes only one visible chat session. The ProfitStack project itself was **not deleted**.
@@ -98,7 +100,10 @@ When starting a new dedicated ProfitStack session:
 - Submission prep work is now in repo: `browser-helper/package-extension.sh` creates `browser-helper/dist/profitstack-hcp-helper.zip` without relying on host `zip`, and `browser-helper/CHROME_WEB_STORE_SUBMISSION.md` contains the draft single-purpose statement, privacy behavior statement, and test instructions. Commits: `b172098` and `f480729`.
 - Privacy page was updated specifically for Chrome expectations. `frontend/app/privacy.html` now includes `Data Usage`, `Information We Collect`, `How We Use Information`, `Data Sharing`, and `Data Security` sections with explicit CRM-data/no-sale language and contact info. Commits: `546d781` and `26cebb0`.
 - Important hard truth for tomorrow: if the live app says `not connected`, do not trust it as truly updating via the old path. Local/browser-linked dev behavior and live product behavior are now separate realities. The live product should be treated as not reliably updating until the new connection path is fully completed and actually connected.
-- Current best next-step order for tomorrow is: (1) finish Chrome Web Store publish-ready assets + install path, (2) once that path is credible, retest the full client onboarding flow from login to connected HCP to dashboard refresh, (3) only then return to Murphy data-truth / approved-sales work.
+- Current best next-step order for tomorrow is: (1) verify the latest Stripe-connected success-flow pages are actually live on Render, (2) tighten the paid onboarding path from Stripe success page into account creation/login/HCP connect, (3) confirm Stripe post-payment behavior is clean for a real buyer, (4) then return to Chrome Web Store/install-distribution work, (5) only after that resume Murphy data-truth / approved-sales validation.
+- End-of-day 2026-04-13 billing state: Stripe product `The Nut Report` exists with `Core` pricing at `$197/month`, a live payment link exists, homepage/public-site CTAs now point to that checkout, and a dedicated `frontend/app/signup-success.html` page was added to replace the dumb plain-signup post-payment destination.
+- Late 2026-04-13 launch truth: billing technically works, but the buyer flow is still not clean enough to call launched. The weak spot is onboarding after payment, not Stripe itself.
+- Important late-day repo commits to preserve: `c8a90d7` (`Wire public CTAs to Stripe checkout`), `6e61b39` (`Restore signup CTA copy with Stripe link`), and `e62690b` (`Add paid signup success page`).
 - 2026-04-12 lane correction: live Nut Report deploy work must happen in the real repo at `/home/outsidethebusinessbox/.openclaw/workspace/profitstack`, not the workspace-root repo. Earlier root-level commits were the wrong lane. For app/site changes, commit and push inside `profitstack/` only.
 - Pricing is now locked for the current offer: **Core = $197/month**. Future tiers are **Pro** and **Elite**. Stripe naming should use **`The Nut Report - Core`**.
 - Homepage/marketing work shipped today in the ProfitStack repo: screenshot assets live in `frontend/app/assets/`, screenshot cards have clearer labels, clicking screenshots opens a lightbox, hero CTA was rewritten and centered as a card-style signup block, and public/legal pages got a mobile pass.
