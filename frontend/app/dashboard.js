@@ -333,7 +333,7 @@ async function renderDashboard() {
 
     app.innerHTML = `
       <div class="layout">
-        <section class="panel control-panel">
+        <section class="panel control-panel ${setupMode ? 'setup-mode' : ''}">
           <h2>Control Panel</h2>
           ${setupMode ? '<div class="setup-helper" id="setupHelper"></div>' : ''}
           <div class="clientbar"><strong>Live controls:</strong> adjust targets, sync fresh data, and coach from the numbers.</div>
@@ -377,7 +377,7 @@ async function renderDashboard() {
           </div>
         </section>
 
-        <section>
+        <section class="${setupMode ? 'setup-dim' : ''}">
           ${''}
           ${crmConnection.status === 'disconnected' ? `
             <div class="alertbar">
