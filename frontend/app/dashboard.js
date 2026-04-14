@@ -147,6 +147,68 @@ function bindTargetInputs(baseTargets) {
     .forEach((id) => document.getElementById(id).addEventListener('change', save));
 }
 
+function bindSetupGuidance(setupMode) {
+  if (!setupMode) return;
+
+  const monthlyField = document.getElementById('monthlyExpenseTarget')?.closest('.field');
+  const profitField = document.getElementById('profitPercentGoal')?.closest('.field');
+  const refreshButton = document.getElementById('refreshButton');
+  const monthlyInput = document.getElementById('monthlyExpenseTarget');
+  const profitInput = document.getElementById('profitPercentGoal');
+  const timezoneSelect = document.getElementById('timezoneSelect');
+  const helper = document.getElementById('setupHelper');
+  if (!monthlyField || !profitField || !refreshButton || !monthlyInput || !profitInput || !timezoneSelect || !helper) return;
+
+  const steps = ['monthly', 'profit', 'refresh'];
+  let activeStep = monthlyInput.value.trim() ? (profitInput.value.trim() ? 'refresh' : 'profit') : 'monthly';
+
+  const applyStep = () => {
+    monthlyField.classList.remove('setup-focus', 'setup-done');
+    profitField.classList.remove('setup-focus', 'setup-done');
+    refreshButton.classList.remove('setup-ready');
+
+    if (activeStep === 'monthly') {
+      helper.innerHTML = '<strong>Step 1:</strong> enter Monthly Expense Target, then press Enter.';
+      monthlyField.classList.add('setup-focus');
+      profitField.classList.add('setup-done');
+      monthlyInput.focus();
+      monthlyInput.select();
+      return;
+    }
+    if (activeStep === 'profit') {
+      helper.innerHTML = '<strong>Step 2:</strong> enter Profit % Goal, then press Enter.';
+      monthlyField.classList.add('setup-done');
+      profitField.classList.add('setup-focus');
+      profitInput.focus();
+      profitInput.select();
+      return;
+    }
+    helper.innerHTML = '<strong>Step 3:</strong> confirm your timezone, then click Refresh Data.';
+    monthlyField.classList.add('setup-done');
+    profitField.classList.add('setup-done');
+    refreshButton.classList.add('setup-ready');
+    timezoneSelect.focus();
+  };
+
+  monthlyInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    monthlyInput.dispatchEvent(new Event('change'));
+    activeStep = 'profit';
+    window.setTimeout(applyStep, 50);
+  });
+
+  profitInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    profitInput.dispatchEvent(new Event('change'));
+    activeStep = 'refresh';
+    window.setTimeout(applyStep, 50);
+  });
+
+  applyStep();
+}
+
 function bindMobileControlPanelHide() {
   const controlPanel = document.querySelector('.control-panel');
   const timezoneField = document.getElementById('timezoneSelect');
@@ -273,6 +335,7 @@ async function renderDashboard() {
       <div class="layout">
         <section class="panel control-panel">
           <h2>Control Panel</h2>
+          ${setupMode ? '<div class="setup-helper" id="setupHelper"></div>' : ''}
           <div class="clientbar"><strong>Live controls:</strong> adjust targets, sync fresh data, and coach from the numbers.</div>
 
           <div class="field">
@@ -315,15 +378,7 @@ async function renderDashboard() {
         </section>
 
         <section>
-          ${setupMode ? `
-            <div class="alertbar">
-              <div>
-                <strong>Finish setup.</strong><br />
-                Enter your monthly expense target, profit % goal, and timezone here, then click <strong>Refresh Data</strong> to open your live Nut Report with your real targets.
-              </div>
-              <a href="#monthlyExpenseTarget" id="finishSetupAnchor">Enter targets below</a>
-            </div>
-          ` : ''}
+          ${''}
           ${crmConnection.status === 'disconnected' ? `
             <div class="alertbar">
               <div>
@@ -514,6 +569,7 @@ async function renderDashboard() {
         renderDashboard();
       });
     });
+    bindSetupGuidance(setupMode);
     bindMobileControlPanelHide();
   } catch (error) {
     if (status) status.textContent = `Failed to load dashboard: ${error.message}`;
