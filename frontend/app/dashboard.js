@@ -10,6 +10,7 @@ const HISTORY_WEEK_STORAGE_KEY = 'profitstack_dashboard_history_week';
 const EXPENSE_REMINDER_TEST_SEEN_KEY = 'profitstack_expense_reminder_test_seen';
 const EXPENSE_REMINDER_MONTH_DONE_KEY = 'profitstack_expense_reminder_month_done';
 const CRM_DISCONNECTED_NOTICE_KEY = 'profitstack_crm_disconnected_notice_seen';
+const SETUP_STEP_STORAGE_KEY = 'profitstack_dashboard_setup_step';
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -148,7 +149,10 @@ function bindTargetInputs(baseTargets) {
 }
 
 function bindSetupGuidance(setupMode) {
-  if (!setupMode) return () => {};
+  if (!setupMode) {
+    sessionStorage.removeItem(SETUP_STEP_STORAGE_KEY);
+    return () => {};
+  }
 
   const monthlyField = document.getElementById('monthlyExpenseTarget')?.closest('.field');
   const profitField = document.getElementById('profitPercentGoal')?.closest('.field');
@@ -160,9 +164,10 @@ function bindSetupGuidance(setupMode) {
   const helper = document.getElementById('setupHelper');
   if (!monthlyField || !profitField || !timezoneField || !refreshButton || !monthlyInput || !profitInput || !timezoneSelect || !helper) return () => {};
 
-  let activeStep = 'monthly';
+  let activeStep = sessionStorage.getItem(SETUP_STEP_STORAGE_KEY) || 'monthly';
 
   const applyStep = () => {
+    sessionStorage.setItem(SETUP_STEP_STORAGE_KEY, activeStep);
     monthlyField.classList.remove('setup-focus', 'setup-done', 'setup-static');
     profitField.classList.remove('setup-focus', 'setup-done', 'setup-static');
     timezoneField.classList.remove('setup-focus', 'setup-done', 'setup-static');
@@ -205,16 +210,18 @@ function bindSetupGuidance(setupMode) {
   monthlyInput.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    monthlyInput.dispatchEvent(new Event('change'));
     activeStep = 'profit';
+    sessionStorage.setItem(SETUP_STEP_STORAGE_KEY, activeStep);
+    monthlyInput.dispatchEvent(new Event('change'));
     window.setTimeout(applyStep, 50);
   });
 
   profitInput.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    profitInput.dispatchEvent(new Event('change'));
     activeStep = 'timezone';
+    sessionStorage.setItem(SETUP_STEP_STORAGE_KEY, activeStep);
+    profitInput.dispatchEvent(new Event('change'));
     window.setTimeout(applyStep, 50);
   });
 
@@ -228,6 +235,7 @@ function bindSetupGuidance(setupMode) {
   timezoneSelect.addEventListener('change', () => {
     if (activeStep === 'timezone') {
       activeStep = 'refresh';
+      sessionStorage.setItem(SETUP_STEP_STORAGE_KEY, activeStep);
       window.setTimeout(applyStep, 50);
     }
   });
@@ -599,6 +607,7 @@ async function renderDashboard() {
         if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
         const url = new URL(window.location.href);
         url.searchParams.delete('setup');
+        sessionStorage.removeItem(SETUP_STEP_STORAGE_KEY);
         window.history.replaceState({}, '', `${url.pathname}${url.search}`);
         await renderDashboard();
       } catch (error) {
