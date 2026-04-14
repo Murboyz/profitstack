@@ -148,7 +148,7 @@ function bindTargetInputs(baseTargets) {
 }
 
 function bindSetupGuidance(setupMode) {
-  if (!setupMode) return;
+  if (!setupMode) return () => {};
 
   const monthlyField = document.getElementById('monthlyExpenseTarget')?.closest('.field');
   const profitField = document.getElementById('profitPercentGoal')?.closest('.field');
@@ -157,10 +157,9 @@ function bindSetupGuidance(setupMode) {
   const profitInput = document.getElementById('profitPercentGoal');
   const timezoneSelect = document.getElementById('timezoneSelect');
   const helper = document.getElementById('setupHelper');
-  if (!monthlyField || !profitField || !refreshButton || !monthlyInput || !profitInput || !timezoneSelect || !helper) return;
+  if (!monthlyField || !profitField || !refreshButton || !monthlyInput || !profitInput || !timezoneSelect || !helper) return () => {};
 
-  const steps = ['monthly', 'profit', 'refresh'];
-  let activeStep = monthlyInput.value.trim() ? (profitInput.value.trim() ? 'refresh' : 'profit') : 'monthly';
+  let activeStep = monthlyInput.value.trim() ? (profitInput.value.trim() || profitInput.value === '0' ? 'refresh' : 'profit') : 'monthly';
 
   const applyStep = () => {
     monthlyField.classList.remove('setup-focus', 'setup-done');
@@ -207,6 +206,13 @@ function bindSetupGuidance(setupMode) {
   });
 
   applyStep();
+
+  return () => {
+    monthlyField.classList.remove('setup-focus', 'setup-done');
+    profitField.classList.remove('setup-focus', 'setup-done');
+    refreshButton.classList.remove('setup-ready');
+    helper.innerHTML = '';
+  };
 }
 
 function bindMobileControlPanelHide() {
@@ -340,11 +346,11 @@ async function renderDashboard() {
 
           <div class="field">
             <label for="monthlyExpenseTarget">Monthly Expense Target</label>
-            <input id="monthlyExpenseTarget" value="${monthlyExpenseTarget || ''}" placeholder="35000" />
+            <input id="monthlyExpenseTarget" value="${savedTargets.monthlyExpenseTarget ?? ''}" placeholder="35000" />
           </div>
           <div class="field">
             <label for="profitPercentGoal">Profit % Goal</label>
-            <input id="profitPercentGoal" value="${profitPercentGoal || ''}" placeholder="10" />
+            <input id="profitPercentGoal" value="${savedTargets.profitPercentGoal ?? ''}" placeholder="10" />
           </div>
           <div class="field">
             <label for="timezoneSelect"><strong>Time Zone</strong></label>
@@ -536,8 +542,10 @@ async function renderDashboard() {
         renderDashboard();
       });
     }
+    const cleanupSetupGuidance = bindSetupGuidance(setupMode);
     document.getElementById('refreshButton').addEventListener('click', async () => {
       try {
+        cleanupSetupGuidance();
         if (status) status.textContent = 'Running live CRM sync…';
         const syncResult = await executeLiveSync();
         if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
@@ -569,7 +577,6 @@ async function renderDashboard() {
         renderDashboard();
       });
     });
-    bindSetupGuidance(setupMode);
     bindMobileControlPanelHide();
   } catch (error) {
     if (status) status.textContent = `Failed to load dashboard: ${error.message}`;
