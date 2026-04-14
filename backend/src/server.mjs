@@ -586,6 +586,16 @@ function getMonthAllocatedAmount(monthKey, startValue, endValue, totalAmount) {
   return totalAmount * (overlapDays / totalDays);
 }
 
+function incrementMonthMetric(monthMap, dateValue, updater) {
+  if (!dateValue) return;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return;
+  const monthKey = formatDateInTimeZone(date, 'UTC').slice(0, 7);
+  const bucket = monthMap.get(monthKey);
+  if (!bucket) return;
+  updater(bucket);
+}
+
 async function fetchJsonWithCookie(url, sessionCookie) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
@@ -713,6 +723,8 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   const now = new Date();
   const weeks = buildWeekBuckets(now, 7);
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
+  const currentMonthKey = formatDateInTimeZone(now, 'UTC').slice(0, 7);
+  const monthMap = new Map([[currentMonthKey, { key: currentMonthKey, scheduledProduction: 0 }]]);
   const todayDate = formatDateInTimeZone(now, timeZone);
   const jobDetailsById = new Map();
   const rangeStart = new Date(`${weeks[0].weekStartDate}T00:00:00.000Z`);
@@ -792,6 +804,9 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
       bucket.scheduledProduction += scheduledAmount;
     });
+    incrementMonthMetric(monthMap, item.start || item.start_date, (bucket) => {
+      bucket.scheduledProduction += scheduledAmount;
+    });
   }
 
   const jobFamilies = new Map();
@@ -815,8 +830,14 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     incrementWeekMetric(weekMap, positiveSegments[0].scheduled_date, (bucket) => {
       bucket.scheduledProduction -= totalAmount;
     });
+    incrementMonthMetric(monthMap, positiveSegments[0].scheduled_date, (bucket) => {
+      bucket.scheduledProduction -= totalAmount;
+    });
     for (const segment of family) {
       incrementWeekMetric(weekMap, segment.scheduled_date, (bucket) => {
+        bucket.scheduledProduction += share;
+      });
+      incrementMonthMetric(monthMap, segment.scheduled_date, (bucket) => {
         bucket.scheduledProduction += share;
       });
     }
@@ -832,10 +853,20 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     incrementWeekMetric(weekMap, job.scheduled_date, (bucket) => {
       bucket.scheduledProduction -= totalAmount;
     });
+    incrementMonthMetric(monthMap, job.scheduled_date, (bucket) => {
+      bucket.scheduledProduction -= totalAmount;
+    });
     for (const allocation of allocations) {
       const bucket = weekMap.get(allocation.weekKey);
       if (!bucket) continue;
       bucket.scheduledProduction += allocation.amount;
+    }
+    const monthAllocatedAmount = getMonthAllocatedAmount(currentMonthKey, scheduleStart, scheduleEnd, totalAmount);
+    if (monthAllocatedAmount > 0) {
+      const monthBucket = monthMap.get(currentMonthKey);
+      if (monthBucket) {
+        monthBucket.scheduledProduction += monthAllocatedAmount;
+      }
     }
   }
 
@@ -859,7 +890,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
 
   let salesToday = 0;
   let salesMonth = 0;
-  let monthScheduledProduction = 0;
+  let monthScheduledProduction = Number(monthMap.get(currentMonthKey)?.scheduledProduction || 0);
   const jobCreatedApprovedSales = new Map();
   const rollupJobDetails = payload.rollupJobDetails || payload.jobDetails || [];
   for (const job of rollupJobDetails) {
@@ -875,17 +906,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     }
     if (createdDate.slice(0, 7) === todayDate.slice(0, 7)) {
       salesMonth += totalAmount;
-    }
-    const scheduleStart = job.schedule?.data?.start_time;
-    const scheduleEnd = job.schedule?.data?.end_time;
-    const allocatedMonthAmount = getMonthAllocatedAmount(todayDate.slice(0, 7), scheduleStart, scheduleEnd, totalAmount);
-    if (allocatedMonthAmount > 0) {
-      monthScheduledProduction += allocatedMonthAmount;
-      continue;
-    }
-    const scheduledDate = formatDateInTimeZone(job.scheduled_date || scheduleStart, timeZone);
-    if (scheduledDate.slice(0, 7) === todayDate.slice(0, 7)) {
-      monthScheduledProduction += totalAmount;
     }
   }
 
