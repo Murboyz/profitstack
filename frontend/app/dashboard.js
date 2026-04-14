@@ -276,6 +276,25 @@ async function loadJson(path) {
   return res.json();
 }
 
+function showSyncOverlay() {
+  const existing = document.getElementById('syncOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'syncOverlay';
+  overlay.className = 'sync-overlay';
+  overlay.innerHTML = `
+    <div class="sync-overlay-card">
+      <h3>Refreshing your live report…</h3>
+      <p>Please wait 30 to 60 seconds while The Nut Report pulls fresh CRM data and rebuilds your dashboard.</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function hideSyncOverlay() {
+  document.getElementById('syncOverlay')?.remove();
+}
+
 async function executeLiveSync() {
   const res = await apiFetch('/api/sync-runs/execute', {
     method: 'POST',
@@ -574,7 +593,8 @@ async function renderDashboard() {
     document.getElementById('refreshButton').addEventListener('click', async () => {
       try {
         cleanupSetupGuidance();
-        if (status) status.textContent = 'Running live CRM sync…';
+        showSyncOverlay();
+        if (status) status.textContent = 'Running live CRM sync. Please wait 30 to 60 seconds…';
         const syncResult = await executeLiveSync();
         if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
         const url = new URL(window.location.href);
@@ -583,6 +603,8 @@ async function renderDashboard() {
         await renderDashboard();
       } catch (error) {
         if (status) status.textContent = `Live sync failed: ${error.message}`;
+      } finally {
+        hideSyncOverlay();
       }
     });
 
