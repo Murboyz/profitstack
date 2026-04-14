@@ -4,8 +4,8 @@
 Use this file to bootstrap a new dedicated ProfitStack session without losing the old session context.
 
 ## Current status
-- Estimated completion toward first live pilot shape: **89%**
-- Current stage: **Chrome helper submitted for review, live HCP auth/session recovery proven again, Murphy number-truth materially tightened, Stripe checkout is alive, but paid-user onboarding flow after payment still needs cleanup before launch**
+- Estimated completion toward first live pilot shape: **91%**
+- Current stage: **Chrome helper submitted for review, Stripe/onboarding flow materially tightened, live HCP auth/session recovery proven again, but Murphy month-production truth is still not reconciled to Chad's month-view reporting rule**
 
 ## Live now
 - Supabase project connected
@@ -66,15 +66,13 @@ Use this file to bootstrap a new dedicated ProfitStack session without losing th
 - Remaining numbers lane is narrower: keep validating month scheduled production / any remaining drift instead of treating the whole HCP mapper as broken
 
 ## Remaining major tasks
-1. tighten the paid-user onboarding flow after Stripe checkout so payment leads cleanly into account creation/login and then HCP connection
-2. verify the latest post-payment success page and CTA changes are truly live on Render
+1. finish Murphy month-production truth so the Month Production card matches Chad's current-month scheduled-production reporting rule
+2. prove Murphy live flow cleanly end-to-end with the new helper-based connection path
 3. finish Chrome Web Store distribution/install path for the HCP helper so clients do not need manual extension loading help
-4. finish Murphy number-truth validation, especially month scheduled production / any remaining edge-case drift
-5. prove Murphy live flow cleanly end-to-end with the new helper-based connection path
-6. remove temporary debug UI once stable
-7. replace login shell with real Supabase Auth
-8. add row-level security / stronger tenant hardening
-9. improve onboarding and go-to-market assets
+4. remove temporary debug UI once stable
+5. replace login shell with real Supabase Auth
+6. add row-level security / stronger tenant hardening
+7. improve onboarding and go-to-market assets
 
 ## Important note
 This project got mixed with unrelated lead-machine heartbeat traffic because the current webchat UI exposes only one visible chat session. The ProfitStack project itself was **not deleted**.
@@ -100,7 +98,7 @@ When starting a new dedicated ProfitStack session:
 - Submission prep work is now in repo: `browser-helper/package-extension.sh` creates `browser-helper/dist/profitstack-hcp-helper.zip` without relying on host `zip`, and `browser-helper/CHROME_WEB_STORE_SUBMISSION.md` contains the draft single-purpose statement, privacy behavior statement, and test instructions. Commits: `b172098` and `f480729`.
 - Privacy page was updated specifically for Chrome expectations. `frontend/app/privacy.html` now includes `Data Usage`, `Information We Collect`, `How We Use Information`, `Data Sharing`, and `Data Security` sections with explicit CRM-data/no-sale language and contact info. Commits: `546d781` and `26cebb0`.
 - Important hard truth for tomorrow: if the live app says `not connected`, do not trust it as truly updating via the old path. Local/browser-linked dev behavior and live product behavior are now separate realities. The live product should be treated as not reliably updating until the new connection path is fully completed and actually connected.
-- Current best next-step order for tomorrow is: (1) verify the latest Stripe-connected success-flow pages are actually live on Render, (2) tighten the paid onboarding path from Stripe success page into account creation/login/HCP connect, (3) confirm Stripe post-payment behavior is clean for a real buyer, (4) then return to Chrome Web Store/install-distribution work, (5) only after that resume Murphy data-truth / approved-sales validation.
+- Current best next-step order for tomorrow is: (1) resume Murphy month-production truth immediately, (2) isolate or replicate the exact current-month scheduled-production rule Chad uses in reporting so the Month Production card reconciles to his visible math, (3) only after that resume Chrome Web Store/install-distribution and remaining launch polish.
 - End-of-day 2026-04-13 billing state: Stripe product `The Nut Report` exists with `Core` pricing at `$197/month`, a live payment link exists, homepage/public-site CTAs now point to that checkout, and a dedicated `frontend/app/signup-success.html` page was added to replace the dumb plain-signup post-payment destination.
 - Late 2026-04-13 launch truth: billing technically works, but the buyer flow is still not clean enough to call launched. The weak spot is onboarding after payment, not Stripe itself.
 - Important late-day repo commits to preserve: `c8a90d7` (`Wire public CTAs to Stripe checkout`), `6e61b39` (`Restore signup CTA copy with Stripe link`), and `e62690b` (`Add paid signup success page`).
@@ -124,4 +122,10 @@ When starting a new dedicated ProfitStack session:
 - Additive product work completed on 2026-04-09 while sales truth remained unresolved: (1) client-facing CRM setup flow simplified, (2) landing page added at `frontend/app/website.html`, (3) password auth moved to password-first login with Account-page password change flow, (4) Profit % Goal now allows manual `0`, and (5) new production-derived sales metrics were added and surfaced: `realizedSales3Weeks` and `capturedSales6Weeks`.
 - Immediate tomorrow pickup order: (1) resume from live HCP reporting/browser lane only, (2) isolate native approval-date source or conclude it is internal-only, (3) if still inaccessible, decide whether Nut Report ships with production + additive production-derived sales metrics while approval-truth remains unresolved, (4) domain cutover later.
 - 2026-04-10 saved-product checkpoint: if sales logic drifts again, return to this checkpoint first before trying new experiments. Locked product behavior at this checkpoint is: (a) production outlook stays tied to scheduled-production week buckets, (b) visible sales rollups are based on jobs created this week / this month using HCP `created_at` + `total_amount`, (c) `Sales Today` is shown separately and must not be added a second time into weekly/monthly totals, (d) old approved-sales override paths must not mask fresh synced values, (e) job `10821` was traced successfully through fetch inputs (`jobs_list`, calendar payload, and job detail lookup), proving that downstream bucketing/write logic — not discovery — was the blocker, (f) the dashboard view should hide Realized/Captured rows, remove Last Sync from Current Week, and remove Next 3 Weeks Total from Production Outlook, and (g) a local hard backup archive was created at `~/profitstack-backups/profitstack-20260410-182324.tgz`.
-- Regression protection now exists in-repo at `scripts/check-nut-report-regression.js`. It currently validates Sales Today / Week / Month and the Month Production card. Current state: sales checks pass; month production check still flags mismatch (`expected 55435.6`, `actual 76896.6`), so that card is not yet as trustworthy as the sales card.
+- Regression protection now exists in-repo at `scripts/check-nut-report-regression.js`. It currently validates Sales Today / Week / Month and the Month Production card, but caution: on 2026-04-14 the script still matched the old recent-job-based month lane at certain points in time even when Chad's business-truth month rule disagreed. That means regression-script agreement alone is no longer enough to call the Month Production card correct.
+- 2026-04-14 onboarding/product work substantially improved the paid setup experience without breaking live reporting. Key commits were: `0e64504`, `1f2ef5e`, `9add1ac`, `d9334e9`, `ae909db`, `bdcf346`, `21668e5`, `6e321c0`, `1c09002`, and `c0ca2f1`. Setup mode now guides the control panel step-by-step (Monthly Expense Target -> Enter, Profit % Goal -> Enter, Timezone -> Enter, then Refresh Data), shows a 30-60 second wait message during refresh, and keeps step state across re-renders.
+- Chad explicitly liked the setup-flow direction on 2026-04-14 once the control panel was highlighted and only the active field blinked. Live sync still worked after these UI changes.
+- Month-production truth got messier on 2026-04-14, not cleaner. Observed/calculated values included: old recent-job lane `62506.6`, broad all-details lane `78237.6`, calendar-linked detail lane `73803.6`, week-bucket-derived month path `72314.83`, and one live Render value after deploy `69594.83`. None matched Chad's manual month-view reconciliation.
+- Chad's current business-truth target for Murphy April month production is `76302`, based on visible scheduling numbers: adjusted first split week `24414` (`30723 - 6309` for March-only portion), plus `20490`, `20020`, `26143`, and `5759`. This is the number the Month Production card now needs to reconcile to, or the exact HCP month-view source needs to be found.
+- Two backend commits were made while testing new month-production paths on 2026-04-14: `679c99b` (`Drive month production from scheduled production path`) and `24927fe` (`Derive month production from week buckets`). Render picked up the latter, but the live card still did not reconcile to Chad's visible reporting math.
+- End-of-day 2026-04-14 truth: onboarding is in much better shape, but Murphy Month Production is still not ready to be called trusted. The next session should not drift into more UI polish until the month card is reconciled or the exact HCP month source is isolated.
