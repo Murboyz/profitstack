@@ -87,14 +87,14 @@
         <div class="status-item">
           <div>
             <strong>Step 1. Install Chrome helper</strong>
-            <p>Click install in Chrome, then continue to the Housecall Pro connection step. This is an action step, not a verified status.</p>
+            <p>Click install in Chrome. When you come back, confirm it is installed, then move into Housecall Pro sign-in.</p>
           </div>
           <span class="status-pill current" id="installStatus">Action</span>
         </div>
         <div class="status-item">
           <div>
-            <strong>Step 2. Connect Housecall Pro</strong>
-            <p>Open Housecall Pro, run the helper, then come back here to confirm the connection worked.</p>
+            <strong>Step 2. Sign into Housecall Pro and connect</strong>
+            <p>After you confirm the helper is installed, open Housecall Pro, run the helper, then come back here to confirm the connection worked.</p>
           </div>
           <span class="status-pill" id="crmStatus">Waiting</span>
         </div>
@@ -102,7 +102,7 @@
 
       <div class="actions">
         <a class="cta primary" id="installHelperButton" href="https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb" target="_blank" rel="noreferrer">Install Chrome helper</a>
-        <a class="cta" id="continueButton" href="./crm.html?onboarding=connect-crm&next=dashboard-setup">Continue to Housecall Pro connection</a>
+        <a class="cta" id="continueButton" href="./crm.html?onboarding=connect-crm&next=dashboard-setup">I installed it, continue to Housecall Pro</a>
         <a class="cta" id="dashboardButton" href="./dashboard.html?setup=1">Back to dashboard</a>
       </div>
     </div>
@@ -115,6 +115,7 @@
     const continueButton = document.getElementById('continueButton');
     const installButton = document.getElementById('installHelperButton');
     const dashboardButton = document.getElementById('dashboardButton');
+    const CONTINUE_CONFIRMED_KEY = 'profitstack_helper_install_confirmed';
     const installStatus = document.getElementById('installStatus');
     const crmStatus = document.getElementById('crmStatus');
 
@@ -145,9 +146,32 @@
         dashboardButton.classList.add('primary', 'next-action');
       } else {
         dashboardButton.classList.remove('primary', 'next-action');
-        continueButton.classList.add('next-action');
+        const confirmed = localStorage.getItem(CONTINUE_CONFIRMED_KEY) === 'yes';
+        if (confirmed) {
+          installStatus.textContent = 'Confirmed';
+          installStatus.className = 'status-pill done';
+          installButton.classList.remove('next-action');
+          installButton.classList.add('complete');
+          installButton.textContent = 'Chrome helper confirmed';
+          continueButton.classList.add('next-action');
+        } else {
+          installStatus.textContent = 'Action';
+          installStatus.className = 'status-pill current';
+          installButton.classList.add('primary', 'next-action');
+        }
       }
     }
+
+    continueButton.addEventListener('click', (event) => {
+      const confirmed = window.confirm('Did you install the Chrome helper in this Chrome profile? Click OK if yes, or Cancel if not yet.');
+      if (!confirmed) {
+        event.preventDefault();
+        localStorage.removeItem(CONTINUE_CONFIRMED_KEY);
+        syncUi();
+        return;
+      }
+      localStorage.setItem(CONTINUE_CONFIRMED_KEY, 'yes');
+    });
 
     async function syncUi() {
       installStatus.textContent = 'Action';
@@ -156,7 +180,7 @@
       installButton.classList.remove('complete', 'next-action');
       installButton.textContent = 'Install Chrome helper';
       continueButton.classList.remove('complete', 'next-action');
-      continueButton.textContent = 'Continue to Housecall Pro connection';
+      continueButton.textContent = 'I installed it, continue to Housecall Pro';
       dashboardButton.classList.remove('complete', 'next-action', 'primary');
       dashboardButton.textContent = 'Back to dashboard';
       if (!getCurrentUserEmail() && !getAccessToken()) {
