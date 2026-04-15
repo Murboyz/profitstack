@@ -82,9 +82,9 @@
         <div class="status-item">
           <div>
             <strong>Step 1. Install Chrome helper</strong>
-            <p>Click install, finish it in Chrome, then come back here.</p>
+            <p>Click install in Chrome, then continue to the Housecall Pro connection step. This is an action step, not a verified status.</p>
           </div>
-          <span class="status-pill current" id="installStatus">Current</span>
+          <span class="status-pill current" id="installStatus">Action</span>
         </div>
         <div class="status-item">
           <div>
@@ -105,7 +105,6 @@
   <script type="module">
     import { apiFetch, getAccessToken, getCurrentUserEmail } from './auth.js';
 
-    const INSTALL_KEY = 'profitstack_helper_install_clicked';
     const params = new URLSearchParams(window.location.search);
     const next = params.get('next');
     const continueButton = document.getElementById('continueButton');
@@ -127,23 +126,10 @@
       installButton.href = storeUrl;
     }
 
-    installButton.addEventListener('click', () => {
-      localStorage.setItem(INSTALL_KEY, 'done');
-      window.setTimeout(syncUi, 200);
-    });
-
     function markComplete(button, text) {
       button.classList.remove('primary');
       button.classList.add('complete');
       button.textContent = text;
-    }
-
-    function setInstallState(done) {
-      installStatus.textContent = done ? 'Done' : 'Current';
-      installStatus.className = `status-pill ${done ? 'done' : 'current'}`;
-      if (done) {
-        markComplete(installButton, 'Chrome helper installed');
-      }
     }
 
     function setCrmState(connected) {
@@ -158,8 +144,11 @@
     }
 
     async function syncUi() {
-      const installDone = localStorage.getItem(INSTALL_KEY) === 'done';
-      setInstallState(installDone);
+      installStatus.textContent = 'Action';
+      installStatus.className = 'status-pill current';
+      installButton.classList.add('primary');
+      installButton.classList.remove('complete');
+      installButton.textContent = 'Install Chrome helper';
       if (!getCurrentUserEmail() && !getAccessToken()) {
         setCrmState(false);
         return;
