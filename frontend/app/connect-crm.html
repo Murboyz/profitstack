@@ -34,6 +34,14 @@
     .status-pill.current { background: rgba(91,140,255,.16); border-color: rgba(91,140,255,.28); color: #dbe6ff; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
     .cta { display: inline-flex; align-items: center; justify-content: center; padding: 14px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-weight: 800; }
+     .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
+     .cta.complete { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); color: #94a3c7; }
+     .cta.next-action { animation: nextPulse 1s ease-in-out infinite; box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
+     .cta.disabled { opacity: .55; cursor: default; pointer-events: none; }
++    .modal-backdrop { position: fixed; inset: 0; background: rgba(5,10,18,.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
++    .modal-card { width: min(520px, 100%); background: linear-gradient(180deg, #111a2e 0%, #0d1526 100%); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
++    .modal-card h3 { margin: 0 0 10px; font-size: 24px; }
++    .modal-card p { margin: 0; color: var(--muted); line-height: 1.5; }
     .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
     .cta.complete { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); color: #94a3c7; }
     .cta.next-action { animation: nextPulse 1s ease-in-out infinite; box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
@@ -107,6 +115,16 @@
       </div>
     </div>
   </div>
+  <div class="modal-backdrop" id="installModal" hidden>
+    <div class="modal-card">
+      <h3>Install the Chrome helper, then come back here</h3>
+      <p>We opened the Chrome Web Store in a new tab. After you install the helper, come back to this tab and confirm it before continuing to Housecall Pro.</p>
+      <div class="actions">
+        <button class="cta primary" type="button" id="confirmInstallButton">I installed it</button>
+        <button class="cta" type="button" id="dismissInstallButton">Not yet</button>
+      </div>
+    </div>
+  </div>
   <script type="module">
     import { apiFetch, getAccessToken, getCurrentUserEmail } from './auth.js';
 
@@ -118,6 +136,9 @@
     const CONTINUE_CONFIRMED_KEY = 'profitstack_helper_install_confirmed';
     const installStatus = document.getElementById('installStatus');
     const crmStatus = document.getElementById('crmStatus');
+    const installModal = document.getElementById('installModal');
+    const confirmInstallButton = document.getElementById('confirmInstallButton');
+    const dismissInstallButton = document.getElementById('dismissInstallButton');
 
     if (next === 'dashboard-setup') {
       continueButton.href = './crm.html?onboarding=connect-crm&next=dashboard-setup';
@@ -136,6 +157,14 @@
       button.classList.remove('primary', 'next-action');
       button.classList.add('complete');
       button.textContent = text;
+    }
+
+    function openInstallModal() {
+      installModal.hidden = false;
+    }
+
+    function closeInstallModal() {
+      installModal.hidden = true;
     }
 
     function setCrmState(connected) {
@@ -162,15 +191,29 @@
       }
     }
 
+    installButton.addEventListener('click', () => {
+      openInstallModal();
+    });
+
+    confirmInstallButton.addEventListener('click', () => {
+      localStorage.setItem(CONTINUE_CONFIRMED_KEY, 'yes');
+      closeInstallModal();
+      syncUi();
+    });
+
+    dismissInstallButton.addEventListener('click', () => {
+      localStorage.removeItem(CONTINUE_CONFIRMED_KEY);
+      closeInstallModal();
+      syncUi();
+    });
+
     continueButton.addEventListener('click', (event) => {
-      const confirmed = window.confirm('Did you install the Chrome helper in this Chrome profile? Click OK if yes, or Cancel if not yet.');
+      const confirmed = localStorage.getItem(CONTINUE_CONFIRMED_KEY) === 'yes';
       if (!confirmed) {
         event.preventDefault();
-        localStorage.removeItem(CONTINUE_CONFIRMED_KEY);
-        syncUi();
+        openInstallModal();
         return;
       }
-      localStorage.setItem(CONTINUE_CONFIRMED_KEY, 'yes');
     });
 
     async function syncUi() {
