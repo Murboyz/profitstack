@@ -103,7 +103,7 @@
     </div>
   </div>
   <script type="module">
-    import { apiFetch } from './auth.js';
+    import { apiFetch, getAccessToken, getCurrentUserEmail } from './auth.js';
 
     const INSTALL_KEY = 'profitstack_helper_install_clicked';
     const params = new URLSearchParams(window.location.search);
@@ -160,6 +160,10 @@
     async function syncUi() {
       const installDone = localStorage.getItem(INSTALL_KEY) === 'done';
       setInstallState(installDone);
+      if (!getCurrentUserEmail() && !getAccessToken()) {
+        setCrmState(false);
+        return;
+      }
       try {
         const res = await apiFetch('/api/crm-connection');
         const data = await res.json();
