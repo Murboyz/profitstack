@@ -41,6 +41,7 @@
     .session-banner-value { font-size: 18px; font-weight: 700; }
     .note, .step-card { padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); }
     .note { background: var(--blue-soft); border-color: rgba(91,140,255,.22); color: #dbe6ff; }
+    .note.disclaimer-strong { background: rgba(249,221,141,.08); border-color: rgba(249,221,141,.22); color: #f9dd8d; }
     .step-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .step-card strong { display: block; margin-bottom: 6px; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
@@ -83,7 +84,10 @@
         <div class="eyebrow">Housecall Pro Connect</div>
         <h2>Connect Housecall Pro and start pulling live numbers.</h2>
         <p>Use the connect button below to go straight to Housecall Pro. If HCP is already logged in on this computer, it should open already signed in. If not, log in there, then come back here to finish the connection.</p>
-        <div class="note" style="margin-top: 16px; margin-bottom: 0;">
+        <div class="note disclaimer-strong" style="margin-top: 16px; margin-bottom: 0;">
+          <strong>Important disclaimer</strong><br />By using this tool, you acknowledge that all projections and performance indicators are estimates based on the information provided and data available from integrated systems. This tool is intended for guidance only and should not be relied upon as the sole source for financial decisions.
+        </div>
+        <div class="note" style="margin-top: 12px; margin-bottom: 0;">
           <strong>Best on desktop for the first connection</strong><br />You can review the dashboard on mobile, but the initial Housecall Pro connection is much smoother on desktop because HCP session capture is awkward on mobile.
         </div>
         <div class="note" style="margin-top: 12px; margin-bottom: 0; background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.08); color: var(--muted);">
