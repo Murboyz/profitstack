@@ -26,9 +26,16 @@
     .card strong { display: block; margin-bottom: 8px; }
     .note { margin-top: 18px; padding: 16px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
     .note.disclaimer { background: rgba(249,221,141,.08); border-color: rgba(249,221,141,.22); }
+    .status-list { display: grid; gap: 12px; margin-top: 18px; }
+    .status-item { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+    .status-item strong { display: block; margin-bottom: 4px; }
+    .status-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 96px; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .status-pill.done { background: rgba(140,240,196,.12); border-color: rgba(140,240,196,.28); color: #8cf0c4; }
+    .status-pill.current { background: rgba(91,140,255,.16); border-color: rgba(91,140,255,.28); color: #dbe6ff; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
     .cta { display: inline-flex; align-items: center; justify-content: center; padding: 14px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-weight: 800; }
     .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
+    .cta.complete { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); color: #94a3c7; }
     .cta.disabled { opacity: .55; cursor: default; pointer-events: none; }
     @media (max-width: 820px) {
       .grid { grid-template-columns: 1fr; }
@@ -67,31 +74,102 @@
       </div>
 
       <div class="note">
-        <strong>Chrome Web Store install link</strong>
-        <p id="storeLinkMessage">Install the approved Chrome helper from the Chrome Web Store, then come back here and continue into Housecall Pro connection.</p>
+        <strong>Do each step, then come back here</strong>
+        <p id="storeLinkMessage">Install the approved Chrome helper from the Chrome Web Store, come back here, then continue into Housecall Pro connection. After both steps are done, your dashboard button will be ready.</p>
+      </div>
+
+      <div class="status-list">
+        <div class="status-item">
+          <div>
+            <strong>Step 1. Install Chrome helper</strong>
+            <p>Click install, finish it in Chrome, then come back here.</p>
+          </div>
+          <span class="status-pill current" id="installStatus">Current</span>
+        </div>
+        <div class="status-item">
+          <div>
+            <strong>Step 2. Connect Housecall Pro</strong>
+            <p>Open Housecall Pro, run the helper, then come back here to confirm the connection worked.</p>
+          </div>
+          <span class="status-pill" id="crmStatus">Waiting</span>
+        </div>
       </div>
 
       <div class="actions">
         <a class="cta primary" id="installHelperButton" href="https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb" target="_blank" rel="noreferrer">Install Chrome helper</a>
         <a class="cta" id="continueButton" href="./crm.html?onboarding=connect-crm&next=dashboard-setup">Continue to Housecall Pro connection</a>
-        <a class="cta" href="./dashboard.html">Back to dashboard</a>
+        <a class="cta" id="dashboardButton" href="./dashboard.html?setup=1">Back to dashboard</a>
       </div>
     </div>
   </div>
-  <script>
+  <script type="module">
+    import { apiFetch } from './auth.js';
+
+    const INSTALL_KEY = 'profitstack_helper_install_clicked';
     const params = new URLSearchParams(window.location.search);
     const next = params.get('next');
     const continueButton = document.getElementById('continueButton');
+    const installButton = document.getElementById('installHelperButton');
+    const dashboardButton = document.getElementById('dashboardButton');
+    const installStatus = document.getElementById('installStatus');
+    const crmStatus = document.getElementById('crmStatus');
+
     if (next === 'dashboard-setup') {
       continueButton.href = './crm.html?onboarding=connect-crm&next=dashboard-setup';
+      dashboardButton.href = './dashboard.html?setup=1';
     } else {
       continueButton.href = './crm.html';
+      dashboardButton.href = './dashboard.html';
     }
+
     const storeUrl = params.get('storeUrl');
     if (storeUrl) {
-      const installButton = document.getElementById('installHelperButton');
       installButton.href = storeUrl;
     }
+
+    installButton.addEventListener('click', () => {
+      localStorage.setItem(INSTALL_KEY, 'done');
+      window.setTimeout(syncUi, 200);
+    });
+
+    function markComplete(button, text) {
+      button.classList.remove('primary');
+      button.classList.add('complete');
+      button.textContent = text;
+    }
+
+    function setInstallState(done) {
+      installStatus.textContent = done ? 'Done' : 'Current';
+      installStatus.className = `status-pill ${done ? 'done' : 'current'}`;
+      if (done) {
+        markComplete(installButton, 'Chrome helper installed');
+      }
+    }
+
+    function setCrmState(connected) {
+      crmStatus.textContent = connected ? 'Done' : 'Waiting';
+      crmStatus.className = `status-pill ${connected ? 'done' : ''}`.trim();
+      if (connected) {
+        markComplete(continueButton, 'Housecall Pro connected');
+        dashboardButton.classList.add('primary');
+      } else {
+        dashboardButton.classList.remove('primary');
+      }
+    }
+
+    async function syncUi() {
+      const installDone = localStorage.getItem(INSTALL_KEY) === 'done';
+      setInstallState(installDone);
+      try {
+        const res = await apiFetch('/api/crm-connection');
+        const data = await res.json();
+        setCrmState(data.status === 'connected');
+      } catch {
+        setCrmState(false);
+      }
+    }
+
+    syncUi();
   </script>
 </body>
 </html>
