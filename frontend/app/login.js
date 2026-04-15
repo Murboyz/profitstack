@@ -27,16 +27,16 @@ async function getPostLoginDestination(accessToken, fallbackEmail = '') {
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
     });
-    if (!res.ok) return next === 'dashboard-setup' ? './crm.html?onboarding=connect-crm&next=dashboard-setup' : './dashboard.html';
+    if (!res.ok) return next === 'dashboard-setup' ? './connect-crm.html?next=dashboard-setup' : './dashboard.html';
     const crmConnection = await res.json();
     if (next === 'dashboard-setup') {
       return crmConnection?.status === 'connected'
         ? './dashboard.html?setup=1&crm=connected'
-        : './crm.html?onboarding=connect-crm&next=dashboard-setup';
+        : './connect-crm.html?next=dashboard-setup';
     }
     return crmConnection?.status === 'connected' ? './dashboard.html' : './dashboard.html?crm=disconnected';
   } catch {
-    return next === 'dashboard-setup' ? './crm.html?onboarding=connect-crm&next=dashboard-setup' : './dashboard.html';
+    return next === 'dashboard-setup' ? './connect-crm.html?next=dashboard-setup' : './dashboard.html';
   }
 }
 

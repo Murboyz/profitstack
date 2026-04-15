@@ -27,7 +27,7 @@ async function main() {
         <div class="panel">
           <h2>Setup in progress</h2>
           <p>Your billing is done. If your login works, continue into CRM connection and dashboard setup.</p>
-          <p><a href="./crm.html?onboarding=connect-crm&next=dashboard-setup">Continue setup</a></p>
+          <p><a href="./connect-crm.html?next=dashboard-setup">Continue setup</a></p>
         </div>
       ` : ''}
       <div class="panel">
