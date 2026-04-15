@@ -109,7 +109,7 @@
       </div>
 
       <div class="actions">
-        <a class="cta primary" id="installHelperButton" href="https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb" target="_blank" rel="noreferrer">Install Chrome helper</a>
+        <button class="cta primary" id="installHelperButton" type="button">Install Chrome helper</button>
         <a class="cta" id="continueButton" href="./crm.html?onboarding=connect-crm&next=dashboard-setup">I installed it, continue to Housecall Pro</a>
         <a class="cta" id="dashboardButton" href="./dashboard.html?setup=1">Back to dashboard</a>
       </div>
@@ -148,9 +148,10 @@
       dashboardButton.href = './dashboard.html';
     }
 
+    let installUrl = 'https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb';
     const storeUrl = params.get('storeUrl');
     if (storeUrl) {
-      installButton.href = storeUrl;
+      installUrl = storeUrl;
     }
 
     function markComplete(button, text) {
@@ -193,6 +194,7 @@
 
     installButton.addEventListener('click', () => {
       openInstallModal();
+      window.open(installUrl, '_blank', 'noopener,noreferrer');
     });
 
     confirmInstallButton.addEventListener('click', () => {
