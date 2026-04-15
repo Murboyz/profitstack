@@ -14,6 +14,7 @@
       --blue: #5b8cff;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     body { margin: 0; font-family: Inter, Arial, sans-serif; background: radial-gradient(circle at top, #13203b 0%, #09101d 48%, #070d17 100%); color: var(--text); }
     .wrap { max-width: 980px; margin: 0 auto; padding: 28px; }
     .panel { background: rgba(15,23,40,.92); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.28); padding: 28px; margin-bottom: 16px; }
@@ -34,22 +35,18 @@
     .status-pill.current { background: rgba(91,140,255,.16); border-color: rgba(91,140,255,.28); color: #dbe6ff; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
     .cta { display: inline-flex; align-items: center; justify-content: center; padding: 14px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, #16213a 0%, #111a2e 100%); color: #eef4ff; text-decoration: none; font-weight: 800; }
-     .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
-     .cta.complete { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); color: #94a3c7; }
-     .cta.next-action { animation: nextPulse 1s ease-in-out infinite; box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
-     .cta.disabled { opacity: .55; cursor: default; pointer-events: none; }
-+    .modal-backdrop { position: fixed; inset: 0; background: rgba(5,10,18,.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
-+    .modal-card { width: min(520px, 100%); background: linear-gradient(180deg, #111a2e 0%, #0d1526 100%); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
-+    .modal-card h3 { margin: 0 0 10px; font-size: 24px; }
-+    .modal-card p { margin: 0; color: var(--muted); line-height: 1.5; }
     .cta.primary { background: linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); border-color: rgba(91,140,255,.7); }
     .cta.complete { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); color: #94a3c7; }
     .cta.next-action { animation: nextPulse 1s ease-in-out infinite; box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
     .cta.disabled { opacity: .55; cursor: default; pointer-events: none; }
-+    @keyframes nextPulse {
-+      0%, 100% { box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
-+      50% { box-shadow: 0 0 0 7px rgba(143,194,255,.34), 0 0 34px rgba(143,194,255,.55); }
-+    }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(5,10,18,.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+    .modal-card { width: min(520px, 100%); margin: auto; background: linear-gradient(180deg, #111a2e 0%, #0d1526 100%); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
+    .modal-card h3 { margin: 0 0 10px; font-size: 24px; }
+    .modal-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+    @keyframes nextPulse {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
+      50% { box-shadow: 0 0 0 7px rgba(143,194,255,.34), 0 0 34px rgba(143,194,255,.55); }
+    }
     @media (max-width: 820px) {
       .grid { grid-template-columns: 1fr; }
       .wrap { padding: 16px; }
