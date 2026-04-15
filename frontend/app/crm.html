@@ -42,6 +42,7 @@
     .note, .step-card { padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02); }
     .note { background: var(--blue-soft); border-color: rgba(91,140,255,.22); color: #dbe6ff; }
     .note.disclaimer-strong { background: rgba(249,221,141,.08); border-color: rgba(249,221,141,.22); color: #f9dd8d; }
+    .note.chrome-only { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.08); color: var(--text); }
     .step-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .step-card strong { display: block; margin-bottom: 6px; }
     .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
@@ -90,8 +91,8 @@
         <div class="note" style="margin-top: 12px; margin-bottom: 0;">
           <strong>Best on desktop for the first connection</strong><br />You can review the dashboard on mobile, but the initial Housecall Pro connection is much smoother on desktop because HCP session capture is awkward on mobile.
         </div>
-        <div class="note" style="margin-top: 12px; margin-bottom: 0; background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.08); color: var(--muted);">
-          <strong>Best current flow:</strong> keep this Nut Report tab open, log into Housecall Pro in the same Chrome profile, then click the Chrome helper to connect automatically.
+        <div class="note chrome-only" style="margin-top: 12px; margin-bottom: 0;">
+          <strong>Before you connect</strong><br />This connection only works in <strong>Google Chrome</strong> with an active <strong>Housecall Pro</strong> login in the <strong>same Chrome profile</strong> as The Nut Report. Keep both tabs open, then use the Chrome helper to connect.
         </div>
         <div class="actions">
           <a class="button primary" href="https://pro.housecallpro.com/app" target="_blank" rel="noreferrer">Connect Housecall Pro</a>
@@ -119,6 +120,9 @@
       </div>
       <div class="note" style="margin-top: 16px;">
         <strong>Then do this</strong><br />Come back to the dashboard and click <strong>Refresh Data</strong>. If Housecall Pro logs the client out later, reconnect the same way. On Sunday night, the dashboard may already roll into the next week if your reporting week starts Monday.
+      </div>
+      <div class="note" style="margin-top: 12px; background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.08); color: var(--muted);">
+        <strong>If the helper does not connect</strong><br />Make sure you are in Google Chrome, logged into Housecall Pro, and using the same Chrome profile for both tabs. If needed, use the manual fallback below or email <a href="mailto:outsidethebusinessbox@gmail.com">outsidethebusinessbox@gmail.com</a>.
       </div>
     </div>
 
