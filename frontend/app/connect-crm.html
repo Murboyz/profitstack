@@ -68,11 +68,11 @@
 
       <div class="note">
         <strong>Chrome Web Store install link</strong>
-        <p id="storeLinkMessage">Add the approved Chrome Web Store URL here, then this becomes the clean install step before CRM connection.</p>
+        <p id="storeLinkMessage">Install the approved Chrome helper from the Chrome Web Store, then come back here and continue into Housecall Pro connection.</p>
       </div>
 
       <div class="actions">
-        <a class="cta disabled" id="installHelperButton" href="#">Install Chrome helper</a>
+        <a class="cta" id="installHelperButton" href="https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb" target="_blank" rel="noreferrer">Install Chrome helper</a>
         <a class="cta primary" id="continueButton" href="./crm.html?onboarding=connect-crm&next=dashboard-setup">Continue to Housecall Pro connection</a>
         <a class="cta" href="./dashboard.html">Back to dashboard</a>
       </div>
@@ -90,12 +90,7 @@
     const storeUrl = params.get('storeUrl');
     if (storeUrl) {
       const installButton = document.getElementById('installHelperButton');
-      const message = document.getElementById('storeLinkMessage');
       installButton.href = storeUrl;
-      installButton.classList.remove('disabled');
-      installButton.target = '_blank';
-      installButton.rel = 'noreferrer';
-      message.textContent = 'Install the approved Chrome helper from the Chrome Web Store, then come back here and continue into Housecall Pro connection.';
     }
   </script>
 </body>
