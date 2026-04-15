@@ -236,6 +236,11 @@
     });
 
     dashboardButton.addEventListener('click', () => {
+      if (!getCurrentUserEmail() && !getAccessToken()) {
+        const nextParam = next === 'dashboard-setup' ? '?next=dashboard-setup' : '';
+        window.location.href = `./login.html${nextParam}`;
+        return;
+      }
       window.location.href = dashboardTargetHref;
     });
 
