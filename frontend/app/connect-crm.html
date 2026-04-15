@@ -110,8 +110,8 @@
 
       <div class="actions">
         <button class="cta primary" id="installHelperButton" type="button">Install Chrome helper</button>
-        <a class="cta" id="continueButton" href="./crm.html?onboarding=connect-crm&next=dashboard-setup">I installed it, continue to Housecall Pro</a>
-        <a class="cta" id="dashboardButton" href="./dashboard.html?setup=1">Back to dashboard</a>
+        <button class="cta" id="continueButton" type="button">I installed it, continue to Housecall Pro</button>
+        <button class="cta" id="dashboardButton" type="button">Back to dashboard</button>
       </div>
     </div>
   </div>
@@ -122,6 +122,16 @@
       <div class="actions">
         <button class="cta primary" type="button" id="confirmInstallButton">I installed it</button>
         <button class="cta" type="button" id="dismissInstallButton">Not yet</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="crmModal" hidden>
+    <div class="modal-card">
+      <h3>Finish Housecall Pro connection</h3>
+      <p>Open Housecall Pro, run the helper, then come back here and confirm when the connection is done.</p>
+      <div class="actions">
+        <button class="cta primary" type="button" id="openCrmStepButton">Open Housecall Pro connection</button>
+        <button class="cta" type="button" id="dismissCrmButton">Not yet</button>
       </div>
     </div>
   </div>
@@ -137,15 +147,20 @@
     const installStatus = document.getElementById('installStatus');
     const crmStatus = document.getElementById('crmStatus');
     const installModal = document.getElementById('installModal');
+    const crmModal = document.getElementById('crmModal');
     const confirmInstallButton = document.getElementById('confirmInstallButton');
     const dismissInstallButton = document.getElementById('dismissInstallButton');
+    const openCrmStepButton = document.getElementById('openCrmStepButton');
+    const dismissCrmButton = document.getElementById('dismissCrmButton');
 
+    let continueTargetHref;
+    let dashboardTargetHref;
     if (next === 'dashboard-setup') {
-      continueButton.href = './crm.html?onboarding=connect-crm&next=dashboard-setup';
-      dashboardButton.href = './dashboard.html?setup=1';
+      continueTargetHref = './crm.html?onboarding=connect-crm&next=dashboard-setup';
+      dashboardTargetHref = './dashboard.html?setup=1';
     } else {
-      continueButton.href = './crm.html';
-      dashboardButton.href = './dashboard.html';
+      continueTargetHref = './crm.html';
+      dashboardTargetHref = './dashboard.html';
     }
 
     let installUrl = 'https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb';
@@ -166,6 +181,14 @@
 
     function closeInstallModal() {
       installModal.hidden = true;
+    }
+
+    function openCrmModal() {
+      crmModal.hidden = false;
+    }
+
+    function closeCrmModal() {
+      crmModal.hidden = true;
     }
 
     function setCrmState(connected) {
@@ -201,6 +224,7 @@
       localStorage.setItem(CONTINUE_CONFIRMED_KEY, 'yes');
       closeInstallModal();
       syncUi();
+      openCrmModal();
     });
 
     dismissInstallButton.addEventListener('click', () => {
@@ -209,13 +233,26 @@
       syncUi();
     });
 
-    continueButton.addEventListener('click', (event) => {
+    openCrmStepButton.addEventListener('click', () => {
+      closeCrmModal();
+      window.location.href = continueTargetHref;
+    });
+
+    dismissCrmButton.addEventListener('click', () => {
+      closeCrmModal();
+    });
+
+    continueButton.addEventListener('click', () => {
       const confirmed = localStorage.getItem(CONTINUE_CONFIRMED_KEY) === 'yes';
       if (!confirmed) {
-        event.preventDefault();
         openInstallModal();
         return;
       }
+      openCrmModal();
+    });
+
+    dashboardButton.addEventListener('click', () => {
+      window.location.href = dashboardTargetHref;
     });
 
     async function syncUi() {
