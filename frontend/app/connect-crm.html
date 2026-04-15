@@ -125,9 +125,9 @@
   <div class="modal-backdrop" id="crmModal" hidden>
     <div class="modal-card">
       <h3>Finish Housecall Pro connection</h3>
-      <p>Open Housecall Pro, run the helper, then come back here and confirm when the connection is done.</p>
+      <p>Housecall Pro opened in a new tab. Sign in there, run the helper, then come back here and confirm this step is done.</p>
       <div class="actions">
-        <button class="cta primary" type="button" id="openCrmStepButton">Open Housecall Pro connection</button>
+        <button class="cta primary" type="button" id="confirmCrmButton">I connected Housecall Pro</button>
         <button class="cta" type="button" id="dismissCrmButton">Not yet</button>
       </div>
     </div>
@@ -147,7 +147,7 @@
     const crmModal = document.getElementById('crmModal');
     const confirmInstallButton = document.getElementById('confirmInstallButton');
     const dismissInstallButton = document.getElementById('dismissInstallButton');
-    const openCrmStepButton = document.getElementById('openCrmStepButton');
+    const confirmCrmButton = document.getElementById('confirmCrmButton');
     const dismissCrmButton = document.getElementById('dismissCrmButton');
 
     let continueTargetHref;
@@ -162,9 +162,7 @@
 
     let installUrl = 'https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb';
     const storeUrl = params.get('storeUrl');
-    if (storeUrl) {
-      installUrl = storeUrl;
-    }
+    if (storeUrl) installUrl = storeUrl;
 
     function markComplete(button, text) {
       button.classList.remove('primary', 'next-action');
@@ -172,21 +170,10 @@
       button.textContent = text;
     }
 
-    function openInstallModal() {
-      installModal.hidden = false;
-    }
-
-    function closeInstallModal() {
-      installModal.hidden = true;
-    }
-
-    function openCrmModal() {
-      crmModal.hidden = false;
-    }
-
-    function closeCrmModal() {
-      crmModal.hidden = true;
-    }
+    function openInstallModal() { installModal.hidden = false; }
+    function closeInstallModal() { installModal.hidden = true; }
+    function openCrmModal() { crmModal.hidden = false; }
+    function closeCrmModal() { crmModal.hidden = true; }
 
     function setCrmState(connected) {
       crmStatus.textContent = connected ? 'Done' : 'Waiting';
@@ -221,7 +208,6 @@
       localStorage.setItem(CONTINUE_CONFIRMED_KEY, 'yes');
       closeInstallModal();
       syncUi();
-      openCrmModal();
     });
 
     dismissInstallButton.addEventListener('click', () => {
@@ -230,22 +216,23 @@
       syncUi();
     });
 
-    openCrmStepButton.addEventListener('click', () => {
-      closeCrmModal();
-      window.location.href = continueTargetHref;
-    });
-
-    dismissCrmButton.addEventListener('click', () => {
-      closeCrmModal();
-    });
-
     continueButton.addEventListener('click', () => {
       const confirmed = localStorage.getItem(CONTINUE_CONFIRMED_KEY) === 'yes';
       if (!confirmed) {
         openInstallModal();
         return;
       }
+      window.open('https://pro.housecallpro.com/app', '_blank', 'noopener,noreferrer');
       openCrmModal();
+    });
+
+    confirmCrmButton.addEventListener('click', () => {
+      closeCrmModal();
+      window.location.href = continueTargetHref;
+    });
+
+    dismissCrmButton.addEventListener('click', () => {
+      closeCrmModal();
     });
 
     dashboardButton.addEventListener('click', () => {
@@ -259,9 +246,9 @@
       installButton.classList.remove('complete', 'next-action');
       installButton.textContent = 'Install Chrome helper';
       continueButton.classList.remove('complete', 'next-action');
-      continueButton.textContent = 'I installed it, continue to Housecall Pro';
+      continueButton.textContent = 'Open Housecall Pro';
       dashboardButton.classList.remove('complete', 'next-action', 'primary');
-      dashboardButton.textContent = 'Back to dashboard';
+      dashboardButton.textContent = 'Go to dashboard';
       if (!getCurrentUserEmail() && !getAccessToken()) {
         setCrmState(false);
         return;
