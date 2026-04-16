@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Nut Report Admin</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 28px; }
+    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .client-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .muted { color: #94a3c7; }
+    .eyebrow { color: #94a3c7; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; margin-bottom: 8px; }
+    .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+    .metric { border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 12px; background: rgba(255,255,255,.03); }
+    .metric strong { display: block; font-size: 22px; margin-top: 6px; }
+    .pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: rgba(127,176,255,.14); color: #9fc4ff; }
+    .pill.success { background: rgba(34,197,94,.16); color: #86efac; }
+    .pill.warn { background: rgba(245,158,11,.16); color: #fcd34d; }
+    .pill.danger { background: rgba(239,68,68,.16); color: #fca5a5; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .row:last-child { border-bottom: 0; }
+    a { color: #7fb0ff; }
+    .logo-lockup { display: flex; justify-content: center; margin: 0 auto 10px; }
+    .logo-lockup img { width: min(220px, 50vw); height: auto; display: block; filter: drop-shadow(0 10px 28px rgba(0,0,0,.28)); }
+    @media (max-width: 900px) {
+      .wrap { padding: 16px; }
+      .grid, .client-grid, .metric-grid { grid-template-columns: 1fr; }
+      .row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo-lockup">
+      <img src="./assets/nut-report-logo.png" alt="The Nut Report logo" />
+    </div>
+
+    <div class="panel">
+      <h1>The Nut Report Admin</h1>
+      <p class="muted">See client accounts, report status, CRM state, sync state, and billing status in one place.</p>
+      <p><a href="./dashboard.html">Dashboard</a> · <a href="./admin.html">Admin</a> · <a href="./crm.html">CRM</a> · <a href="./sync.html">Sync</a> · <a href="./account.html">Account</a></p>
+    </div>
+
+    <div id="summary" class="grid"></div>
+    <div id="clients" class="client-grid"></div>
+  </div>
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

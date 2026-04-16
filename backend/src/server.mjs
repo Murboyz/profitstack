@@ -14,20 +14,26 @@ import {
   getUserByEmail,
   linkUserAuthIdentity,
   getOrganizationById,
+  listOrganizations,
   getOrganizationSettingsByOrg,
+  listOrganizationSettings,
   getWeekMetricsByOrg,
+  listWeekMetrics,
   upsertWeekMetrics,
   getMetricOverridesByOrg,
   upsertMetricOverride,
   upsertOrganizationSettings,
   getCrmConnectionByOrg,
+  listCrmConnections,
   upsertCrmConnection,
   getSyncRunsByOrg,
+  listSyncRuns,
   insertSyncRun,
   insertCrmSnapshot,
   getLatestCrmSnapshotByOrg,
   revokeSession,
   updateAuthUserPassword,
+  listUsers,
 } from './supabase-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -121,6 +127,174 @@ function buildBillingSummary(req, context) {
     cancelUrl: `${getBillingBaseUrl(req)}/account.html?billing=cancelled`,
     customerEmail: context?.email || null,
   };
+}
+
+function requireAdmin(context) {
+  if (String(context?.user?.role || '').toLowerCase() !== 'admin') {
+    const error = new Error('Admin access required');
+    error.statusCode = 403;
+    throw error;
+  }
+}
+
+async function stripeRequest(pathname, params = {}) {
+  const billingEnv = getBillingEnv();
+  if (!billingEnv.secretKey) return null;
+  const url = new URL(`https://api.stripe.com${pathname}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value != null && value !== '') url.searchParams.set(key, String(value));
+  });
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${billingEnv.secretKey}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Stripe request failed (${response.status}) for ${pathname}`);
+  }
+  return response.json();
+}
+
+async function getStripeBillingStatus({ email, organizationId }) {
+  const billingEnv = getBillingEnv();
+  if (!billingEnv.secretKey || !email) {
+    return {
+      configured: Boolean(billingEnv.secretKey),
+      customerEmail: email || null,
+      customerId: null,
+      subscriptionStatus: 'unknown',
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  const customerSearch = await stripeRequest('/v1/customers/search', {
+    query: `email:'${String(email).replace(/'/g, "\\'")}'`,
+    limit: 1,
+  }).catch(() => ({ data: [] }));
+  const customer = customerSearch?.data?.[0] || null;
+
+  let subscription = null;
+  if (customer?.id) {
+    const subscriptions = await stripeRequest('/v1/subscriptions', {
+      customer: customer.id,
+      status: 'all',
+      limit: 3,
+    }).catch(() => ({ data: [] }));
+    subscription = subscriptions?.data?.[0] || null;
+  }
+
+  if (!subscription && organizationId) {
+    const checkoutSearch = await stripeRequest('/v1/checkout/sessions/search', {
+      query: `metadata['organization_id']:'${organizationId}'`,
+      limit: 1,
+    }).catch(() => ({ data: [] }));
+    const session = checkoutSearch?.data?.[0] || null;
+    if (session?.subscription) {
+      subscription = await stripeRequest(`/v1/subscriptions/${session.subscription}`).catch(() => null);
+    }
+  }
+
+  return {
+    configured: true,
+    customerEmail: email || customer?.email || null,
+    customerId: customer?.id || null,
+    subscriptionId: subscription?.id || null,
+    subscriptionStatus: subscription?.status || (customer ? 'customer_only' : 'not_found'),
+    currentPeriodEnd: subscription?.current_period_end
+      ? new Date(Number(subscription.current_period_end) * 1000).toISOString()
+      : null,
+    cancelAtPeriodEnd: Boolean(subscription?.cancel_at_period_end),
+  };
+}
+
+async function getAdminClientsOverview() {
+  const [organizations, users, settings, crmConnections, syncRuns, weekMetrics] = await Promise.all([
+    listOrganizations(),
+    listUsers(),
+    listOrganizationSettings(),
+    listCrmConnections(),
+    listSyncRuns(300),
+    listWeekMetrics(),
+  ]);
+
+  const userMap = new Map();
+  for (const user of users || []) {
+    if (!userMap.has(user.organization_id)) userMap.set(user.organization_id, []);
+    userMap.get(user.organization_id).push(user);
+  }
+
+  const settingsMap = new Map((settings || []).map((item) => [item.organization_id, item]));
+  const crmMap = new Map();
+  for (const item of crmConnections || []) {
+    if (!crmMap.has(item.organization_id)) crmMap.set(item.organization_id, item);
+  }
+  const syncMap = new Map();
+  for (const item of syncRuns || []) {
+    if (!syncMap.has(item.organization_id)) syncMap.set(item.organization_id, item);
+  }
+
+  const latestWeekByOrg = new Map();
+  for (const item of weekMetrics || []) {
+    const current = latestWeekByOrg.get(item.organization_id);
+    if (!current || String(item.week_start_date) > String(current.week_start_date)) {
+      latestWeekByOrg.set(item.organization_id, item);
+    }
+  }
+
+  const clients = [];
+  for (const organization of organizations || []) {
+    const orgUsers = userMap.get(organization.id) || [];
+    const primaryUser = orgUsers.find((item) => String(item.role || '').toLowerCase() === 'admin') || orgUsers[0] || null;
+    const billing = await getStripeBillingStatus({ email: primaryUser?.email, organizationId: organization.id });
+    const setting = settingsMap.get(organization.id) || null;
+    const crm = crmMap.get(organization.id) || null;
+    const latestSync = syncMap.get(organization.id) || null;
+    const latestWeek = latestWeekByOrg.get(organization.id) || null;
+
+    clients.push({
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+        status: organization.status,
+        timezone: organization.timezone,
+        createdAt: organization.created_at,
+      },
+      primaryUser: primaryUser ? {
+        id: primaryUser.id,
+        fullName: primaryUser.full_name,
+        email: primaryUser.email,
+        role: primaryUser.role,
+        createdAt: primaryUser.created_at,
+      } : null,
+      metrics: {
+        salesMonth: Number(setting?.sales_month || 0),
+        monthProduction: Number(setting?.sales_year || 0),
+        monthlyExpenseTarget: Number(setting?.monthly_expense_target || 0),
+        profitGoalPercent: Number(setting?.profit_percentage || 0),
+        latestWeekStart: latestWeek?.week_start_date || null,
+        latestWeekScheduled: Number(latestWeek?.scheduled_production || 0),
+        latestWeekApproved: Number(latestWeek?.approved_sales || 0),
+      },
+      crm: crm ? {
+        provider: crm.provider,
+        status: crm.status,
+        lastSyncAt: crm.last_sync_at,
+        lastError: crm.last_error,
+      } : null,
+      sync: latestSync ? {
+        status: latestSync.status,
+        startedAt: latestSync.started_at,
+        finishedAt: latestSync.finished_at,
+        recordsPulled: latestSync.records_pulled,
+        errorMessage: latestSync.error_message,
+      } : null,
+      billing,
+    });
+  }
+
+  return clients;
 }
 
 async function createStripeCheckoutSession({ req, context }) {
@@ -1561,6 +1735,15 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'GET' && pathname === '/api/users/me') {
         return sendJson(res, 200, context.user || {});
+      }
+      if (req.method === 'GET' && pathname === '/api/admin/clients') {
+        requireAdmin(context);
+        const clients = await getAdminClientsOverview();
+        return sendJson(res, 200, {
+          ok: true,
+          generatedAt: new Date().toISOString(),
+          clients,
+        });
       }
       if (req.method === 'GET' && pathname === '/api/supabase-status') {
         const status = await probeSupabaseWithServiceRole();

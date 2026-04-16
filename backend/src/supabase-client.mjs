@@ -192,9 +192,17 @@ export async function getOrganizationById(id) {
   return rows[0] || null;
 }
 
+export async function listOrganizations() {
+  return supabaseRequest('/rest/v1/organizations?select=*&order=created_at.asc');
+}
+
 export async function getOrganizationSettingsByOrg(organizationId) {
   const rows = await supabaseRequest(`/rest/v1/organization_settings?select=*&organization_id=eq.${organizationId}&limit=1`);
   return rows[0] || null;
+}
+
+export async function listOrganizationSettings() {
+  return supabaseRequest('/rest/v1/organization_settings?select=*&order=updated_at.desc');
 }
 
 export async function upsertOrganizationSettings(payload) {
@@ -209,6 +217,10 @@ export async function upsertOrganizationSettings(payload) {
 
 export async function getWeekMetricsByOrg(organizationId) {
   return supabaseRequest(`/rest/v1/week_metrics?select=*&organization_id=eq.${organizationId}&order=week_start_date.asc`);
+}
+
+export async function listWeekMetrics() {
+  return supabaseRequest('/rest/v1/week_metrics?select=*&order=week_start_date.asc');
 }
 
 export async function upsertWeekMetrics(items) {
@@ -240,6 +252,10 @@ export async function getCrmConnectionByOrg(organizationId) {
   return rows[0] || null;
 }
 
+export async function listCrmConnections() {
+  return supabaseRequest('/rest/v1/crm_connections?select=*&order=updated_at.desc');
+}
+
 export async function upsertCrmConnection(payload) {
   return supabaseRequest('/rest/v1/crm_connections?on_conflict=id', {
     method: 'POST',
@@ -252,6 +268,14 @@ export async function upsertCrmConnection(payload) {
 
 export async function getSyncRunsByOrg(organizationId) {
   return supabaseRequest(`/rest/v1/sync_runs?select=*&organization_id=eq.${organizationId}&order=started_at.desc`);
+}
+
+export async function listSyncRuns(limit = 200) {
+  return supabaseRequest(`/rest/v1/sync_runs?select=*&order=started_at.desc&limit=${limit}`);
+}
+
+export async function listUsers() {
+  return supabaseRequest('/rest/v1/users?select=*&order=created_at.asc');
 }
 
 export async function insertSyncRun(payload) {
