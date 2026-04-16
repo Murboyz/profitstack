@@ -16,10 +16,17 @@
       .actions { flex-direction: column; }
       .actions a { text-align: center; }
     }
+  
+    .logo-lockup { display: flex; justify-content: center; margin: 0 auto 24px; }
+    .logo-lockup img { width: min(320px, 100%); height: auto; display: block; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
   </style>
 </head>
 <body>
   <div class="wrap">
+
+    <div class="logo-lockup">
+      <img src="./assets/nut-report-logo.jpg" alt="The Nut Report logo" />
+    </div>
     <div class="panel">
       <h1>Access issue</h1>
       <p id="message">Your session is no longer valid for The Nut Report.</p>
