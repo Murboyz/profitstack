@@ -319,8 +319,12 @@ async function executeLiveSync() {
 async function renderDashboard() {
   const status = document.getElementById('status');
   const app = document.getElementById('app');
+  const navLinks = document.querySelector('.nav-links');
 
   try {
+    if (navLinks && ADMIN_VIEW_MODE) {
+      navLinks.innerHTML = '<a href="./admin.html">Return to Admin</a><a href="./account.html">Account</a><a href="./logout.html">Logout</a>';
+    }
     if (status) status.textContent = 'Refreshing dashboard…';
     await renderSessionBanner();
     const [session, dashboard, crmConnection, overrides, syncRuns, health] = await Promise.all([
