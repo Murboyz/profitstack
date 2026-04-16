@@ -89,6 +89,9 @@
     .pain-card { padding: 18px; border-radius: 18px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
     .pain-card strong { display: block; margin-bottom: 8px; }
     .split-proof { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 18px; }
+    .fit-layout { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; align-items: stretch; }
+    .fit-visual { border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+    .fit-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .pain-card, .proof-card { position: relative; overflow: hidden; }
     .card-glyph { position: absolute; right: 14px; top: 10px; font-size: 48px; font-weight: 900; line-height: 1; color: rgba(255,255,255,.08); pointer-events: none; }
     .proof-card ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
@@ -194,7 +197,7 @@
     .legal { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 18px; }
     .footer { margin-top: 42px; padding: 18px 0 30px; color: var(--muted); font-size: 14px; }
     @media (max-width: 900px) {
-      .hero, .grid, .proof, .legal, .shot-grid, .pain-grid, .split-proof, .pain-layout { grid-template-columns: 1fr; }
+      .hero, .grid, .proof, .legal, .shot-grid, .pain-grid, .split-proof, .pain-layout, .fit-layout { grid-template-columns: 1fr; }
       h1 { font-size: 44px; }
       .nav { flex-direction: column; align-items: flex-start; }
       .shot-header, .lightbox-bar { flex-direction: column; align-items: flex-start; }
@@ -284,23 +287,28 @@
 
     <section class="section">
       <h2>Who this is for, and who it is not for</h2>
-      <div class="split-proof">
-        <div class="proof-card">
-          <h3>Who this is for</h3>
-          <ul>
-            <li>Service business owners doing enough revenue that missed pace actually hurts.</li>
-            <li>Operators who need to know whether approved sales and scheduled production are really supporting the month.</li>
-            <li>Teams using Housecall Pro that want one clear operating view instead of scattered screens.</li>
-          </ul>
+      <div class="fit-layout">
+        <div class="split-proof">
+          <div class="proof-card">
+            <h3>Who this is for</h3>
+            <ul>
+              <li>Service business owners doing enough revenue that missed pace actually hurts.</li>
+              <li>Operators who need to know whether approved sales and scheduled production are really supporting the month.</li>
+              <li>Teams that want one clear operating view instead of scattered screens.</li>
+            </ul>
+          </div>
+          <div class="proof-card">
+            <h3>What this is not</h3>
+            <ul>
+              <li>Not accounting software.</li>
+              <li>Not a bloated BI dashboard.</li>
+              <li>Not a formal financial statement.</li>
+              <li>A decision tool for operators who need to see the gap fast.</li>
+            </ul>
+          </div>
         </div>
-        <div class="proof-card">
-          <h3>What this is not</h3>
-          <ul>
-            <li>Not accounting software.</li>
-            <li>Not a bloated BI dashboard.</li>
-            <li>Not a formal financial statement.</li>
-            <li>A decision tool for operators who need to see the gap fast.</li>
-          </ul>
+        <div class="fit-visual">
+          <img src="./assets/home-fit-visual.jpg" alt="Service business team using a dashboard to stay on pace and in control." />
         </div>
       </div>
     </section>
