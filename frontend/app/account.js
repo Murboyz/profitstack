@@ -53,6 +53,12 @@ async function main() {
           ${billing.checkoutReady ? 'Start subscription checkout' : 'Billing unavailable'}
         </button>
         <div id="billingInlineResult">${billingState ? (billingMessages[billingState] || '') : ''}</div>
+        <div style="margin-top:16px; text-align:right;">
+          <a
+            href="mailto:${encodeURIComponent(billing.supportEmail)}?subject=${encodeURIComponent('Cancel The Nut Report subscription')}&body=${encodeURIComponent(`Please cancel my The Nut Report subscription.\n\nOrganization: ${org.name}\nEmail: ${user.email}\n`)}"
+            style="font-size:12px; color:#94a3c7; text-decoration:none; border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:6px 10px; display:inline-block;"
+          >Request cancellation</a>
+        </div>
       </div>
     `;
 

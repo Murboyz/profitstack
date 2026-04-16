@@ -235,11 +235,15 @@ async function getAdminClientsOverview() {
   }
 
   const latestWeekByOrg = new Map();
+  const recentWeeksByOrg = new Map();
   for (const item of weekMetrics || []) {
     const current = latestWeekByOrg.get(item.organization_id);
     if (!current || String(item.week_start_date) > String(current.week_start_date)) {
       latestWeekByOrg.set(item.organization_id, item);
     }
+
+    if (!recentWeeksByOrg.has(item.organization_id)) recentWeeksByOrg.set(item.organization_id, []);
+    recentWeeksByOrg.get(item.organization_id).push(item);
   }
 
   const clients = [];
@@ -251,6 +255,15 @@ async function getAdminClientsOverview() {
     const crm = crmMap.get(organization.id) || null;
     const latestSync = syncMap.get(organization.id) || null;
     const latestWeek = latestWeekByOrg.get(organization.id) || null;
+    const recentWeeks = (recentWeeksByOrg.get(organization.id) || [])
+      .sort((a, b) => String(b.week_start_date).localeCompare(String(a.week_start_date)))
+      .slice(0, 6)
+      .map((item) => ({
+        weekStartDate: item.week_start_date,
+        weekEndDate: item.week_end_date,
+        scheduledProduction: Number(item.scheduled_production || 0),
+        approvedSales: Number(item.approved_sales || 0),
+      }));
 
     clients.push({
       organization: {
@@ -276,6 +289,7 @@ async function getAdminClientsOverview() {
         latestWeekStart: latestWeek?.week_start_date || null,
         latestWeekScheduled: Number(latestWeek?.scheduled_production || 0),
         latestWeekApproved: Number(latestWeek?.approved_sales || 0),
+        weeks: recentWeeks,
       },
       crm: crm ? {
         provider: crm.provider,

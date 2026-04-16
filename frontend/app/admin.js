@@ -36,6 +36,7 @@ async function main() {
     const clients = data.clients || [];
     const activeBilling = clients.filter((client) => String(client.billing?.subscriptionStatus || '').toLowerCase() === 'active').length;
     const connectedCrm = clients.filter((client) => String(client.crm?.status || '').toLowerCase() === 'connected').length;
+    const monthlyIncome = activeBilling * 197;
 
     summary.innerHTML = `
       <div class="panel">
@@ -45,6 +46,7 @@ async function main() {
       </div>
       <div class="panel">
         <div class="eyebrow">Live status</div>
+        <div class="row"><span>Monthly income</span><strong>${formatMoney(monthlyIncome)}</strong></div>
         <div class="row"><span>Billing active</span><strong>${activeBilling}</strong></div>
         <div class="row"><span>CRM connected</span><strong>${connectedCrm}</strong></div>
       </div>
@@ -57,6 +59,7 @@ async function main() {
           <div>
             <h2 style="margin:0 0 6px;">${client.organization.name}</h2>
             <div class="muted">${client.primaryUser?.fullName || 'No user'} · ${client.primaryUser?.email || 'No email'}</div>
+            <div style="margin-top:8px;"><a href="./admin-client.html?org=${encodeURIComponent(client.organization.id)}">Open client view</a></div>
           </div>
           <span class="${pillClass(client.organization.status)}">${client.organization.status || 'unknown'}</span>
         </div>
