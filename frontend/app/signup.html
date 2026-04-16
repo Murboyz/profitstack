@@ -44,23 +44,28 @@
 <body>
   <div class="wrap">
     <div class="panel">
-      <h1>Create your sign in, then go to your dashboard</h1>
-      <p>If you just finished the Housecall Pro step and came back here, that is normal. New clients need to create their sign in and password once, then the dashboard setup can continue.</p>
+      <h1>Set your password, then go to your dashboard</h1>
+      <p>This page is only for account access. It does <strong>not</strong> create a new company account or start a second subscription.</p>
 
       <div class="note success" id="crmReturnNote" hidden>
         <strong>Housecall Pro connection step is done.</strong>
-        <p>Your next move is account access. New client: create your password below. Returning client: use your existing login, then go straight to the dashboard.</p>
+        <p>Your next move is account access. First-time client: set your password below. Existing member: use your current password and log in.</p>
+      </div>
+
+      <div class="note">
+        <strong>Choose the right option</strong>
+        <p><strong>Set password below</strong> if this is your first time signing in after purchase. <strong>Use Log in</strong> if you already have a password and just need to get back into your dashboard.</p>
       </div>
 
       <form id="signupForm">
-        <label for="email">Email used for purchase</label>
+        <label for="email">Email used for your purchase</label>
         <input id="email" type="email" placeholder="you@company.com" required />
-        <button class="primary" id="createPasswordButton" type="submit">Create sign in and password</button>
+        <button class="primary" id="createPasswordButton" type="submit">This is my first sign-in, set my password</button>
         <div id="result"></div>
       </form>
 
       <div class="actions">
-        <a class="cta" id="loginLink" href="./login.html">Already have a password? Log in</a>
+        <a class="cta" id="loginLink" href="./login.html">I already have a password, log in</a>
         <a class="cta primary" id="dashboardLink" href="./dashboard.html?setup=1">Go To Dashboard</a>
       </div>
 

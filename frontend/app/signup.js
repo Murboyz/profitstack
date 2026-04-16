@@ -70,7 +70,7 @@ document.getElementById('signupForm').addEventListener('submit', async (event) =
     window.location.href = data.actionLink;
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'Create sign in and password';
+    button.textContent = 'This is my first sign-in, set my password';
     result.textContent = error.message || 'Password setup failed.';
   }
 });
