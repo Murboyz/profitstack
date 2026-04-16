@@ -21,6 +21,19 @@ async function getPostLoginDestination(accessToken, fallbackEmail = '') {
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next');
   try {
+    const sessionRes = await fetch('/api/session', {
+      headers: {
+        ...(fallbackEmail ? { 'X-User-Email': fallbackEmail } : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+    if (sessionRes.ok) {
+      const session = await sessionRes.json();
+      if (session?.user?.role === 'admin' && session?.organization?.slug === 'the-nut-report-admin') {
+        return './admin.html';
+      }
+    }
+
     const res = await fetch('/api/crm-connection', {
       headers: {
         ...(fallbackEmail ? { 'X-User-Email': fallbackEmail } : {}),
@@ -99,4 +112,3 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     result.textContent = `Login failed: ${error.message}`;
   }
 });
-
