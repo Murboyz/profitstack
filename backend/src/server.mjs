@@ -137,6 +137,14 @@ function requireAdmin(context) {
   }
 }
 
+async function getAdminViewOrganization(context, requestedOrgId) {
+  if (!requestedOrgId) return null;
+  if (String(context?.user?.role || '').toLowerCase() !== 'admin') return null;
+  if (String(context?.organization?.slug || '') !== 'the-nut-report-admin') return null;
+  if (requestedOrgId === context.organization.id) return context.organization;
+  return getOrganizationById(requestedOrgId);
+}
+
 async function stripeRequest(pathname, params = {}) {
   const billingEnv = getBillingEnv();
   if (!billingEnv.secretKey) return null;
@@ -1371,24 +1379,26 @@ const server = http.createServer(async (req, res) => {
       }
 
       const context = await resolveContext(req);
+      const adminViewOrganization = await getAdminViewOrganization(context, requestUrl.searchParams.get('org'));
+      const viewContext = adminViewOrganization ? { ...context, organization: adminViewOrganization } : context;
 
       if (req.method === 'GET' && pathname === '/api/session') {
-        return sendJson(res, 200, formatSession(context));
+        return sendJson(res, 200, formatSession(viewContext));
       }
       if (req.method === 'GET' && pathname === '/api/dashboard') {
         const [crmConnection, weekMetrics, overrides, organizationSettings, latestSnapshot] = await Promise.all([
-          getCrmConnectionByOrg(context.organization.id),
-          getWeekMetricsByOrg(context.organization.id),
-          getMetricOverridesByOrg(context.organization.id),
-          getOrganizationSettingsByOrg(context.organization.id),
-          getLatestCrmSnapshotByOrg(context.organization.id),
+          getCrmConnectionByOrg(viewContext.organization.id),
+          getWeekMetricsByOrg(viewContext.organization.id),
+          getMetricOverridesByOrg(viewContext.organization.id),
+          getOrganizationSettingsByOrg(viewContext.organization.id),
+          getLatestCrmSnapshotByOrg(viewContext.organization.id),
         ]);
         const liveWeeks = buildWeeksFromMetrics(weekMetrics);
         const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
         const rollups = latestSnapshot?.payload?.rollups || null;
         return sendJson(res, 200, {
-          organization: formatSession(context).organization,
-          settings: formatOrganizationSettings(organizationSettings, context.organization.id, rollups),
+          organization: formatSession(viewContext).organization,
+          settings: formatOrganizationSettings(organizationSettings, viewContext.organization.id, rollups),
           crmConnection: formatDashboardCrmConnection(crmConnection),
           weeks: mergedWeeks,
           weekHistory: formatWeekHistory(weekMetrics, overrides),
@@ -1396,11 +1406,11 @@ const server = http.createServer(async (req, res) => {
         });
       }
       if (req.method === 'GET' && pathname === '/api/account') {
-        const settings = await getOrganizationSettingsByOrg(context.organization.id);
+        const settings = await getOrganizationSettingsByOrg(viewContext.organization.id);
         return sendJson(res, 200, {
-          organization: formatSession(context).organization,
-          user: formatSession(context).user,
-          settings: formatOrganizationSettings(settings, context.organization.id),
+          organization: formatSession(viewContext).organization,
+          user: formatSession(viewContext).user,
+          settings: formatOrganizationSettings(settings, viewContext.organization.id),
           billing: buildBillingSummary(req, context),
         });
       }
@@ -1441,7 +1451,7 @@ const server = http.createServer(async (req, res) => {
         });
       }
       if (req.method === 'GET' && pathname === '/api/crm-connection') {
-        const crmConnection = await getCrmConnectionByOrg(context.organization.id);
+        const crmConnection = await getCrmConnectionByOrg(viewContext.organization.id);
         return sendJson(res, 200, formatCrmConnectionDetail(crmConnection));
       }
       if (req.method === 'POST' && pathname === '/api/crm-connection') {
@@ -1537,7 +1547,7 @@ const server = http.createServer(async (req, res) => {
         });
       }
       if (req.method === 'GET' && pathname === '/api/overrides') {
-        const overrides = await getMetricOverridesByOrg(context.organization.id);
+        const overrides = await getMetricOverridesByOrg(viewContext.organization.id);
         return sendJson(res, 200, { items: formatOverrides(overrides) });
       }
       if (req.method === 'POST' && pathname === '/api/overrides') {
@@ -1554,7 +1564,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { ok: true, message: 'Override saved to Supabase', item: saved?.[0] || null });
       }
       if (req.method === 'GET' && pathname === '/api/sync-runs') {
-        const rows = await getSyncRunsByOrg(context.organization.id);
+        const rows = await getSyncRunsByOrg(viewContext.organization.id);
         return sendJson(res, 200, { items: formatSyncRuns(rows) });
       }
       if (req.method === 'POST' && pathname === '/api/sync-runs') {

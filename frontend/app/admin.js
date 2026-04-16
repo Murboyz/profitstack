@@ -33,7 +33,7 @@ async function main() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Admin load failed with ${res.status}`);
 
-    const clients = data.clients || [];
+    const clients = (data.clients || []).filter((client) => client.organization?.slug !== 'the-nut-report-admin');
     const activeBilling = clients.filter((client) => String(client.billing?.subscriptionStatus || '').toLowerCase() === 'active').length;
     const connectedCrm = clients.filter((client) => String(client.crm?.status || '').toLowerCase() === 'connected').length;
     const monthlyIncome = activeBilling * 197;
@@ -59,7 +59,7 @@ async function main() {
           <div>
             <h2 style="margin:0 0 6px;">${client.organization.name}</h2>
             <div class="muted">${client.primaryUser?.fullName || 'No user'} · ${client.primaryUser?.email || 'No email'}</div>
-            <div style="margin-top:8px;"><a href="./admin-client.html?org=${encodeURIComponent(client.organization.id)}">Open client view</a></div>
+            <div style="margin-top:8px;"><a href="./dashboard.html?org=${encodeURIComponent(client.organization.id)}">Open client view</a></div>
           </div>
           <span class="${pillClass(client.organization.status)}">${client.organization.status || 'unknown'}</span>
         </div>

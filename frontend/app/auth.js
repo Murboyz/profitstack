@@ -72,12 +72,18 @@ export function redirectToUnauthorized(reason = 'unauthorized') {
 export async function apiFetch(path, options = {}) {
   const email = getCurrentUserEmail();
   const accessToken = getAccessToken();
+  const method = String(options.method || 'GET').toUpperCase();
+  const adminOrg = new URLSearchParams(window.location.search).get('org');
+  const requestUrl = new URL(`${API_BASE}${path}`, window.location.href);
+  if (adminOrg && method === 'GET' && !requestUrl.searchParams.has('org')) {
+    requestUrl.searchParams.set('org', adminOrg);
+  }
   const headers = {
     ...(options.headers || {}),
     ...(email ? { 'X-User-Email': email } : {}),
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const response = await fetch(requestUrl.toString(), { ...options, headers });
   if (response.status === 401) {
     clearCurrentUserEmail();
     redirectToUnauthorized('session-not-recognized');

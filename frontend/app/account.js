@@ -23,6 +23,13 @@ async function main() {
     const billingState = new URLSearchParams(window.location.search).get('billing');
     const setupState = new URLSearchParams(window.location.search).get('setup');
     app.innerHTML = `
+      ${user.role === 'admin' && org.slug === 'the-nut-report-admin' ? `
+        <div class="panel">
+          <h2>Admin</h2>
+          <p>This is your internal admin account.</p>
+          <p><a href="./admin.html">Return to admin panel</a></p>
+        </div>
+      ` : ''}
       ${setupState === 'dashboard-setup' ? `
         <div class="panel">
           <h2>Setup in progress</h2>

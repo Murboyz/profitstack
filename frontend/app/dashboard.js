@@ -11,6 +11,8 @@ const EXPENSE_REMINDER_TEST_SEEN_KEY = 'profitstack_expense_reminder_test_seen';
 const EXPENSE_REMINDER_MONTH_DONE_KEY = 'profitstack_expense_reminder_month_done';
 const CRM_DISCONNECTED_NOTICE_KEY = 'profitstack_crm_disconnected_notice_seen';
 const SETUP_STEP_STORAGE_KEY = 'profitstack_dashboard_setup_step';
+const ADMIN_VIEW_ORG = new URLSearchParams(window.location.search).get('org');
+const ADMIN_VIEW_MODE = Boolean(ADMIN_VIEW_ORG);
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -384,10 +386,10 @@ async function renderDashboard() {
       : `${money.format(Math.abs(lastWeekGoalDelta))} below goal`;
 
     const searchParams = new URLSearchParams(window.location.search);
-    const setupMode = searchParams.get('setup') === '1';
-    const showExpenseReminder = shouldShowExpenseReminder();
+    const setupMode = !ADMIN_VIEW_MODE && searchParams.get('setup') === '1';
+    const showExpenseReminder = !ADMIN_VIEW_MODE && shouldShowExpenseReminder();
     const disconnectedNoticeForced = searchParams.get('crm') === 'disconnected';
-    const showDisconnectedModal = crmConnection.status === 'disconnected' && (disconnectedNoticeForced || !sessionStorage.getItem(CRM_DISCONNECTED_NOTICE_KEY));
+    const showDisconnectedModal = !ADMIN_VIEW_MODE && crmConnection.status === 'disconnected' && (disconnectedNoticeForced || !sessionStorage.getItem(CRM_DISCONNECTED_NOTICE_KEY));
     if (crmConnection.status === 'connected') {
       sessionStorage.removeItem(CRM_DISCONNECTED_NOTICE_KEY);
     }
@@ -396,20 +398,21 @@ async function renderDashboard() {
       <div class="layout">
         <section class="panel control-panel ${setupMode ? 'setup-mode' : ''}">
           <h2>Control Panel</h2>
+          ${ADMIN_VIEW_MODE ? '<div class="clientbar"><strong>Admin view:</strong> this is a read-only client dashboard view. <a href="./admin.html">Return to admin panel</a></div>' : ''}
           ${setupMode ? '<div class="setup-helper" id="setupHelper"></div>' : ''}
-          <div class="clientbar"><strong>Live controls:</strong> adjust targets, sync fresh data, and coach from the numbers.</div>
+          <div class="clientbar"><strong>${ADMIN_VIEW_MODE ? 'Client view:' : 'Live controls:'}</strong> ${ADMIN_VIEW_MODE ? 'you are seeing this client dashboard without switching into their login.' : 'adjust targets, sync fresh data, and coach from the numbers.'}</div>
 
           <div class="field">
             <label for="monthlyExpenseTarget">Monthly Expense Target</label>
-            <input id="monthlyExpenseTarget" value="${savedTargets.monthlyExpenseTarget ?? ''}" placeholder="35000" />
+            <input id="monthlyExpenseTarget" value="${savedTargets.monthlyExpenseTarget ?? ''}" placeholder="35000" ${ADMIN_VIEW_MODE ? 'disabled' : ''} />
           </div>
           <div class="field">
             <label for="profitPercentGoal">Profit % Goal</label>
-            <input id="profitPercentGoal" value="${savedTargets.profitPercentGoal ?? ''}" placeholder="10" />
+            <input id="profitPercentGoal" value="${savedTargets.profitPercentGoal ?? ''}" placeholder="10" ${ADMIN_VIEW_MODE ? 'disabled' : ''} />
           </div>
           <div class="field">
             <label for="timezoneSelect"><strong>Time Zone</strong></label>
-            <select id="timezoneSelect">
+            <select id="timezoneSelect" ${ADMIN_VIEW_MODE ? 'disabled' : ''}>
               ${[
                 ['America/Los_Angeles', 'Pacific'],
                 ['America/Denver', 'Mountain'],
@@ -420,9 +423,9 @@ async function renderDashboard() {
             </select>
           </div>
           <div class="actions">
-            <button id="refreshButton" type="button">Refresh Data</button>
+            <button id="refreshButton" type="button" ${ADMIN_VIEW_MODE ? 'disabled' : ''}>Refresh Data</button>
           </div>
-          <div class="muted">Targets auto-save when you change them.</div>
+          <div class="muted">${ADMIN_VIEW_MODE ? 'Admin client view is read-only.' : 'Targets auto-save when you change them.'}</div>
 
           <div class="card">
             <h3>Data Status</h3>
@@ -557,11 +560,13 @@ async function renderDashboard() {
       ` : ''}
     `;
 
-    bindTargetInputs(savedTargets);
-    document.getElementById('timezoneSelect').addEventListener('change', (event) => {
-      writeTimezone(event.target.value);
-      renderDashboard();
-    });
+    if (!ADMIN_VIEW_MODE) {
+      bindTargetInputs(savedTargets);
+      document.getElementById('timezoneSelect').addEventListener('change', (event) => {
+        writeTimezone(event.target.value);
+        renderDashboard();
+      });
+    }
     const expenseReminderSave = document.getElementById('expenseReminderSave');
     if (expenseReminderSave) {
       expenseReminderSave.addEventListener('click', () => {
@@ -598,26 +603,28 @@ async function renderDashboard() {
       });
     }
     const cleanupSetupGuidance = bindSetupGuidance(setupMode);
-    document.getElementById('refreshButton').addEventListener('click', async () => {
-      try {
-        cleanupSetupGuidance();
-        showSyncOverlay();
-        if (status) status.textContent = 'Running live CRM sync. Please wait 30 to 60 seconds…';
-        const syncResult = await executeLiveSync();
-        if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
-        const url = new URL(window.location.href);
-        url.searchParams.delete('setup');
-        sessionStorage.removeItem(SETUP_STEP_STORAGE_KEY);
-        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-        await renderDashboard();
-      } catch (error) {
-        if (status) status.textContent = `Live sync failed: ${error.message}`;
-      } finally {
-        hideSyncOverlay();
-      }
-    });
+    if (!ADMIN_VIEW_MODE) {
+      document.getElementById('refreshButton').addEventListener('click', async () => {
+        try {
+          cleanupSetupGuidance();
+          showSyncOverlay();
+          if (status) status.textContent = 'Running live CRM sync. Please wait 30 to 60 seconds…';
+          const syncResult = await executeLiveSync();
+          if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
+          const url = new URL(window.location.href);
+          url.searchParams.delete('setup');
+          sessionStorage.removeItem(SETUP_STEP_STORAGE_KEY);
+          window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+          await renderDashboard();
+        } catch (error) {
+          if (status) status.textContent = `Live sync failed: ${error.message}`;
+        } finally {
+          hideSyncOverlay();
+        }
+      });
+    }
 
-    if (!sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY) && crmConnection.status !== 'disconnected') {
+    if (!ADMIN_VIEW_MODE && !sessionStorage.getItem(AUTO_SYNC_STORAGE_KEY) && crmConnection.status !== 'disconnected') {
       sessionStorage.setItem(AUTO_SYNC_STORAGE_KEY, '1');
       try {
         if (status) status.textContent = 'Running automatic live CRM sync…';
