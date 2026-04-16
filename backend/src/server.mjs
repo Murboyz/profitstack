@@ -73,6 +73,19 @@ function getRequestOrigin(req) {
   return `${proto}://${hostHeader}`;
 }
 
+function getSafeRedirectTo(req, requestedRedirectTo, fallbackPath) {
+  const origin = getRequestOrigin(req);
+  const fallback = new URL(fallbackPath, origin).toString();
+  if (!requestedRedirectTo) return fallback;
+  try {
+    const parsed = new URL(String(requestedRedirectTo), origin);
+    if (parsed.origin !== origin) return fallback;
+    return parsed.toString();
+  } catch {
+    return fallback;
+  }
+}
+
 function getBillingEnv() {
   const env = getSupabaseEnv();
   return {
@@ -1094,7 +1107,7 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 404, { error: 'No approved user found for that email' });
         }
 
-        const redirectTo = `${getRequestOrigin(req)}/reset-password.html`;
+        const redirectTo = getSafeRedirectTo(req, body.redirectTo, '/reset-password.html');
         const link = await generateRecoveryLink(email, redirectTo);
         return sendJson(res, 200, {
           ok: true,

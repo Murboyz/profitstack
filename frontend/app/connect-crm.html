@@ -228,6 +228,11 @@
 
     confirmCrmButton.addEventListener('click', () => {
       closeCrmModal();
+      if (!getCurrentUserEmail() && !getAccessToken()) {
+        const nextParam = next === 'dashboard-setup' ? '?next=dashboard-setup&crm=connected' : '?crm=connected';
+        window.location.href = `./signup.html${nextParam}`;
+        return;
+      }
       window.location.href = continueTargetHref;
     });
 
@@ -237,7 +242,7 @@
 
     dashboardButton.addEventListener('click', () => {
       if (!getCurrentUserEmail() && !getAccessToken()) {
-        const nextParam = next === 'dashboard-setup' ? '?next=dashboard-setup' : '';
+        const nextParam = next === 'dashboard-setup' ? '?next=dashboard-setup&crm=connected' : '?crm=connected';
         window.location.href = `./signup.html${nextParam}`;
         return;
       }
