@@ -86,6 +86,47 @@ export async function generateRecoveryLink(email, redirectTo) {
   return generateAuthLink(email, redirectTo, 'recovery');
 }
 
+async function supabaseAuthAdminRequest(pathname, { method = 'GET', body } = {}) {
+  const env = getSupabaseEnv();
+  const res = await fetch(`${env.SUPABASE_URL}${pathname}`, {
+    method,
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase auth admin request failed: ${res.status} ${res.statusText}`);
+  }
+
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+export async function createAuthUserWithPassword(email, password) {
+  return supabaseAuthAdminRequest('/auth/v1/admin/users', {
+    method: 'POST',
+    body: {
+      email,
+      password,
+      email_confirm: true,
+    },
+  });
+}
+
+export async function updateAuthUserPassword(authUserId, password) {
+  return supabaseAuthAdminRequest(`/auth/v1/admin/users/${authUserId}`, {
+    method: 'PUT',
+    body: {
+      password,
+      email_confirm: true,
+    },
+  });
+}
+
 async function supabaseRequest(pathname, { method = 'GET', body, headers = {} } = {}) {
   const env = getSupabaseEnv();
   const res = await fetch(`${env.SUPABASE_URL}${pathname}`, {

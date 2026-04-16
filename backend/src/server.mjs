@@ -9,6 +9,7 @@ import {
   getAuthUser,
   generateMagicLink,
   generateRecoveryLink,
+  createAuthUserWithPassword,
   getUserByAuthUserId,
   getUserByEmail,
   linkUserAuthIdentity,
@@ -26,6 +27,7 @@ import {
   insertCrmSnapshot,
   getLatestCrmSnapshotByOrg,
   revokeSession,
+  updateAuthUserPassword,
 } from './supabase-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1113,6 +1115,40 @@ const server = http.createServer(async (req, res) => {
           ok: true,
           actionLink: link.action_link,
           redirectTo,
+        });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/auth/set-password') {
+        const body = await readJsonBody(req);
+        const email = String(body.email || '').trim().toLowerCase();
+        const password = String(body.password || '');
+        if (!email) {
+          return sendJson(res, 400, { error: 'Email is required' });
+        }
+        if (password.length < 8) {
+          return sendJson(res, 400, { error: 'Password must be at least 8 characters.' });
+        }
+
+        const approvedUser = await getUserByEmail(email);
+        if (!approvedUser) {
+          return sendJson(res, 404, { error: 'No approved user found for that email' });
+        }
+
+        let authUserId = approvedUser.auth_user_id || null;
+        if (authUserId) {
+          await updateAuthUserPassword(authUserId, password);
+        } else {
+          const created = await createAuthUserWithPassword(email, password);
+          authUserId = created?.user?.id || null;
+          if (!authUserId) {
+            return sendJson(res, 500, { error: 'Failed to create sign-in for that email.' });
+          }
+          await linkUserAuthIdentity(approvedUser.id, authUserId);
+        }
+
+        return sendJson(res, 200, {
+          ok: true,
+          message: 'Password saved. You can sign in now.',
         });
       }
 
