@@ -62,9 +62,9 @@ async function main() {
         <div id="billingInlineResult">${billingState ? (billingMessages[billingState] || '') : ''}</div>
         <div style="margin-top:16px; text-align:right;">
           <a
-            href="mailto:${encodeURIComponent(billing.supportEmail)}?subject=${encodeURIComponent('Cancel The Nut Report subscription')}&body=${encodeURIComponent(`Please cancel my The Nut Report subscription.\n\nOrganization: ${org.name}\nEmail: ${user.email}\n`)}"
-            style="font-size:12px; color:#94a3c7; text-decoration:none; border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:6px 10px; display:inline-block;"
-          >Request cancellation</a>
+            href="mailto:chad@stopworkingbroke.com?subject=${encodeURIComponent('Cancel The Nut Report subscription')}&body=${encodeURIComponent(`Please cancel my The Nut Report subscription.\n\nOrganization: ${org.name}\nEmail: ${user.email}\n`)}"
+            style="font-size:12px; color:#ffd5d5; text-decoration:none; border:1px solid rgba(239,68,68,.45); border-radius:999px; padding:7px 11px; display:inline-block; background: rgba(239,68,68,.12);"
+          >Cancel subscription</a>
         </div>
       </div>
     `;

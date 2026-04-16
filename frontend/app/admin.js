@@ -23,6 +23,11 @@ function pillClass(value) {
   return 'pill warn';
 }
 
+function isCancelAlert(client) {
+  const status = String(client.billing?.subscriptionStatus || '').toLowerCase();
+  return ['canceled', 'cancelled', 'past_due', 'unpaid'].includes(status) || Boolean(client.billing?.cancelAtPeriodEnd);
+}
+
 async function main() {
   const summary = document.getElementById('summary');
   const clientsEl = document.getElementById('clients');
@@ -53,7 +58,7 @@ async function main() {
     `;
 
     clientsEl.innerHTML = clients.map((client) => `
-      <div class="panel">
+      <div class="panel client-card ${isCancelAlert(client) ? 'cancel-alert' : ''}">
         <div class="eyebrow">${client.organization.slug || 'client'}</div>
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
           <div>
@@ -75,7 +80,7 @@ async function main() {
           <div class="row"><span class="muted">Timezone</span><span>${client.organization.timezone || '—'}</span></div>
           <div class="row"><span class="muted">CRM</span><span><span class="${pillClass(client.crm?.status)}">${client.crm?.status || 'not connected'}</span></span></div>
           <div class="row"><span class="muted">Last sync</span><span>${formatDate(client.sync?.finishedAt || client.crm?.lastSyncAt)}</span></div>
-          <div class="row"><span class="muted">Billing</span><span><span class="${pillClass(client.billing?.subscriptionStatus)}">${client.billing?.subscriptionStatus || 'unknown'}</span></span></div>
+          <div class="row"><span class="muted">Billing</span><span><span class="${pillClass(client.billing?.subscriptionStatus)}">${client.billing?.subscriptionStatus || 'unknown'}</span>${client.billing?.cancelAtPeriodEnd ? ' · cancel set' : ''}</span></div>
           <div class="row"><span class="muted">Billing renewal</span><span>${formatDate(client.billing?.currentPeriodEnd)}</span></div>
           <div class="row"><span class="muted">Latest week</span><span>${client.metrics?.latestWeekStart || '—'} · ${formatMoney(client.metrics?.latestWeekScheduled)}</span></div>
         </div>
