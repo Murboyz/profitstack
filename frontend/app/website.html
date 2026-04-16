@@ -43,6 +43,8 @@
     .pain-card { padding: 18px; border-radius: 18px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
     .pain-card strong { display: block; margin-bottom: 8px; }
     .split-proof { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 18px; }
+    .pain-card, .proof-card { position: relative; overflow: hidden; }
+    .card-glyph { position: absolute; right: 14px; top: 10px; font-size: 48px; font-weight: 900; line-height: 1; color: rgba(255,255,255,.08); pointer-events: none; }
     .proof-card ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
     .authority-card { margin-top: 18px; padding: 22px; border-radius: 20px; border: 1px solid rgba(255,255,255,.08); background: linear-gradient(180deg, rgba(91,140,255,.12) 0%, rgba(91,140,255,.05) 100%); }
     .authority-card strong { display: block; margin-bottom: 10px; font-size: 20px; }
@@ -118,18 +120,22 @@
       <h2>What owners usually do not know until it is too late</h2>
       <div class="pain-grid">
         <div class="pain-card">
+          <span class="card-glyph">?</span>
           <strong>They think the month is fine.</strong>
           <p>Then payroll gets close, approved sales are lighter than expected, and the real gap shows up too late to fix cleanly.</p>
         </div>
         <div class="pain-card">
+          <span class="card-glyph">!</span>
           <strong>They trust the wrong number.</strong>
           <p>The schedule looks busy, but pace is weak, the next few weeks are soft, and the cash problem is already forming.</p>
         </div>
         <div class="pain-card">
+          <span class="card-glyph">$</span>
           <strong>They get surprised at month end.</strong>
           <p>No one wants to find out on the last week that the team was behind all month and nobody saw it clearly.</p>
         </div>
         <div class="pain-card">
+          <span class="card-glyph">?</span>
           <strong>They are forced to guess.</strong>
           <p>Spreadsheets, CRM screens, and team updates do not give one operator view of booked, moving, and needed.</p>
         </div>
@@ -163,14 +169,17 @@
       <h2>The 3 numbers that matter first</h2>
       <div class="proof">
         <div class="proof-card">
+          <span class="card-glyph">↗</span>
           <h3>Scheduled production</h3>
           <p>See what is on the board this week so you can tell whether booked work is actually enough to support the month.</p>
         </div>
         <div class="proof-card">
+          <span class="card-glyph">$</span>
           <h3>Approved sales</h3>
           <p>See whether sales are truly moving, not just sitting in a pipeline that makes the month look safer than it is.</p>
         </div>
         <div class="proof-card">
+          <span class="card-glyph">3W</span>
           <h3>Next 3 weeks</h3>
           <p>See the soft spots early so you can fix pace before payroll pressure or month-end surprise lands on you.</p>
         </div>
