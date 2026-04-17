@@ -112,3 +112,26 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     result.textContent = `Login failed: ${error.message}`;
   }
 });
+
+document.getElementById('forgotPasswordButton').addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const result = document.getElementById('result');
+
+  try {
+    if (!email) throw new Error('Enter your email first.');
+    const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+    const redirectTo = `${window.location.origin}/reset-password.html`;
+    const res = await fetch(`${supabaseUrl}/auth/v1/recover`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({ email, redirect_to: redirectTo }),
+    });
+    if (!res.ok) throw new Error(`Reset email failed with ${res.status}`);
+    result.textContent = 'Password reset email sent. Check your inbox and use the link to set a new password.';
+  } catch (error) {
+    result.textContent = `Could not send reset email: ${error.message}`;
+  }
+});
