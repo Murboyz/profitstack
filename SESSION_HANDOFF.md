@@ -4,8 +4,19 @@
 Use this file to bootstrap a new dedicated ProfitStack session without losing the old session context.
 
 ## Current status
-- Estimated completion toward first live pilot shape: **91%**
-- Current stage: **Chrome helper submitted for review, Stripe/onboarding flow materially tightened, live HCP auth/session recovery proven again, but Murphy month-production truth is still not reconciled to Chad's month-view reporting rule**
+- Estimated completion toward first live pilot shape: **95%**
+- Current stage: **guided client onboarding is now usable enough for real clients, Murphy is back in with a real Murphy-owned login email, and the next highest-leverage work is onboarding video + clean demo account + final live validation of the password-reset path**
+
+## Latest save, 2026-04-17
+- Murphy client login was switched off Chad's email and onto the real client email `sales@murphysfireplace.com`.
+- The Murphy app user record and linked auth user were both updated live to `sales@murphysfireplace.com`.
+- Chad confirmed on 2026-04-17 that Murphy is now back in successfully after the email/login switch.
+- A client-facing forgot-password path was added in the repo so users can request a reset email directly from `frontend/app/login.html` via a new **Email Me A Password Reset Link** button.
+- Existing in-session password change remains available on `frontend/app/account.html`, and helper copy was added there to point users back to login if they forget the password later.
+- Repo commit for the reset-link/login work: `dbe61e3` (`Add password reset path from login`).
+- Important deploy truth: the Murphy email switch is already live in Supabase, but the new forgot-password button will not be live until the repo is pushed/deployed.
+- Chad said he is working on the onboarding video next.
+- Best next product move after push/deploy is to create a separate demo org/login for demos, not reuse Murphy and not reuse Chad admin.
 
 ## Live now
 - Supabase project connected
@@ -59,20 +70,20 @@ Use this file to bootstrap a new dedicated ProfitStack session without losing th
 
 ### Org 3
 - Murphy
-- user: `outsidethebusinessbox@gmail.com`
-- Murphy org login works via magic link
+- user: `sales@murphysfireplace.com`
+- Murphy org login was switched on 2026-04-17 from Chad's email to the real Murphy-owned email above
 - Murphy CRM connection is saved and live sync runs succeed again
 - Sales Today / current-week approved sales / sales month now line up on live after session recovery + live sync
 - Remaining numbers lane is narrower: keep validating month scheduled production / any remaining drift instead of treating the whole HCP mapper as broken
 
 ## Remaining major tasks
-1. finish Murphy month-production truth so the Month Production card matches Chad's current-month scheduled-production reporting rule
-2. prove Murphy live flow cleanly end-to-end with the new helper-based connection path
-3. finish Chrome Web Store distribution/install path for the HCP helper so clients do not need manual extension loading help
-4. remove temporary debug UI once stable
-5. replace login shell with real Supabase Auth
-6. add row-level security / stronger tenant hardening
-7. improve onboarding and go-to-market assets
+1. push/deploy commit `dbe61e3` so the new forgot-password email path is live on the login page
+2. create a separate demo org/login for demos so Chad does not have to use Murphy for walkthroughs
+3. wire Chad's onboarding/tutorial video into `signup-success.html`
+4. run the clean-buyer onboarding test from another computer or a cleared-cookie / clean Chrome profile and fix whatever still breaks in the helper install -> HCP connect -> dashboard path
+5. finish Murphy month-production truth only if it still matters for sales confidence, otherwise keep it honestly positioned as the product's own operating metric
+6. remove temporary debug UI once stable
+7. add row-level security / stronger tenant hardening
 
 ## Important note
 This project got mixed with unrelated lead-machine heartbeat traffic because the current webchat UI exposes only one visible chat session. The ProfitStack project itself was **not deleted**.
@@ -129,3 +140,9 @@ When starting a new dedicated ProfitStack session:
 - Chad's current business-truth target for Murphy April month production is `76302`, based on visible scheduling numbers: adjusted first split week `24414` (`30723 - 6309` for March-only portion), plus `20490`, `20020`, `26143`, and `5759`. This is the number the Month Production card now needs to reconcile to, or the exact HCP month-view source needs to be found.
 - Two backend commits were made while testing new month-production paths on 2026-04-14: `679c99b` (`Drive month production from scheduled production path`) and `24927fe` (`Derive month production from week buckets`). Render picked up the latter, but the live card still did not reconcile to Chad's visible reporting math.
 - End-of-day 2026-04-14 truth: onboarding is in much better shape, but Murphy Month Production is still not ready to be called trusted. The next session should not drift into more UI polish until the month card is reconciled or the exact HCP month source is isolated.
+- 2026-04-15 major product update: Chad's Chrome helper was approved in the Chrome Web Store. Live approved URL: `https://chromewebstore.google.com/detail/okbokknaecolfcdhhgbalnmjbbngncki?utm_source=item-share-cb`.
+- 2026-04-15 onboarding lane moved hard into the approved-helper flow. A real pre-connect step now exists at `frontend/app/connect-crm.html`, and setup was rerouted through it from `signup-success.html`, `login.js`, and `account.js`. Current intended buyer path is: Stripe/payment -> `signup-success.html` -> `connect-crm.html` -> Housecall Pro connect -> dashboard/setup.
+- Important 2026-04-15 helper/onboarding commits included: `5d48e28`, `11adad0`, `584a239`, `db12148`, `d7ab2f0`, `11b21f8`, `388d168`, `32acbdc`, `78a2784`, `6739c53`, `4f6c851`, `90e7d52`, `3793c5f`, and `3189eb9`. If the onboarding flow looks wrong, start by reviewing those commits in order instead of guessing.
+- Real bugs found on 2026-04-15: (1) the pre-connect page redirected to `unauthorized.html` because it polled `/api/crm-connection` before a valid session existed, fixed in `db12148`; (2) popup modals rendered at the bottom of the page because `connect-crm.html` had malformed CSS with literal `+` patch artifacts and duplicated rules, fixed in `4f6c851`.
+- Important product truth from 2026-04-15: the website cannot honestly detect whether the Chrome extension is installed. Any installed-state based only on local browser memory is fake proof. The accepted product compromise is to ask the user to confirm install, then treat backend-confirmed Housecall Pro connection as the first real done state.
+- Exact stop point for next session: ask Chad to test the onboarding flow on another computer or clear cookies / use a clean Chrome profile first. Resume from a fresh-environment buyer test before more tweaks. Chad explicitly asked to be reminded of that pickup point.
