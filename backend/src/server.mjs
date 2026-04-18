@@ -170,6 +170,10 @@ function billingStatusNeedsAttention(status) {
   return ['past_due', 'unpaid', 'incomplete', 'incomplete_expired'].includes(String(status || '').toLowerCase());
 }
 
+function billingStatusNeedsCheckout(status) {
+  return ['not_found', 'customer_only'].includes(String(status || '').toLowerCase());
+}
+
 async function createStripeBillingPortalSession({ req, customerId, returnPath = '/login.html?billing=updated' }) {
   const billingEnv = getBillingEnv();
   if (!billingEnv.secretKey || !customerId) return null;
@@ -304,6 +308,7 @@ async function buildBillingSummary(req, context) {
   const base = buildBaseBillingSummary(req, context);
   const stripe = await getStripeBillingStatus({ email: context?.email, organizationId: context?.organization?.id });
   const needsAttention = billingStatusNeedsAttention(stripe.subscriptionStatus);
+  const needsCheckout = billingStatusNeedsCheckout(stripe.subscriptionStatus);
   const updatePaymentUrl = stripe.customerId
     ? await createStripeBillingPortalSession({ req, customerId: stripe.customerId })
     : null;
@@ -314,7 +319,9 @@ async function buildBillingSummary(req, context) {
     statusLabel: String(stripe.subscriptionStatus || 'unknown').replaceAll('_', ' '),
     paid: ['active', 'trialing'].includes(String(stripe.subscriptionStatus || '').toLowerCase()),
     needsAttention,
-    accessBlocked: needsAttention,
+    needsCheckout,
+    accessBlocked: needsAttention || needsCheckout,
+    lockMode: needsAttention ? 'payment_update_required' : (needsCheckout ? 'checkout_required' : 'none'),
     updatePaymentUrl,
     portalReady: Boolean(updatePaymentUrl),
   };

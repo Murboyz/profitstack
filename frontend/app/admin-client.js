@@ -15,6 +15,14 @@ function formatDate(value) {
   }
 }
 
+function billingLabel(value) {
+  const raw = String(value || '').toLowerCase();
+  if (raw === 'not_found') return 'not yet paid';
+  if (raw === 'customer_only') return 'checkout started, no active subscription';
+  if (raw === 'unknown') return 'stripe status unavailable';
+  return value || 'unknown billing';
+}
+
 async function main() {
   const orgId = new URLSearchParams(window.location.search).get('org');
   const app = document.getElementById('app');
@@ -32,7 +40,7 @@ async function main() {
     if (!client) throw new Error('Client not found');
 
     document.getElementById('title').textContent = client.organization.name;
-    document.getElementById('subtitle').textContent = `${client.primaryUser?.email || 'No email'} · ${client.organization.timezone || 'No timezone'} · ${client.billing?.subscriptionStatus || 'unknown billing'}`;
+    document.getElementById('subtitle').textContent = `${client.primaryUser?.email || 'No email'} · ${client.organization.timezone || 'No timezone'} · ${billingLabel(client.billing?.subscriptionStatus)}`;
 
     app.innerHTML = `
       <div class="panel">
@@ -51,7 +59,7 @@ async function main() {
           <div class="row"><span class="muted">Email</span><span>${client.primaryUser?.email || '—'}</span></div>
           <div class="row"><span class="muted">CRM</span><span>${client.crm?.status || 'not connected'}</span></div>
           <div class="row"><span class="muted">Last sync</span><span>${formatDate(client.sync?.finishedAt || client.crm?.lastSyncAt)}</span></div>
-          <div class="row"><span class="muted">Billing</span><span>${client.billing?.subscriptionStatus || 'unknown'}</span></div>
+          <div class="row"><span class="muted">Billing</span><span>${billingLabel(client.billing?.subscriptionStatus)}</span></div>
         </div>
 
         <div class="panel">

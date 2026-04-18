@@ -114,6 +114,11 @@ export async function apiFetch(path, options = {}) {
       payload = {};
     }
     if (payload?.reason === 'billing-action-required') {
+      const lockMode = payload?.billing?.lockMode || 'none';
+      if (lockMode === 'checkout_required') {
+        window.location.href = './account.html?billing=required';
+        throw new Error(payload.error || 'Billing checkout required');
+      }
       setBillingLockState({
         reason: payload.reason,
         message: payload.error || 'Your billing needs attention before access can continue.',

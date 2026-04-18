@@ -17,6 +17,7 @@ const reasonMessages = {
 
 const billingMessages = {
   updated: 'Billing update received. Sign in again to continue.',
+  required: 'Billing is required before dashboard access can continue.',
 };
 
 const reason = new URLSearchParams(window.location.search).get('reason');
@@ -92,6 +93,9 @@ async function getPostLoginDestination(accessToken, fallbackEmail = '') {
     if (sessionRes.ok) {
       const session = await sessionRes.json();
       if (session?.billing?.accessBlocked) {
+        if (session?.billing?.lockMode === 'checkout_required') {
+          return './account.html?billing=required';
+        }
         setBillingLockState({
           reason: 'billing-action-required',
           message: 'Your card needs attention before account access can continue.',

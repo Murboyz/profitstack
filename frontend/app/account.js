@@ -6,6 +6,7 @@ const billingMessages = {
   success: 'Checkout completed. Your billing should show as active as soon as Stripe finishes provisioning.',
   cancelled: 'Checkout was cancelled. You can come back and finish billing anytime.',
   updated: 'Stripe billing update completed. Sign back in and confirm your account is active.',
+  required: 'Payment is required before dashboard access can continue. Complete checkout below.',
 };
 
 function escapeHtml(value) {
@@ -37,6 +38,11 @@ function billingBadge(status) {
   if (['past_due', 'unpaid', 'incomplete', 'incomplete_expired'].includes(normalized)) return '<span style="display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(255,154,172,.14);border:1px solid rgba(255,154,172,.28);color:#ff9aac;font-weight:800;text-transform:uppercase;font-size:12px;">Payment failed</span>';
   if (['customer_only', 'not_found'].includes(normalized)) return '<span style="display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(249,221,141,.12);border:1px solid rgba(249,221,141,.24);color:#f9dd8d;font-weight:800;text-transform:uppercase;font-size:12px;">Not paid yet</span>';
   return `<span style="display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#eef4ff;font-weight:800;text-transform:uppercase;font-size:12px;">${escapeHtml(String(status || 'unknown').replaceAll('_', ' '))}</span>`;
+}
+
+function checkoutButtonLabel(billing) {
+  if (billing.needsCheckout) return 'Complete subscription payment';
+  return 'Start subscription checkout';
 }
 
 async function getFrontendConfig() {
@@ -95,13 +101,15 @@ async function main() {
         <p><strong>Last payment date:</strong> ${escapeHtml(formatDateTime(payment?.paidAt))}</p>
         <p><strong>Last payment status:</strong> ${escapeHtml(payment?.status || billing.latestInvoiceStatus || '—')}</p>
         <p><strong>Billing Support:</strong> ${billing.supportEmail}</p>
-        ${billing.needsAttention ? `
+        ${(billing.needsAttention || billing.needsCheckout) ? `
           <div style="margin:14px 0;padding:14px;border-radius:14px;background:rgba(255,154,172,.08);border:1px solid rgba(255,154,172,.24);color:#ffd3dc;">
-            <strong>Payment issue</strong>
-            <p style="margin:8px 0 0;">Your card needs attention before dashboard access can continue. Update payment in Stripe, then sign back in after Stripe confirms the change.</p>
+            <strong>${billing.needsCheckout ? 'Payment required' : 'Payment issue'}</strong>
+            <p style="margin:8px 0 0;">${billing.needsCheckout
+              ? 'This account has not paid yet. Complete checkout below before dashboard access can continue.'
+              : 'Your card needs attention before dashboard access can continue. Update payment in Stripe, then sign back in after Stripe confirms the change.'}</p>
           </div>
         ` : ''}
-        ${showCheckoutButton ? `<button id="startBillingButton" type="button" ${billing.checkoutReady ? '' : 'disabled'}>${billing.checkoutReady ? 'Start subscription checkout' : 'Billing unavailable'}</button>` : ''}
+        ${showCheckoutButton ? `<button id="startBillingButton" type="button" ${billing.checkoutReady ? '' : 'disabled'}>${billing.checkoutReady ? checkoutButtonLabel(billing) : 'Billing unavailable'}</button>` : ''}
         ${showUpdateButton ? '<button id="updateBillingButton" type="button">Update payment in Stripe</button>' : ''}
         <div id="billingInlineResult">${billingState ? (billingMessages[billingState] || '') : ''}</div>
         <div style="margin-top:16px; text-align:right;">
