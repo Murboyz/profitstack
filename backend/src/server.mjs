@@ -42,6 +42,9 @@ const statusPath = path.resolve(__dirname, '../../STATUS.md');
 const appRoot = path.resolve(__dirname, '../../frontend/app');
 const host = '0.0.0.0';
 const port = Number(process.env.PORT || 8787);
+const DEMO_BILLING_BYPASS_EMAILS = new Set([
+  'chad@outsidethebusinessbox.com',
+]);
 
 async function loadStatusText() {
   return fs.readFile(statusPath, 'utf8');
@@ -110,6 +113,10 @@ function getBillingEnv() {
 function getBillingBaseUrl(req) {
   const billingEnv = getBillingEnv();
   return String(billingEnv.appUrl || getRequestOrigin(req)).replace(/\/$/, '');
+}
+
+function hasDemoBillingBypass(email) {
+  return DEMO_BILLING_BYPASS_EMAILS.has(String(email || '').trim().toLowerCase());
 }
 
 function buildBaseBillingSummary(req, context) {
@@ -307,11 +314,29 @@ async function getStripeBillingStatus({ email, organizationId }) {
 async function buildBillingSummary(req, context) {
   const base = buildBaseBillingSummary(req, context);
   const stripe = await getStripeBillingStatus({ email: context?.email, organizationId: context?.organization?.id });
+  const demoBypass = hasDemoBillingBypass(context?.email);
   const needsAttention = billingStatusNeedsAttention(stripe.subscriptionStatus);
   const needsCheckout = billingStatusNeedsCheckout(stripe.subscriptionStatus);
   const updatePaymentUrl = stripe.customerId
     ? await createStripeBillingPortalSession({ req, customerId: stripe.customerId })
     : null;
+
+  if (demoBypass) {
+    return {
+      ...base,
+      ...stripe,
+      subscriptionStatus: 'demo_bypass',
+      statusLabel: 'demo access',
+      paid: true,
+      needsAttention: false,
+      needsCheckout: false,
+      accessBlocked: false,
+      lockMode: 'none',
+      updatePaymentUrl,
+      portalReady: Boolean(updatePaymentUrl),
+      demoBypass: true,
+    };
+  }
 
   return {
     ...base,
