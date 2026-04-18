@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Billing Required Preview | The Nut Report</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #09101d; color: #eef4ff; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 28px; }
+    .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+    .muted { color: #94a3c7; }
+    .badge { display:inline-flex; padding:6px 10px; border-radius:999px; background:rgba(249,221,141,.12); border:1px solid rgba(249,221,141,.24); color:#f9dd8d; font-weight:800; text-transform:uppercase; font-size:12px; }
+    .alert { margin:14px 0; padding:14px; border-radius:14px; background:rgba(255,154,172,.08); border:1px solid rgba(255,154,172,.24); color:#ffd3dc; }
+    .row { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+    .row:last-child { border-bottom:0; }
+    .cta { display:inline-flex; align-items:center; justify-content:center; padding:14px 18px; border-radius:14px; border:1px solid rgba(91,140,255,.7); background:linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); color:#eef4ff; text-decoration:none; font-weight:800; }
+    .note { margin-top: 18px; padding: 16px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+    .preview-pill { display:inline-flex; padding:8px 12px; border-radius:999px; background:rgba(91,140,255,.16); border:1px solid rgba(91,140,255,.28); color:#cfe0ff; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    @media (max-width: 720px) {
+      .wrap { padding: 16px; }
+      .row { flex-direction: column; }
+      .cta { width: 100%; }
+    }
+    .logo-lockup { display: flex; justify-content: center; margin: 0 auto 10px; }
+    .logo-lockup img { width: min(220px, 50vw); height: auto; display: block; filter: drop-shadow(0 10px 28px rgba(0,0,0,.28)); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo-lockup">
+      <img src="./assets/nut-report-logo.png" alt="The Nut Report logo" />
+    </div>
+
+    <div class="panel">
+      <div class="preview-pill">Public preview only</div>
+      <h1>The Nut Report Account</h1>
+      <p class="muted">This is the public preview of the unpaid-client billing stop page. It is for review only and does not run live billing logic.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Organization</h2>
+      <div class="row"><span class="muted">Name</span><strong>Murphy's Fireplace & Stoves</strong></div>
+      <div class="row"><span class="muted">Timezone</span><strong>America/Chicago</strong></div>
+      <div class="row"><span class="muted">Status</span><strong>active</strong></div>
+    </div>
+
+    <div class="panel">
+      <h2>User</h2>
+      <div class="row"><span class="muted">Name</span><strong>Murphy Client</strong></div>
+      <div class="row"><span class="muted">Email</span><strong>sales@murphysfireplace.com</strong></div>
+      <div class="row"><span class="muted">Role</span><strong>client</strong></div>
+    </div>
+
+    <div class="panel">
+      <h2>Billing</h2>
+      <div class="row"><span class="muted">Plan</span><strong>The Nut Report</strong></div>
+      <div class="row"><span class="muted">Price</span><strong>$299/month</strong></div>
+      <div class="row"><span class="muted">Status</span><span class="badge">Not paid yet</span></div>
+      <div class="row"><span class="muted">Checkout Email</span><strong>sales@murphysfireplace.com</strong></div>
+      <div class="row"><span class="muted">Renewal / period end</span><strong>—</strong></div>
+      <div class="row"><span class="muted">Last payment</span><strong>—</strong></div>
+      <div class="row"><span class="muted">Last payment date</span><strong>—</strong></div>
+      <div class="row"><span class="muted">Last payment status</span><strong>—</strong></div>
+
+      <div class="alert">
+        <strong>Payment required</strong>
+        <p style="margin:8px 0 0;">This account has not paid yet. Complete checkout below before dashboard access can continue.</p>
+      </div>
+
+      <a class="cta" href="#">Complete subscription payment</a>
+      <div class="note">
+        <strong>Preview note</strong>
+        <p class="muted">On the real client flow, this button opens Stripe checkout after login when the account is in the not-yet-paid state.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
