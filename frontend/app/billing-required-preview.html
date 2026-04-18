@@ -13,9 +13,13 @@
     .alert { margin:14px 0; padding:14px; border-radius:14px; background:rgba(255,154,172,.08); border:1px solid rgba(255,154,172,.24); color:#ffd3dc; }
     .row { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.06); }
     .row:last-child { border-bottom:0; }
-    .cta { display:inline-flex; align-items:center; justify-content:center; padding:14px 18px; border-radius:14px; border:1px solid rgba(91,140,255,.7); background:linear-gradient(180deg, #6a97ff 0%, #4b7ef4 100%); color:#eef4ff; text-decoration:none; font-weight:800; }
+    .cta { display:inline-flex; align-items:center; justify-content:center; padding:14px 18px; border-radius:14px; border:1px solid rgba(255,88,111,.9); background:linear-gradient(180deg, #ff667f 0%, #ff3b5c 100%); color:#fff; text-decoration:none; font-weight:900; box-shadow:0 0 0 4px rgba(255,59,92,.16), 0 0 26px rgba(255,59,92,.28); animation:payPulse 1s ease-in-out infinite; }
     .note { margin-top: 18px; padding: 16px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
     .preview-pill { display:inline-flex; padding:8px 12px; border-radius:999px; background:rgba(91,140,255,.16); border:1px solid rgba(91,140,255,.28); color:#cfe0ff; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    @keyframes payPulse {
+      0%, 100% { box-shadow:0 0 0 4px rgba(255,59,92,.16), 0 0 26px rgba(255,59,92,.28); }
+      50% { box-shadow:0 0 0 8px rgba(255,120,138,.3), 0 0 40px rgba(255,59,92,.5); }
+    }
     @media (max-width: 720px) {
       .wrap { padding: 16px; }
       .row { flex-direction: column; }
@@ -40,10 +44,10 @@
     <div class="panel" style="border-color: rgba(255,154,172,.24); background: rgba(255,154,172,.08);">
       <h2 style="margin-top:0;">Payment required</h2>
       <p>This account has not paid yet. Complete checkout below before dashboard access can continue.</p>
-      <a class="cta" href="#">Complete subscription payment</a>
+      <a class="cta" href="https://buy.stripe.com/bJedR9aIZfDhfgyfgx2oE01">Complete subscription payment</a>
       <div class="note">
         <strong>Preview note</strong>
-        <p class="muted">On the real client flow, this button opens Stripe checkout after login when the account is in the not-yet-paid state.</p>
+        <p class="muted">This preview button now points to the live Stripe subscription link so you can test the payment handoff directly.</p>
       </div>
     </div>
 
