@@ -3,9 +3,41 @@ import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 
 const billingMessages = {
-  success: 'Checkout completed. Once Stripe finishes provisioning, billing will show up on your account.',
+  success: 'Checkout completed. Your billing should show as active as soon as Stripe finishes provisioning.',
   cancelled: 'Checkout was cancelled. You can come back and finish billing anytime.',
+  updated: 'Stripe billing update completed. Sign back in and confirm your account is active.',
 };
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function formatMoney(amount, currency = 'USD') {
+  if (amount == null || Number.isNaN(Number(amount))) return '—';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: String(currency || 'USD').toUpperCase() }).format(Number(amount));
+}
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
+function billingBadge(status) {
+  const normalized = String(status || '').toLowerCase();
+  if (['active', 'trialing'].includes(normalized)) return '<span style="display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(140,240,196,.14);border:1px solid rgba(140,240,196,.28);color:#8cf0c4;font-weight:800;text-transform:uppercase;font-size:12px;">Active / Paid</span>';
+  if (['past_due', 'unpaid', 'incomplete', 'incomplete_expired'].includes(normalized)) return '<span style="display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(255,154,172,.14);border:1px solid rgba(255,154,172,.28);color:#ff9aac;font-weight:800;text-transform:uppercase;font-size:12px;">Payment failed</span>';
+  if (['customer_only', 'not_found'].includes(normalized)) return '<span style="display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(249,221,141,.12);border:1px solid rgba(249,221,141,.24);color:#f9dd8d;font-weight:800;text-transform:uppercase;font-size:12px;">Not paid yet</span>';
+  return `<span style="display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#eef4ff;font-weight:800;text-transform:uppercase;font-size:12px;">${escapeHtml(String(status || 'unknown').replaceAll('_', ' '))}</span>`;
+}
 
 async function getFrontendConfig() {
   const res = await fetch('/api/frontend-config');
@@ -22,6 +54,9 @@ async function main() {
     const { organization: org, user, billing } = account;
     const billingState = new URLSearchParams(window.location.search).get('billing');
     const setupState = new URLSearchParams(window.location.search).get('setup');
+    const payment = billing.lastPayment || null;
+    const showCheckoutButton = billing.checkoutReady && !billing.paid;
+    const showUpdateButton = Boolean(billing.updatePaymentUrl) && (billing.needsAttention || billing.cancelAtPeriodEnd || billing.customerId);
     app.innerHTML = `
       ${user.role === 'admin' && org.slug === 'the-nut-report-admin' ? `
         <div class="panel">
@@ -53,12 +88,21 @@ async function main() {
         <h2>Billing</h2>
         <p><strong>Plan:</strong> ${billing.planName}</p>
         <p><strong>Price:</strong> ${billing.priceDisplay}</p>
-        <p><strong>Status:</strong> ${billing.configured ? 'Ready for checkout' : 'Not configured yet'}</p>
+        <p><strong>Status:</strong> ${billingBadge(billing.subscriptionStatus)}</p>
         <p><strong>Checkout Email:</strong> ${billing.customerEmail || user.email}</p>
+        <p><strong>Renewal / period end:</strong> ${escapeHtml(formatDateTime(billing.currentPeriodEnd))}</p>
+        <p><strong>Last payment:</strong> ${escapeHtml(formatMoney(payment?.amount, payment?.currency))}</p>
+        <p><strong>Last payment date:</strong> ${escapeHtml(formatDateTime(payment?.paidAt))}</p>
+        <p><strong>Last payment status:</strong> ${escapeHtml(payment?.status || billing.latestInvoiceStatus || '—')}</p>
         <p><strong>Billing Support:</strong> ${billing.supportEmail}</p>
-        <button id="startBillingButton" type="button" ${billing.checkoutReady ? '' : 'disabled'}>
-          ${billing.checkoutReady ? 'Start subscription checkout' : 'Billing unavailable'}
-        </button>
+        ${billing.needsAttention ? `
+          <div style="margin:14px 0;padding:14px;border-radius:14px;background:rgba(255,154,172,.08);border:1px solid rgba(255,154,172,.24);color:#ffd3dc;">
+            <strong>Payment issue</strong>
+            <p style="margin:8px 0 0;">Your card needs attention before dashboard access can continue. Update payment in Stripe, then sign back in after Stripe confirms the change.</p>
+          </div>
+        ` : ''}
+        ${showCheckoutButton ? `<button id="startBillingButton" type="button" ${billing.checkoutReady ? '' : 'disabled'}>${billing.checkoutReady ? 'Start subscription checkout' : 'Billing unavailable'}</button>` : ''}
+        ${showUpdateButton ? '<button id="updateBillingButton" type="button">Update payment in Stripe</button>' : ''}
         <div id="billingInlineResult">${billingState ? (billingMessages[billingState] || '') : ''}</div>
         <div style="margin-top:16px; text-align:right;">
           <a
@@ -84,6 +128,28 @@ async function main() {
         inlineResult.textContent = `Billing checkout failed: ${error.message}`;
         button.disabled = false;
         button.textContent = 'Start subscription checkout';
+      }
+    });
+
+    document.getElementById('updateBillingButton')?.addEventListener('click', async () => {
+      const button = document.getElementById('updateBillingButton');
+      const inlineResult = document.getElementById('billingInlineResult');
+      button.disabled = true;
+      button.textContent = 'Opening Stripe…';
+      inlineResult.textContent = '';
+      try {
+        if (billing.updatePaymentUrl) {
+          window.location.href = billing.updatePaymentUrl;
+          return;
+        }
+        const res = await apiFetch('/api/billing/portal-session', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok || !data.url) throw new Error(data.error || `Billing portal failed with ${res.status}`);
+        window.location.href = data.url;
+      } catch (error) {
+        inlineResult.textContent = `Could not open Stripe billing update: ${error.message}`;
+        button.disabled = false;
+        button.textContent = 'Update payment in Stripe';
       }
     });
 

@@ -111,7 +111,7 @@ function getBillingBaseUrl(req) {
   return String(billingEnv.appUrl || getRequestOrigin(req)).replace(/\/$/, '');
 }
 
-function buildBillingSummary(req, context) {
+function buildBaseBillingSummary(req, context) {
   const billingEnv = getBillingEnv();
   const configured = Boolean(billingEnv.secretKey && billingEnv.priceId);
   return {
@@ -127,6 +127,46 @@ function buildBillingSummary(req, context) {
     cancelUrl: `${getBillingBaseUrl(req)}/account.html?billing=cancelled`,
     customerEmail: context?.email || null,
   };
+}
+
+function stripeUnixToIso(value) {
+  return value ? new Date(Number(value) * 1000).toISOString() : null;
+}
+
+function formatStripeMoney(amount, currency = 'usd') {
+  if (amount == null || Number.isNaN(Number(amount))) return null;
+  return {
+    amount: Number(amount) / 100,
+    amountCents: Number(amount),
+    currency: String(currency || 'usd').toUpperCase(),
+  };
+}
+
+function billingStatusNeedsAttention(status) {
+  return ['past_due', 'unpaid', 'incomplete', 'incomplete_expired'].includes(String(status || '').toLowerCase());
+}
+
+async function createStripeBillingPortalSession({ req, customerId, returnPath = '/login.html?billing=updated' }) {
+  const billingEnv = getBillingEnv();
+  if (!billingEnv.secretKey || !customerId) return null;
+
+  const payload = new URLSearchParams({
+    customer: customerId,
+    return_url: `${getBillingBaseUrl(req)}${returnPath.startsWith('/') ? returnPath : `/${returnPath}`}`,
+  });
+
+  const response = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${billingEnv.secretKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: payload,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.url) return null;
+  return data.url;
 }
 
 function requireAdmin(context) {
@@ -173,6 +213,9 @@ async function getStripeBillingStatus({ email, organizationId }) {
       subscriptionStatus: 'unknown',
       currentPeriodEnd: null,
       cancelAtPeriodEnd: false,
+      latestInvoiceStatus: null,
+      latestInvoiceUrl: null,
+      lastPayment: null,
     };
   }
 
@@ -203,16 +246,53 @@ async function getStripeBillingStatus({ email, organizationId }) {
     }
   }
 
+  const invoices = customer?.id
+    ? await stripeRequest('/v1/invoices', {
+      customer: customer.id,
+      limit: 10,
+    }).catch(() => ({ data: [] }))
+    : { data: [] };
+  const invoiceItems = invoices?.data || [];
+  const latestInvoice = invoiceItems[0] || null;
+  const latestPaidInvoice = invoiceItems.find((item) => Number(item?.amount_paid || 0) > 0) || null;
+  const paymentInvoice = latestPaidInvoice || latestInvoice;
+
   return {
     configured: true,
     customerEmail: email || customer?.email || null,
     customerId: customer?.id || null,
     subscriptionId: subscription?.id || null,
     subscriptionStatus: subscription?.status || (customer ? 'customer_only' : 'not_found'),
-    currentPeriodEnd: subscription?.current_period_end
-      ? new Date(Number(subscription.current_period_end) * 1000).toISOString()
-      : null,
+    currentPeriodEnd: stripeUnixToIso(subscription?.current_period_end),
     cancelAtPeriodEnd: Boolean(subscription?.cancel_at_period_end),
+    latestInvoiceStatus: latestInvoice?.status || null,
+    latestInvoiceUrl: latestInvoice?.hosted_invoice_url || latestInvoice?.invoice_pdf || null,
+    lastPayment: paymentInvoice ? {
+      ...formatStripeMoney(paymentInvoice.amount_paid || paymentInvoice.amount_due || paymentInvoice.total, paymentInvoice.currency),
+      status: paymentInvoice.status || null,
+      paidAt: stripeUnixToIso(paymentInvoice.status_transitions?.paid_at) || stripeUnixToIso(paymentInvoice.created),
+      invoiceUrl: paymentInvoice.hosted_invoice_url || paymentInvoice.invoice_pdf || null,
+    } : null,
+  };
+}
+
+async function buildBillingSummary(req, context) {
+  const base = buildBaseBillingSummary(req, context);
+  const stripe = await getStripeBillingStatus({ email: context?.email, organizationId: context?.organization?.id });
+  const needsAttention = billingStatusNeedsAttention(stripe.subscriptionStatus);
+  const updatePaymentUrl = stripe.customerId
+    ? await createStripeBillingPortalSession({ req, customerId: stripe.customerId })
+    : null;
+
+  return {
+    ...base,
+    ...stripe,
+    statusLabel: String(stripe.subscriptionStatus || 'unknown').replaceAll('_', ' '),
+    paid: ['active', 'trialing'].includes(String(stripe.subscriptionStatus || '').toLowerCase()),
+    needsAttention,
+    accessBlocked: needsAttention,
+    updatePaymentUrl,
+    portalReady: Boolean(updatePaymentUrl),
   };
 }
 
@@ -1381,9 +1461,28 @@ const server = http.createServer(async (req, res) => {
       const context = await resolveContext(req);
       const adminViewOrganization = await getAdminViewOrganization(context, requestUrl.searchParams.get('org'));
       const viewContext = adminViewOrganization ? { ...context, organization: adminViewOrganization } : context;
+      const allowBillingBlockedPath = new Set([
+        '/api/session',
+        '/api/account',
+        '/api/billing/checkout-session',
+        '/api/billing/portal-session',
+      ]);
+      const liveBilling = await buildBillingSummary(req, viewContext);
+
+      if (
+        String(viewContext.user?.role || '').toLowerCase() !== 'admin'
+        && liveBilling.accessBlocked
+        && !allowBillingBlockedPath.has(pathname)
+      ) {
+        return sendJson(res, 402, {
+          error: 'Billing action required before access can continue.',
+          reason: 'billing-action-required',
+          billing: liveBilling,
+        });
+      }
 
       if (req.method === 'GET' && pathname === '/api/session') {
-        return sendJson(res, 200, formatSession(viewContext));
+        return sendJson(res, 200, { ...formatSession(viewContext), billing: liveBilling });
       }
       if (req.method === 'GET' && pathname === '/api/dashboard') {
         const [crmConnection, weekMetrics, overrides, organizationSettings, latestSnapshot] = await Promise.all([
@@ -1411,12 +1510,21 @@ const server = http.createServer(async (req, res) => {
           organization: formatSession(viewContext).organization,
           user: formatSession(viewContext).user,
           settings: formatOrganizationSettings(settings, viewContext.organization.id),
-          billing: buildBillingSummary(req, context),
+          billing: liveBilling,
         });
       }
       if (req.method === 'POST' && pathname === '/api/billing/checkout-session') {
         const session = await createStripeCheckoutSession({ req, context });
         return sendJson(res, 200, { ok: true, ...session });
+      }
+      if (req.method === 'POST' && pathname === '/api/billing/portal-session') {
+        if (!liveBilling.customerId) {
+          return sendJson(res, 400, { error: 'No Stripe customer is linked to this account yet.' });
+        }
+        if (!liveBilling.updatePaymentUrl) {
+          return sendJson(res, 503, { error: 'Stripe billing portal is not available right now.' });
+        }
+        return sendJson(res, 200, { ok: true, url: liveBilling.updatePaymentUrl });
       }
       if (req.method === 'POST' && pathname === '/api/account') {
         const body = await readJsonBody(req);

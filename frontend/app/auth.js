@@ -3,6 +3,7 @@ import { getApiBase } from './config.js';
 const API_BASE = getApiBase();
 const STORAGE_KEY = 'profitstack_user_email';
 const TOKEN_STORAGE_KEY = 'profitstack_access_token';
+const BILLING_LOCK_STORAGE_KEY = 'profitstack_billing_lock';
 
 function decodeJwtPayload(token) {
   try {
@@ -54,6 +55,22 @@ export function clearCurrentUserEmail() {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+export function setBillingLockState(payload) {
+  localStorage.setItem(BILLING_LOCK_STORAGE_KEY, JSON.stringify(payload || {}));
+}
+
+export function getBillingLockState() {
+  try {
+    return JSON.parse(localStorage.getItem(BILLING_LOCK_STORAGE_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+export function clearBillingLockState() {
+  localStorage.removeItem(BILLING_LOCK_STORAGE_KEY);
+}
+
 export function requireLogin() {
   if (!getCurrentUserEmail() && !getAccessToken()) {
     redirect('./login.html', 'missing-session');
@@ -88,6 +105,25 @@ export async function apiFetch(path, options = {}) {
     clearCurrentUserEmail();
     redirectToUnauthorized('session-not-recognized');
     throw new Error('Unauthorized');
+  }
+  if (response.status === 402) {
+    let payload = {};
+    try {
+      payload = await response.clone().json();
+    } catch {
+      payload = {};
+    }
+    if (payload?.reason === 'billing-action-required') {
+      setBillingLockState({
+        reason: payload.reason,
+        message: payload.error || 'Your billing needs attention before access can continue.',
+        billing: payload.billing || null,
+        capturedAt: new Date().toISOString(),
+      });
+      clearCurrentUserEmail();
+      redirectToLogin('billing-required');
+      throw new Error(payload.error || 'Billing action required');
+    }
   }
   return response;
 }
