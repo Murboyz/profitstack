@@ -100,6 +100,7 @@ function getBillingEnv() {
     secretKey: env.STRIPE_SECRET_KEY || '',
     publishableKey: env.STRIPE_PUBLISHABLE_KEY || '',
     priceId: env.STRIPE_PRICE_ID || '',
+    webhookSecret: env.STRIPE_WEBHOOK_SECRET || '',
     priceDisplay: env.STRIPE_PRICE_DISPLAY || 'Monthly subscription',
     supportEmail: env.BILLING_SUPPORT_EMAIL || 'support@example.com',
     appUrl: env.APP_URL || '',
@@ -123,10 +124,33 @@ function buildBaseBillingSummary(req, context) {
     supportEmail: billingEnv.supportEmail,
     publishableKeyConfigured: Boolean(billingEnv.publishableKey),
     checkoutPath: configured ? '/api/billing/checkout-session' : null,
-    successUrl: `${getBillingBaseUrl(req)}/account.html?billing=success`,
+    successUrl: `${getBillingBaseUrl(req)}/signup-success.html?billing=success`,
     cancelUrl: `${getBillingBaseUrl(req)}/account.html?billing=cancelled`,
     customerEmail: context?.email || null,
   };
+}
+
+function parseStripeSignatureHeader(value = '') {
+  return String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .reduce((acc, part) => {
+      const [key, val] = part.split('=');
+      if (key && val) acc[key] = val;
+      return acc;
+    }, {});
+}
+
+function verifyStripeWebhookSignature({ rawBody, signatureHeader, secret }) {
+  const parsed = parseStripeSignatureHeader(signatureHeader);
+  if (!parsed.t || !parsed.v1 || !secret) return false;
+  const signedPayload = `${parsed.t}.${rawBody}`;
+  const expected = crypto.createHmac('sha256', secret).update(signedPayload, 'utf8').digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(parsed.v1));
+  } catch {
+    return false;
+  }
 }
 
 function stripeUnixToIso(value) {
@@ -407,7 +431,7 @@ async function createStripeCheckoutSession({ req, context }) {
     throw error;
   }
 
-  const successUrl = `${getBillingBaseUrl(req)}/account.html?billing=success&session_id={CHECKOUT_SESSION_ID}`;
+  const successUrl = `${getBillingBaseUrl(req)}/signup-success.html?billing=success&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${getBillingBaseUrl(req)}/account.html?billing=cancelled`;
   const payload = new URLSearchParams({
     mode: 'subscription',
@@ -479,6 +503,12 @@ async function readJsonBody(req) {
   for await (const chunk of req) chunks.push(chunk);
   const raw = Buffer.concat(chunks).toString('utf8');
   return raw ? JSON.parse(raw) : {};
+}
+
+async function readRawBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 async function resolveContext(req) {
@@ -1366,6 +1396,43 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, {
           supabaseUrl: env.SUPABASE_URL,
           supabaseAnonKey: env.SUPABASE_ANON_KEY,
+        });
+      }
+
+      if (req.method === 'POST' && pathname === '/api/billing/webhook') {
+        const billingEnv = getBillingEnv();
+        if (!billingEnv.webhookSecret) {
+          return sendJson(res, 503, { error: 'Stripe webhook secret is not configured.' });
+        }
+
+        const rawBody = await readRawBody(req);
+        const signature = req.headers['stripe-signature'] || '';
+        if (!verifyStripeWebhookSignature({ rawBody, signatureHeader: signature, secret: billingEnv.webhookSecret })) {
+          return sendJson(res, 400, { error: 'Invalid Stripe webhook signature.' });
+        }
+
+        let event;
+        try {
+          event = rawBody ? JSON.parse(rawBody) : {};
+        } catch {
+          return sendJson(res, 400, { error: 'Invalid Stripe webhook payload.' });
+        }
+
+        const supported = new Set([
+          'checkout.session.completed',
+          'invoice.paid',
+          'invoice.payment_failed',
+          'customer.subscription.created',
+          'customer.subscription.updated',
+          'customer.subscription.deleted',
+        ]);
+
+        return sendJson(res, 200, {
+          ok: true,
+          received: true,
+          eventId: event?.id || null,
+          eventType: event?.type || null,
+          supported: supported.has(event?.type),
         });
       }
 
