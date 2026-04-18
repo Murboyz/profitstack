@@ -63,6 +63,17 @@ async function main() {
     const payment = billing.lastPayment || null;
     const showCheckoutButton = billing.checkoutReady && !billing.paid;
     const showUpdateButton = Boolean(billing.updatePaymentUrl) && (billing.needsAttention || billing.cancelAtPeriodEnd || billing.customerId);
+    const paymentRequiredPanel = (billing.needsAttention || billing.needsCheckout) ? `
+      <div class="panel" style="border-color: rgba(255,154,172,.24); background: rgba(255,154,172,.08);">
+        <h2 style="margin-top:0;">${billing.needsCheckout ? 'Payment required' : 'Payment issue'}</h2>
+        <p>${billing.needsCheckout
+          ? 'This account has not paid yet. Complete checkout below before dashboard access can continue.'
+          : 'Your card needs attention before dashboard access can continue. Update payment in Stripe, then sign back in after Stripe confirms the change.'}</p>
+        ${showCheckoutButton ? `<button id="startBillingButton" type="button" ${billing.checkoutReady ? '' : 'disabled'}>${billing.checkoutReady ? checkoutButtonLabel(billing) : 'Billing unavailable'}</button>` : ''}
+        ${showUpdateButton ? '<button id="updateBillingButton" type="button">Update payment in Stripe</button>' : ''}
+        <div id="billingInlineResult">${billingState ? (billingMessages[billingState] || '') : ''}</div>
+      </div>
+    ` : '';
     app.innerHTML = `
       ${user.role === 'admin' && org.slug === 'the-nut-report-admin' ? `
         <div class="panel">
@@ -78,6 +89,7 @@ async function main() {
           <p><a href="./connect-crm.html?next=dashboard-setup">Continue setup</a></p>
         </div>
       ` : ''}
+      ${paymentRequiredPanel}
       <div class="panel">
         <h2>Organization</h2>
         <p><strong>Name:</strong> ${org.name}</p>
@@ -101,17 +113,6 @@ async function main() {
         <p><strong>Last payment date:</strong> ${escapeHtml(formatDateTime(payment?.paidAt))}</p>
         <p><strong>Last payment status:</strong> ${escapeHtml(payment?.status || billing.latestInvoiceStatus || '—')}</p>
         <p><strong>Billing Support:</strong> ${billing.supportEmail}</p>
-        ${(billing.needsAttention || billing.needsCheckout) ? `
-          <div style="margin:14px 0;padding:14px;border-radius:14px;background:rgba(255,154,172,.08);border:1px solid rgba(255,154,172,.24);color:#ffd3dc;">
-            <strong>${billing.needsCheckout ? 'Payment required' : 'Payment issue'}</strong>
-            <p style="margin:8px 0 0;">${billing.needsCheckout
-              ? 'This account has not paid yet. Complete checkout below before dashboard access can continue.'
-              : 'Your card needs attention before dashboard access can continue. Update payment in Stripe, then sign back in after Stripe confirms the change.'}</p>
-          </div>
-        ` : ''}
-        ${showCheckoutButton ? `<button id="startBillingButton" type="button" ${billing.checkoutReady ? '' : 'disabled'}>${billing.checkoutReady ? checkoutButtonLabel(billing) : 'Billing unavailable'}</button>` : ''}
-        ${showUpdateButton ? '<button id="updateBillingButton" type="button">Update payment in Stripe</button>' : ''}
-        <div id="billingInlineResult">${billingState ? (billingMessages[billingState] || '') : ''}</div>
         <div style="margin-top:16px; text-align:right;">
           <a
             href="mailto:chad@stopworkingbroke.com?subject=${encodeURIComponent('Cancel The Nut Report subscription')}&body=${encodeURIComponent(`Please cancel my The Nut Report subscription.\n\nOrganization: ${org.name}\nEmail: ${user.email}\n`)}"
@@ -135,7 +136,7 @@ async function main() {
       } catch (error) {
         inlineResult.textContent = `Billing checkout failed: ${error.message}`;
         button.disabled = false;
-        button.textContent = 'Start subscription checkout';
+        button.textContent = checkoutButtonLabel(billing);
       }
     });
 

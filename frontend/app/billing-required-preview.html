@@ -37,6 +37,16 @@
       <p class="muted">This is the public preview of the unpaid-client billing stop page. It is for review only and does not run live billing logic.</p>
     </div>
 
+    <div class="panel" style="border-color: rgba(255,154,172,.24); background: rgba(255,154,172,.08);">
+      <h2 style="margin-top:0;">Payment required</h2>
+      <p>This account has not paid yet. Complete checkout below before dashboard access can continue.</p>
+      <a class="cta" href="#">Complete subscription payment</a>
+      <div class="note">
+        <strong>Preview note</strong>
+        <p class="muted">On the real client flow, this button opens Stripe checkout after login when the account is in the not-yet-paid state.</p>
+      </div>
+    </div>
+
     <div class="panel">
       <h2>Organization</h2>
       <div class="row"><span class="muted">Name</span><strong>Murphy's Fireplace & Stoves</strong></div>
@@ -61,17 +71,6 @@
       <div class="row"><span class="muted">Last payment</span><strong>—</strong></div>
       <div class="row"><span class="muted">Last payment date</span><strong>—</strong></div>
       <div class="row"><span class="muted">Last payment status</span><strong>—</strong></div>
-
-      <div class="alert">
-        <strong>Payment required</strong>
-        <p style="margin:8px 0 0;">This account has not paid yet. Complete checkout below before dashboard access can continue.</p>
-      </div>
-
-      <a class="cta" href="#">Complete subscription payment</a>
-      <div class="note">
-        <strong>Preview note</strong>
-        <p class="muted">On the real client flow, this button opens Stripe checkout after login when the account is in the not-yet-paid state.</p>
-      </div>
     </div>
   </div>
 </body>
