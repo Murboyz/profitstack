@@ -1508,12 +1508,42 @@ const server = http.createServer(async (req, res) => {
           'customer.subscription.deleted',
         ]);
 
+        const eventObject = event?.data?.object || {};
+        const customerEmail = eventObject?.customer_details?.email
+          || eventObject?.customer_email
+          || eventObject?.receipt_email
+          || null;
+        const metadataOrganizationId = eventObject?.metadata?.organization_id || null;
+        const matchedUser = !metadataOrganizationId && customerEmail
+          ? await getUserByEmail(String(customerEmail).trim().toLowerCase())
+          : null;
+        const organizationId = metadataOrganizationId || matchedUser?.organization_id || null;
+
+        if (organizationId) {
+          await insertCrmSnapshot({
+            id: crypto.randomUUID(),
+            organization_id: organizationId,
+            crm_connection_id: null,
+            provider: 'stripe',
+            source_label: `stripe_webhook:${event?.type || 'unknown'}`,
+            payload: {
+              receivedAt: new Date().toISOString(),
+              supported: supported.has(event?.type),
+              customerEmail,
+              event,
+            },
+            captured_by_user_id: null,
+          });
+        }
+
         return sendJson(res, 200, {
           ok: true,
           received: true,
           eventId: event?.id || null,
           eventType: event?.type || null,
           supported: supported.has(event?.type),
+          logged: Boolean(organizationId),
+          organizationId,
         });
       }
 
