@@ -10,6 +10,7 @@ import {
   generateMagicLink,
   generateRecoveryLink,
   createAuthUserWithPassword,
+  findAuthAdminUserByEmail,
   getUserByAuthUserId,
   getUserByEmail,
   linkUserAuthIdentity,
@@ -1662,8 +1663,14 @@ const server = http.createServer(async (req, res) => {
         if (authUserId) {
           await updateAuthUserPassword(authUserId, password);
         } else {
-          const created = await createAuthUserWithPassword(email, password);
-          authUserId = created?.user?.id || null;
+          const existingAuthUser = await findAuthAdminUserByEmail(email);
+          if (existingAuthUser?.id) {
+            authUserId = existingAuthUser.id;
+            await updateAuthUserPassword(authUserId, password);
+          } else {
+            const created = await createAuthUserWithPassword(email, password);
+            authUserId = created?.id || created?.user?.id || null;
+          }
           if (!authUserId) {
             return sendJson(res, 500, { error: 'Failed to create sign-in for that email.' });
           }

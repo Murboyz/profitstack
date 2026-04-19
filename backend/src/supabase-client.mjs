@@ -118,6 +118,11 @@ export async function createAuthUserWithPassword(email, password) {
   });
 }
 
+export async function findAuthAdminUserByEmail(email) {
+  const data = await supabaseAuthAdminRequest('/auth/v1/admin/users');
+  return (data?.users || []).find((item) => String(item.email || '').toLowerCase() === String(email || '').toLowerCase()) || null;
+}
+
 export async function updateAuthUserPassword(authUserId, password) {
   return supabaseAuthAdminRequest(`/auth/v1/admin/users/${authUserId}`, {
     method: 'PUT',
