@@ -4,8 +4,18 @@
 Use this file to bootstrap a new dedicated ProfitStack session without losing the old session context.
 
 ## Current status
-- Estimated completion toward first live pilot shape: **95%**
-- Current stage: **guided client onboarding is now usable enough for real clients, Murphy is back in with a real Murphy-owned login email, and the next highest-leverage work is onboarding video + clean demo account + final live validation of the password-reset path**
+- Estimated completion toward first live pilot shape: **96%**
+- Current stage: **billing/paywall + live buyer onboarding are mostly assembled, but the paid signup path is still blocked by a backend deploy mismatch and needs one clean live retest after Render serves the latest API code**
+
+## Latest save, 2026-04-18
+- Billing/paywall lane shipped in-repo today: live Stripe billing status on account page, unpaid beta gating, admin billing wording cleanup, stable `signup-success.html?billing=success`, Stripe webhook endpoint, public billing preview page, admin billing exemption, and demo-bypass handling. Important commits in this lane included `1cbb71b`, `94f017a`, `c46714f`, `ebe54b8`, `d7f3a7c`, `c753ff1`, `451f4b4`, `e944beb`, `ba27cf8`, `07d4de4`, and `717b761`.
+- Real live test happened with paid email `chad@chadmurray.biz`. That surfaced the real onboarding bug: a paid buyer could complete Stripe checkout but still fail on `/api/auth/set-password` because the app required a pre-created user row.
+- Additional backend fix was coded for that future path: paid emails should auto-provision an org/user during password creation, partial Supabase auth-user creation should be recovered cleanly, and first-time password creation should auto-log the buyer into onboarding. Relevant commits: `65fb2b1`, `a7a028a`, and `d9ca589`.
+- Critical truth at stop point: the live signup frontend was updated, but the live backend API was still returning the old error string `No approved user found for that email` when tested directly against `https://thenutreport.com/api/auth/set-password`. That means the Render backend deploy did not actually pick up the new API code even after Chad said deploy was done.
+- Because of that backend mismatch, controlled live retests with `chad@chadmurray.biz` were inconclusive. The account was repeatedly reset/recreated manually to unblock progress, but the future-signup fix is **not validated live yet**.
+- Another UX bug was fixed in repo but still depends on deploy: saving Housecall Pro on `crm.html` should send the user straight into the final dashboard setup step instead of bouncing back to the confusing checklist. Commit: `b540cdd`.
+- Chad explicitly wants the future buyer path fixed, not just one-off manual rescue work. He does not want more fake loops, more pay/refund cycles, or more rabbit holes.
+- Best exact pickup for tomorrow: (1) verify Render is truly serving the latest backend by curl-testing `/api/auth/set-password` until the old `No approved user found` response disappears, (2) only then run one clean retest with the already-paid `chad@chadmurray.biz` email, (3) confirm post-payment password creation auto-provisions and auto-logs into onboarding, (4) confirm CRM save goes straight into final setup, not back to checklist.
 
 ## Latest save, 2026-04-17
 - Murphy client login was switched off Chad's email and onto the real client email `sales@murphysfireplace.com`.
