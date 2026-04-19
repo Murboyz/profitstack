@@ -38,6 +38,12 @@ import {
   updateAuthUserPassword,
   listUsers,
   insertOrganization,
+  approveUserPayment,
+  createUserWithApproval,
+
+  approveUserPayment,
+  createUserWithApproval,
+
   insertUser,
 } from './supabase-client.mjs';
 
@@ -1592,6 +1598,44 @@ const server = http.createServer(async (req, res) => {
           });
         }
 
+        if (event?.type === 'checkout.session.completed') {
+          try {
+            const email = event.data.object.customer_details?.email;
+            if (email) {
+              const existedUser = await getUserByEmail(String(email).trim().toLowerCase());
+              if (existedUser) {
+                // Mark user as approved or paid here
+                await approveUserPayment(existedUser.id);
+              } else {
+                // Create new approved user record
+                await createUserWithApproval(email);
+              }
+            }
+          } catch (e) {
+            console.error('Error processing checkout.session.completed webhook:', e);
+            return sendJson(res, 500, { error: 'Error processing payment webhook' });
+          }
+        }
+
+        if (event?.type === 'checkout.session.completed') {
+          try {
+            const email = event.data.object.customer_details?.email;
+            if (email) {
+              const existedUser = await getUserByEmail(String(email).trim().toLowerCase());
+              if (existedUser) {
+                // Mark user as approved or paid here
+                await approveUserPayment(String(email).toLowerCase());
+              } else {
+                // Create new approved user record
+                await createUserWithApproval(String(email).toLowerCase());
+              }
+            }
+          } catch (e) {
+            console.error('Error processing checkout.session.completed webhook:', e);
+            return sendJson(res, 500, { error: 'Error processing payment webhook' });
+          }
+        }
+
         return sendJson(res, 200, {
           ok: true,
           received: true,
@@ -1601,6 +1645,7 @@ const server = http.createServer(async (req, res) => {
           logged: Boolean(organizationId),
           organizationId,
         });
+      }]}}]}
       }
 
       if (req.method === 'POST' && pathname === '/api/auth/magic-link') {
