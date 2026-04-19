@@ -119,6 +119,24 @@ function hasDemoBillingBypass(email) {
   return DEMO_BILLING_BYPASS_EMAILS.has(String(email || '').trim().toLowerCase());
 }
 
+function isSimulatedDemoOrganization(organization) {
+  return String(organization?.slug || '').toLowerCase() === 'chad-demo';
+}
+
+function buildSimulatedActiveBilling(input = {}) {
+  return {
+    ...input,
+    subscriptionStatus: 'active',
+    statusLabel: 'active',
+    paid: true,
+    needsAttention: false,
+    needsCheckout: false,
+    accessBlocked: false,
+    lockMode: 'none',
+    demoBypass: true,
+  };
+}
+
 function buildBaseBillingSummary(req, context) {
   const billingEnv = getBillingEnv();
   const configured = Boolean(billingEnv.secretKey && billingEnv.priceId);
@@ -339,6 +357,16 @@ async function buildBillingSummary(req, context) {
     };
   }
 
+  if (isSimulatedDemoOrganization(context?.organization)) {
+    return buildSimulatedActiveBilling({
+      ...base,
+      ...stripe,
+      currentPeriodEnd: stripe.currentPeriodEnd || new Date(Date.now() + (1000 * 60 * 60 * 24 * 30)).toISOString(),
+      updatePaymentUrl,
+      portalReady: Boolean(updatePaymentUrl),
+    });
+  }
+
   if (demoBypass) {
     return {
       ...base,
@@ -412,7 +440,10 @@ async function getAdminClientsOverview() {
   for (const organization of organizations || []) {
     const orgUsers = userMap.get(organization.id) || [];
     const primaryUser = orgUsers.find((item) => String(item.role || '').toLowerCase() === 'admin') || orgUsers[0] || null;
-    const billing = await getStripeBillingStatus({ email: primaryUser?.email, organizationId: organization.id });
+    let billing = await getStripeBillingStatus({ email: primaryUser?.email, organizationId: organization.id });
+    if (isSimulatedDemoOrganization(organization)) {
+      billing = buildSimulatedActiveBilling(billing);
+    }
     const setting = settingsMap.get(organization.id) || null;
     const crm = crmMap.get(organization.id) || null;
     const latestSync = syncMap.get(organization.id) || null;
