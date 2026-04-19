@@ -1621,13 +1621,22 @@ const server = http.createServer(async (req, res) => {
           try {
             const email = event.data.object.customer_details?.email;
             if (email) {
-              const existedUser = await getUserByEmail(String(email).trim().toLowerCase());
-              if (existedUser) {
+              const normalizedEmail = String(email).trim().toLowerCase();
+              let user = await getUserByEmail(normalizedEmail);
+              if (user) {
                 // Mark user as approved or paid here
-                await approveUserPayment(String(email).toLowerCase());
+                user = await approveUserPayment(normalizedEmail);
               } else {
                 // Create new approved user record
-                await createUserWithApproval(String(email).toLowerCase());
+                user = await createUserWithApproval(normalizedEmail);
+              }
+
+              if (user) {
+                // Generate and send magic link for onboarding
+                const redirectTo = `${getSupabaseEnv().APP_URL}/dashboard.html`;
+                const magicLinkResponse = await generateMagicLink(normalizedEmail, redirectTo);
+                console.log(`Sent onboarding magic link to ${normalizedEmail}`);
+                // Optionally handle or log magicLinkResponse
               }
             }
           } catch (e) {
