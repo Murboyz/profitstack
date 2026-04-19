@@ -34,6 +34,8 @@ import {
   revokeSession,
   updateAuthUserPassword,
   listUsers,
+  insertOrganization,
+  insertUser,
 } from './supabase-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -153,6 +155,57 @@ function buildBaseBillingSummary(req, context) {
     cancelUrl: `${getBillingBaseUrl(req)}/account.html?billing=cancelled`,
     customerEmail: context?.email || null,
   };
+}
+
+function titleFromEmail(email = '') {
+  const domain = String(email || '').split('@')[1] || '';
+  const base = domain.split('.')[0] || String(email || '').split('@')[0] || 'Client';
+  return base
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ') || 'Client';
+}
+
+function slugFromEmail(email = '') {
+  const local = String(email || '').split('@')[0] || 'client';
+  const clean = local.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'client';
+  return `${clean}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+async function ensureApprovedPaidUser(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  let approvedUser = await getUserByEmail(normalizedEmail);
+  if (approvedUser) return approvedUser;
+
+  const billing = await getStripeBillingStatus({ email: normalizedEmail });
+  if (!['active', 'trialing'].includes(String(billing.subscriptionStatus || '').toLowerCase())) {
+    return null;
+  }
+
+  const timestamp = new Date().toISOString();
+  const organization = await insertOrganization({
+    id: crypto.randomUUID(),
+    name: titleFromEmail(normalizedEmail),
+    slug: slugFromEmail(normalizedEmail),
+    timezone: 'America/Chicago',
+    status: 'active',
+    created_at: timestamp,
+    updated_at: timestamp,
+  });
+  const createdOrg = Array.isArray(organization) ? organization[0] : organization;
+  const users = await insertUser({
+    id: crypto.randomUUID(),
+    organization_id: createdOrg.id,
+    email: normalizedEmail,
+    full_name: titleFromEmail(normalizedEmail),
+    role: 'client',
+    created_at: timestamp,
+    updated_at: timestamp,
+    auth_user_id: null,
+  });
+  approvedUser = Array.isArray(users) ? users[0] : users;
+  return approvedUser || null;
 }
 
 function parseStripeSignatureHeader(value = '') {
@@ -1554,9 +1607,9 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 400, { error: 'Email is required' });
         }
 
-        const approvedUser = await getUserByEmail(email);
+        const approvedUser = await ensureApprovedPaidUser(email);
         if (!approvedUser) {
-          return sendJson(res, 404, { error: 'No approved user found for that email' });
+          return sendJson(res, 404, { error: 'No paid or approved account found for that email' });
         }
 
         const redirectTo = `${getRequestOrigin(req)}/dashboard.html`;

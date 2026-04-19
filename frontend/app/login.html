@@ -10,6 +10,8 @@
     .panel { background: #0f1728; border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 18px; }
     label, input, select, button { display: block; width: 100%; margin-bottom: 12px; }
     input, select, button { padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; }
+    .inline-toggle { display:flex; align-items:center; gap:10px; color:#94a3c7; margin:-4px 0 12px; }
+    .inline-toggle input { width:auto; margin:0; }
     .help { color: #94a3c7; margin-top: 10px; }
     @media (max-width: 720px) {
       .wrap { margin: 24px auto; padding: 16px; }
@@ -33,6 +35,7 @@
         <input id="email" type="email" placeholder="you@company.com" />
         <label for="password">Password</label>
         <input id="password" type="password" placeholder="Enter your password" />
+        <label class="inline-toggle"><input id="showPasswordToggle" type="checkbox" /> Show password</label>
         <button type="submit">Sign In</button>
       </form>
       <button id="forgotPasswordButton" type="button">Email Me A Password Reset Link</button>

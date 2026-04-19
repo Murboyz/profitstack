@@ -28,6 +28,8 @@
     .next-action { animation: nextPulse 1s ease-in-out infinite; box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
     form { margin-top: 22px; }
     input { width: 100%; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.15); background: #111a2e; color: #eef4ff; margin: 8px 0 14px; }
+    .inline-toggle { display:flex; align-items:center; gap:10px; color: var(--muted); margin:-4px 0 14px; }
+    .inline-toggle input { width:auto; margin:0; }
     #result { margin-top: 12px; color: #cfe0ff; }
     @keyframes nextPulse {
       0%, 100% { box-shadow: 0 0 0 4px rgba(91,140,255,.18), 0 0 22px rgba(91,140,255,.28); }
@@ -71,12 +73,13 @@
         <input id="password" type="password" placeholder="At least 8 characters" required />
         <label for="confirmPassword">Confirm password</label>
         <input id="confirmPassword" type="password" placeholder="Re-enter password" required />
-        <button class="primary" id="createPasswordButton" type="submit">This is my first sign-in, set my password</button>
+        <label class="inline-toggle"><input id="showPasswordToggle" type="checkbox" /> Show passwords</label>
+        <button class="primary" id="createPasswordButton" type="submit">Create password and continue</button>
         <div id="result"></div>
       </form>
 
       <div class="actions">
-        <a class="cta" id="loginLink" href="./login.html">I already have a password, log in</a>
+        <a class="cta" id="loginLink" href="./login.html">I already set a password, log in</a>
         <a class="cta primary" id="dashboardLink" href="./dashboard.html?setup=1">Go To Dashboard</a>
       </div>
 

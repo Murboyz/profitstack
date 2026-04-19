@@ -33,6 +33,12 @@ if (crmConnected) {
   document.getElementById('dashboardLink').classList.add('next-action');
 }
 
+document.getElementById('showPasswordToggle')?.addEventListener('change', (event) => {
+  const visible = Boolean(event.target.checked);
+  document.getElementById('password').type = visible ? 'text' : 'password';
+  document.getElementById('confirmPassword').type = visible ? 'text' : 'password';
+});
+
 document.getElementById('signupForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = document.getElementById('email').value.trim().toLowerCase();
@@ -88,7 +94,7 @@ document.getElementById('signupForm').addEventListener('submit', async (event) =
     window.location.href = dashboardHref;
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'This is my first sign-in, set my password';
-    result.textContent = error.message || 'Password setup failed.';
-  }
+      button.textContent = 'Create password and continue';
+      result.textContent = error.message || 'Password setup failed.';
+    }
 });

@@ -197,6 +197,16 @@ export async function listOrganizations() {
   return supabaseRequest('/rest/v1/organizations?select=*&order=created_at.asc');
 }
 
+export async function insertOrganization(payload) {
+  return supabaseRequest('/rest/v1/organizations', {
+    method: 'POST',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: payload,
+  });
+}
+
 export async function getOrganizationSettingsByOrg(organizationId) {
   const rows = await supabaseRequest(`/rest/v1/organization_settings?select=*&organization_id=eq.${organizationId}&limit=1`);
   return rows[0] || null;
@@ -277,6 +287,16 @@ export async function listSyncRuns(limit = 200) {
 
 export async function listUsers() {
   return supabaseRequest('/rest/v1/users?select=*&order=created_at.asc');
+}
+
+export async function insertUser(payload) {
+  return supabaseRequest('/rest/v1/users', {
+    method: 'POST',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: payload,
+  });
 }
 
 export async function insertSyncRun(payload) {

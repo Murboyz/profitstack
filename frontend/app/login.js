@@ -169,6 +169,10 @@ if (existing) {
   document.getElementById('email').value = existing;
 }
 
+document.getElementById('showPasswordToggle')?.addEventListener('change', (event) => {
+  document.getElementById('password').type = event.target.checked ? 'text' : 'password';
+});
+
 document.getElementById('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = document.getElementById('email').value.trim();
@@ -185,8 +189,10 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
       },
       body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) throw new Error(`Password sign-in failed with ${res.status}`);
     const data = await res.json();
+    if (!res.ok || !data.access_token) {
+      throw new Error(data.error_description || data.error || (res.status === 400 ? 'Email or password is not valid.' : `Password sign-in failed with ${res.status}`));
+    }
     setAccessToken(data.access_token);
     setCurrentUserEmail(email);
     result.textContent = 'Signed in. Redirecting…';
