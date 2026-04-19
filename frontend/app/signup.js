@@ -14,6 +14,24 @@ async function getFrontendConfig() {
   return res.json();
 }
 
+async function getPostSignupDestination(accessToken, fallbackEmail = '') {
+  try {
+    const res = await fetch('/api/crm-connection', {
+      headers: {
+        ...(fallbackEmail ? { 'X-User-Email': fallbackEmail } : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+    if (!res.ok) return './connect-crm.html?next=dashboard-setup';
+    const crmConnection = await res.json();
+    return crmConnection?.status === 'connected'
+      ? './dashboard.html?setup=1&crm=connected'
+      : './connect-crm.html?next=dashboard-setup';
+  } catch {
+    return './connect-crm.html?next=dashboard-setup';
+  }
+}
+
 const existingEmail = getCurrentUserEmail();
 if (existingEmail) {
   document.getElementById('email').value = existingEmail;
@@ -90,8 +108,8 @@ document.getElementById('signupForm').addEventListener('submit', async (event) =
     }
 
     setAccessToken(loginData.access_token);
-    result.textContent = 'Password saved. Redirecting…';
-    window.location.href = dashboardHref;
+    result.textContent = 'Password saved. Redirecting into setup…';
+    window.location.href = await getPostSignupDestination(loginData.access_token, email);
   } catch (error) {
     button.disabled = false;
       button.textContent = 'Create password and continue';
