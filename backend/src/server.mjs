@@ -313,6 +313,7 @@ async function getStripeBillingStatus({ email, organizationId }) {
 
 async function buildBillingSummary(req, context) {
   const base = buildBaseBillingSummary(req, context);
+  const isAdminUser = String(context?.user?.role || '').toLowerCase() === 'admin';
   const stripe = await getStripeBillingStatus({ email: context?.email, organizationId: context?.organization?.id });
   const demoBypass = hasDemoBillingBypass(context?.email);
   const needsAttention = billingStatusNeedsAttention(stripe.subscriptionStatus);
@@ -320,6 +321,23 @@ async function buildBillingSummary(req, context) {
   const updatePaymentUrl = stripe.customerId
     ? await createStripeBillingPortalSession({ req, customerId: stripe.customerId })
     : null;
+
+  if (isAdminUser) {
+    return {
+      ...base,
+      ...stripe,
+      subscriptionStatus: 'admin_exempt',
+      statusLabel: 'admin access',
+      paid: true,
+      needsAttention: false,
+      needsCheckout: false,
+      accessBlocked: false,
+      lockMode: 'none',
+      updatePaymentUrl: null,
+      portalReady: false,
+      adminBypass: true,
+    };
+  }
 
   if (demoBypass) {
     return {
