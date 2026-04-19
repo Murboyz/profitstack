@@ -141,8 +141,8 @@ async function main() {
 
         const params = new URLSearchParams(window.location.search);
         const next = params.get('next');
-        const nextHref = next === 'dashboard-setup' ? './connect-crm.html?next=dashboard-setup&crm=connected' : './connect-crm.html?crm=connected';
-        result.innerHTML = `<p class="success">${escapeHtml(data.message || 'Housecall Pro connection saved.')}</p><p class="muted" style="margin-top: 8px;">Sending you back to the setup checklist so you can confirm everything is complete.</p>`;
+        const nextHref = next === 'dashboard-setup' ? './dashboard.html?setup=1&crm=connected' : './dashboard.html?crm=connected';
+        result.innerHTML = `<p class="success">${escapeHtml(data.message || 'Housecall Pro connection saved.')}</p><p class="muted" style="margin-top: 8px;">Connection saved. Sending you straight into the final setup step.</p>`;
         document.getElementById('sessionCookie').value = '';
         await loadStatus();
         window.setTimeout(() => {

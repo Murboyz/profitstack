@@ -188,8 +188,10 @@
       if (connected) {
         markComplete(continueButton, 'Housecall Pro connected');
         dashboardButton.classList.add('primary', 'next-action');
+        dashboardButton.textContent = next === 'dashboard-setup' ? 'Continue to final setup' : 'Go to dashboard';
       } else {
         dashboardButton.classList.remove('primary', 'next-action');
+        dashboardButton.textContent = next === 'dashboard-setup' ? 'Finish this step first' : 'Go to dashboard';
         const confirmed = localStorage.getItem(CONTINUE_CONFIRMED_KEY) === 'yes';
         if (confirmed) {
           installStatus.textContent = 'Confirmed';
@@ -265,7 +267,7 @@
       continueButton.classList.remove('complete', 'next-action');
       continueButton.textContent = 'Open Housecall Pro';
       dashboardButton.classList.remove('complete', 'next-action', 'primary');
-      dashboardButton.textContent = 'Go to dashboard';
+      dashboardButton.textContent = next === 'dashboard-setup' ? 'Finish this step first' : 'Go to dashboard';
       if (!getCurrentUserEmail() && !getAccessToken()) {
         setCrmState(false);
         return;
