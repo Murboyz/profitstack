@@ -1400,22 +1400,9 @@ const rollups = latestSnapshot?.payload?.rollups || null;
 function sumMonthScheduledProduction(mergedWeeks, currentMonthKey) {
   let total = 0;
   for (const week of Object.values(mergedWeeks)) {
-    const weekStart = new Date(week.weekStartDate + 'T00:00:00.000Z');
-    const weekEnd = new Date(week.weekEndDate + 'T23:59:59.999Z');
-
-    const [year, month] = currentMonthKey.split('-').map(Number);
-    const monthStart = new Date(Date.UTC(year, month - 1, 1));
-    const monthEnd = new Date(Date.UTC(year, month, 1));
-
-    const overlapStart = weekStart > monthStart ? weekStart : monthStart;
-    const overlapEnd = weekEnd < monthEnd ? weekEnd : monthEnd;
-
-    if (overlapEnd <= overlapStart) continue;
-
-    const totalWeekDays = (weekEnd - weekStart) / (1000 * 60 * 60 * 24);
-    const overlapDays = (overlapEnd - overlapStart) / (1000 * 60 * 60 * 24);
-
-    total += (overlapDays / totalWeekDays) * (week.scheduledProduction || 0);
+    if (week.weekStartDate.startsWith(currentMonthKey)) {
+      total += week.scheduledProduction || 0;
+    }
   }
   return total;
 }
