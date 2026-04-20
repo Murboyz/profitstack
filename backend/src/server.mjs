@@ -10,9 +10,7 @@ import {
   getSupabaseEnv,
   getAuthUser,
   generateMagicLink,
-  generateRecoveryLink,
-  
-  findAuthAdminUserByEmail,
+  generateRecoveryLink,  
   getUserByAuthUserId,
   getUserByEmail,
   linkUserAuthIdentity,
@@ -39,7 +37,7 @@ import {
   listUsers,
   insertOrganization,
 } from './user-model.mjs';
-
+import { findAuthAdminUserByEmail } from './supabase-client.mjs';
 import { createAuthUserWithPassword } from './supabase-client.mjs';
 
 
