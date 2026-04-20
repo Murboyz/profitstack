@@ -1,4 +1,58 @@
 import http from 'node:http';
+
+const refreshFlags = new Map();
+
+const refreshFlags = new Map();
+let globalRefreshFlag = false;
+
+async function earlyApiDispatch(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathname = url.pathname;
+  try {
+    if (pathname === '/api/admin/force-refresh' && req.method === 'POST') {
+      const orgId = url.searchParams.get('org');
+      if (!orgId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing org query param' }));
+        return true;
+      }
+      refreshFlags.set(orgId, true);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: `Refresh flag set for org ${orgId}` }));
+      return true;
+    }
+
+    if (pathname === '/api/admin/force-refresh-all' && req.method === 'POST') {
+      globalRefreshFlag = true;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ message: 'Global refresh flag set for all orgs' }));
+      return true;
+    }
+
+    if (pathname === '/api/admin/check-refresh' && req.method === 'GET') {
+      const orgId = url.searchParams.get('org');
+      if (!orgId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Missing org query param' }));
+        return true;
+      }
+      const orgFlag = refreshFlags.get(orgId) || false;
+      const flag = orgFlag || globalRefreshFlag;
+      if (orgFlag) refreshFlags.delete(orgId);
+      if (globalRefreshFlag) globalRefreshFlag = false;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ refresh: flag }));
+      return true;
+    }
+  } catch (err) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message }));
+    return true;
+  }
+  return false;
+}
+
+
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -42,6 +96,40 @@ const statusPath = path.resolve(__dirname, '../../STATUS.md');
 const appRoot = path.resolve(__dirname, '../../frontend/app');
 const host = '0.0.0.0';
 const port = Number(process.env.PORT || 8787);
+
+const refreshFlags = new Map();
+
+// Backend API handler to SET refresh flag for org
+async function handleForceRefresh(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const orgId = url.searchParams.get('org');
+  if (!orgId) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Missing org query param' }));
+    return;
+  }
+  refreshFlags.set(orgId, true);
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ message: `Refresh flag set for org ${orgId}` }));
+}
+
+// Backend API handler to CHECK and CLEAR refresh flag for org
+async function handleCheckRefresh(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const orgId = url.searchParams.get('org');
+  if (!orgId) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Missing org query param' }));
+    return;
+  }
+  const flag = refreshFlags.get(orgId) || false;
+  if (flag) {
+    refreshFlags.delete(orgId);
+  }
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ refresh: flag }));
+}
+
 
 async function loadStatusText() {
   return fs.readFile(statusPath, 'utf8');
