@@ -1247,9 +1247,34 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
 
   monthScheduledProduction = getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
 
-  // prorate or split jobs spanning multiple weeks or months
-  // (example usage shown)
-  // Actual prorating logic should be restored here or confirmed correct
+  for (const job of payload.jobDetails || []) {
+  const totalAmount = toCurrencyNumber(job.total_amount || 0);
+  if (!totalAmount) continue;
+
+  const scheduleStart = job.schedule?.data?.start_time;
+  const scheduleEnd = job.schedule?.data?.end_time;
+
+  if (!scheduleStart || !scheduleEnd) continue;
+
+  const allocations = getSpanAllocationByWeek(
+    weekMap,
+    scheduleStart,
+    scheduleEnd,
+    totalAmount
+  );
+
+  if (allocations.length <= 1) continue;
+
+  incrementWeekMetric(weekMap, scheduleStart, (bucket) => {
+    bucket.scheduledProduction -= totalAmount;
+  });
+
+  for (const allocation of allocations) {
+    const bucket = weekMap.get(allocation.weekKey);
+    if (!bucket) continue;
+    bucket.scheduledProduction += allocation.amount;
+  }
+}
 
   return {
     provider: 'housecall_pro',
