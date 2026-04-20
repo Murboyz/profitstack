@@ -1171,7 +1171,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     const allocations = getSpanAllocationByWeek(weekMap, scheduleStart, scheduleEnd, totalAmount);
     if (allocations.length <= 1) continue;
 
-    incrementWeekMetric(weekMap, job.scheduled_date, (bucket) => {
+    incrementWeekMetric(weekMap, scheduleStart, (bucket) => {
       bucket.scheduledProduction -= totalAmount;
     });
     for (const allocation of allocations) {
