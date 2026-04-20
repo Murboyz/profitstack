@@ -18,7 +18,6 @@ import {
   getWeekMetricsByOrg,
   listWeekMetrics,
   upsertWeekMetrics,
-  getMetricOverridesByOrg,
   upsertMetricOverride,
   upsertOrganizationSettings,
     revokeSession,
@@ -1758,7 +1757,6 @@ const server = http.createServer(async (req, res) => {
         const [crmConnection, weekMetrics, overrides, organizationSettings, latestSnapshot] = await Promise.all([
           getCrmConnectionByOrg(viewContext.organization.id),
           getWeekMetricsByOrg(viewContext.organization.id),
-          getMetricOverridesByOrg(viewContext.organization.id),
           getOrganizationSettingsByOrg(viewContext.organization.id),
           getLatestCrmSnapshotByOrg(viewContext.organization.id),
         ]);
@@ -1925,7 +1923,6 @@ const server = http.createServer(async (req, res) => {
         });
       }
       if (req.method === 'GET' && pathname === '/api/overrides') {
-        const overrides = await getMetricOverridesByOrg(viewContext.organization.id);
         return sendJson(res, 200, { items: formatOverrides(overrides) });
       }
       if (req.method === 'POST' && pathname === '/api/overrides') {
@@ -1971,7 +1968,6 @@ const server = http.createServer(async (req, res) => {
         const crmConnection = await getCrmConnectionByOrg(context.organization.id);
         const startedAt = body.startedAt || new Date().toISOString();
         const organizationSettings = await getOrganizationSettingsByOrg(context.organization.id);
-        const existingOverrides = await getMetricOverridesByOrg(context.organization.id);
 
         try {
           const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection, context.organization.timezone || 'UTC');
