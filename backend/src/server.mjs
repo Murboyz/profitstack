@@ -1387,16 +1387,17 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'GET' && pathname === '/api/dashboard') {
         const [crmConnection, weekMetrics, overrides, organizationSettings, latestSnapshot] = await Promise.all([
-          getCrmConnectionByOrg(viewContext.organization.id),
-          getWeekMetricsByOrg(viewContext.organization.id),
-          getMetricOverridesByOrg(viewContext.organization.id),
-          getOrganizationSettingsByOrg(viewContext.organization.id),
-          getLatestCrmSnapshotByOrg(viewContext.organization.id),
-        ]);
-        const liveWeeks = buildWeeksFromMetrics(weekMetrics);
-        const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
-        const rollups = latestSnapshot?.payload?.rollups || null;
-        function sumMonthScheduledProduction(mergedWeeks, currentMonthKey) {
+  getCrmConnectionByOrg(viewContext.organization.id),
+  getWeekMetricsByOrg(viewContext.organization.id),
+  getMetricOverridesByOrg(viewContext.organization.id),
+  getOrganizationSettingsByOrg(viewContext.organization.id),
+  getLatestCrmSnapshotByOrg(viewContext.organization.id),
+]);
+const liveWeeks = buildWeeksFromMetrics(weekMetrics);
+const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
+const rollups = latestSnapshot?.payload?.rollups || null;
+
+function sumMonthScheduledProduction(mergedWeeks, currentMonthKey) {
   let total = 0;
   for (const week of Object.values(mergedWeeks)) {
     const weekStart = new Date(week.weekStartDate + 'T00:00:00.000Z');
