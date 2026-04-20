@@ -11,7 +11,7 @@ import {
   getAuthUser,
   generateMagicLink,
   generateRecoveryLink,
-  createAuthUserWithPassword,
+  
   findAuthAdminUserByEmail,
   getUserByAuthUserId,
   getUserByEmail,
@@ -38,8 +38,10 @@ import {
   updateAuthUserPassword,
   listUsers,
   insertOrganization,
-  insertUser,
 } from './user-model.mjs';
+
+import { createAuthUserWithPassword } from './supabase-client.mjs';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
