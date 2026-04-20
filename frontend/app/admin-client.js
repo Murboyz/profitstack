@@ -79,3 +79,8 @@ async function main() {
 }
 
 main();
+
+document.getElementById('refresh-button').addEventListener('click', () => {
+  main();
+});
+
