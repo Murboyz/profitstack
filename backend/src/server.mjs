@@ -41,9 +41,6 @@ import {
   approveUserPayment,
   createUserWithApproval,
 
-  approveUserPayment,
-  createUserWithApproval,
-
   insertUser,
 } from './user-model.mjs';
 
