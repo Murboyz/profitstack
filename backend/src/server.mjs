@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 import {
   probeSupabaseWithServiceRole,
   getSupabaseEnv,
-  getAuthUser,
   getUserByAuthUserId,
   getUserByEmail,
   linkUserAuthIdentity,
@@ -35,7 +34,7 @@ import {
   listUsers,
   insertOrganization,
 } from './user-model.mjs';
-import { findAuthAdminUserByEmail, createAuthUserWithPassword, generateMagicLink, generateRecoveryLink } from './supabase-client.mjs';
+import { findAuthAdminUserByEmail, createAuthUserWithPassword, generateMagicLink, generateRecoveryLink, getAuthUser } from './supabase-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
