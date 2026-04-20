@@ -45,7 +45,7 @@ import {
   createUserWithApproval,
 
   insertUser,
-} from './supabase-client.mjs';
+} from './user-model.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
