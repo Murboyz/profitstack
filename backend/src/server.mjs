@@ -21,6 +21,17 @@ import {
   getMetricOverridesByOrg,
   upsertMetricOverride,
   upsertOrganizationSettings,
+    revokeSession,
+  updateAuthUserPassword,
+  listUsers,
+  insertOrganization,
+} from './user-model.mjs';
+import {
+  findAuthAdminUserByEmail,
+  createAuthUserWithPassword,
+  generateMagicLink,
+  generateRecoveryLink,
+  getAuthUser,
   getCrmConnectionByOrg,
   listCrmConnections,
   upsertCrmConnection,
@@ -29,12 +40,7 @@ import {
   insertSyncRun,
   insertCrmSnapshot,
   getLatestCrmSnapshotByOrg,
-  revokeSession,
-  updateAuthUserPassword,
-  listUsers,
-  insertOrganization,
-} from './user-model.mjs';
-import { findAuthAdminUserByEmail, createAuthUserWithPassword, generateMagicLink, generateRecoveryLink, getAuthUser } from './supabase-client.mjs';
+} from './supabase-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
