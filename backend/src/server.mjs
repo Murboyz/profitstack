@@ -6,11 +6,20 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
+  getUserByEmail,
+  insertUser,
+  updateUserApproval,
+  approveUserPayment,
+  createUserWithApproval
+} from './user-model.mjs';
+
+import {
   probeSupabaseWithServiceRole,
   getSupabaseEnv,
   getUserByAuthUserId,
-  getUserByEmail,
   linkUserAuthIdentity,
+  revokeSession,
+  updateAuthUserPassword,
   getOrganizationById,
   listOrganizations,
   getOrganizationSettingsByOrg,
@@ -20,12 +29,8 @@ import {
   upsertWeekMetrics,
   upsertMetricOverride,
   upsertOrganizationSettings,
-    revokeSession,
-  updateAuthUserPassword,
   listUsers,
   insertOrganization,
-} from './user-model.mjs';
-import {
   findAuthAdminUserByEmail,
   createAuthUserWithPassword,
   generateMagicLink,
@@ -40,6 +45,8 @@ import {
   insertCrmSnapshot,
   getLatestCrmSnapshotByOrg,
 } from './supabase-client.mjs';
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
