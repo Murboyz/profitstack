@@ -30,23 +30,38 @@ function isCancelAlert(client) {
 
 async function main() {
   const userEmail = window.userEmail || '';
-  if (userEmail.toLowerCase() === 'chad@stopworkingbroke.com') {
-    const refreshBtn = document.createElement('button');
-    refreshBtn.textContent = 'Force Refresh All Clients';
-    refreshBtn.onclick = async () => {
-      refreshBtn.disabled = true;
-      try {
-        const res = await fetch('/api/admin/force-refresh-all', { method: 'POST' });
-        const data = await res.json();
-        alert(data.message || 'Refresh triggered');
-      } catch (err) {
-        alert('Failed to trigger refresh: ' + err.message);
-      } finally {
-        refreshBtn.disabled = false;
-      }
-    };
-    document.body.prepend(refreshBtn);
-  }
+  console.log('Admin UI button patch initialized');
+
+window.addEventListener('DOMContentLoaded', () => {
+  const refreshBtn = document.createElement('button');
+  refreshBtn.textContent = 'Force Refresh All Clients';
+  refreshBtn.style.position = 'fixed';
+  refreshBtn.style.top = '10px';
+  refreshBtn.style.right = '10px';
+  refreshBtn.style.zIndex = 9999;
+  refreshBtn.style.padding = '10px 15px';
+  refreshBtn.style.backgroundColor = '#007bff';
+  refreshBtn.style.color = 'white';
+  refreshBtn.style.border = 'none';
+  refreshBtn.style.borderRadius = '4px';
+  refreshBtn.style.cursor = 'pointer';
+
+  refreshBtn.onclick = async () => {
+    refreshBtn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/force-refresh-all', { method: 'POST' });
+      const data = await res.json();
+      alert(data.message || 'Refresh triggered');
+    } catch (err) {
+      alert('Failed to trigger refresh: ' + err.message);
+    } finally {
+      refreshBtn.disabled = false;
+    }
+  };
+
+  document.body.appendChild(refreshBtn);
+});
+
 
   const summary = document.getElementById('summary');
   const clientsEl = document.getElementById('clients');

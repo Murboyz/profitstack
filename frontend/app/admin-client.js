@@ -96,6 +96,36 @@ async function refreshClientData() {
 
 window.refreshClientData = refreshClientData;
 
+// Harden refreshClientData UI update for display glitch
+(async () => {
+  const originalRefreshClientData = window.refreshClientData;
+
+  window.refreshClientData = async function robustRefreshClientData() {
+    await originalRefreshClientData();
+    if (lastClientData && lastClientData.metrics) {
+      const root = document.getElementById('app');
+      const { salesMonth, monthProduction, monthlyExpenseTarget, profitGoalPercent } = lastClientData.metrics;
+      if (root) {
+        root.querySelectorAll('.metric-grid .metric strong').forEach(el => el.textContent = '');
+        const metricElements = root.querySelectorAll('.metric-grid .metric');
+        if (metricElements.length >= 4) {
+          metricElements[0].querySelector('strong').textContent = formatMoney(salesMonth);
+          metricElements[1].querySelector('strong').textContent = formatMoney(monthProduction);
+          metricElements[2].querySelector('strong').textContent = formatMoney(monthlyExpenseTarget);
+          metricElements[3].querySelector('strong').textContent = `${Number(profitGoalPercent || 0)}%`;
+        }
+      }
+      console.group('Client metrics Log (robust)');
+      console.log('salesMonth:', salesMonth);
+      console.log('monthProduction:', monthProduction);
+      console.log('monthlyExpenseTarget:', monthlyExpenseTarget);
+      console.groupEnd();
+    }
+  };
+})();
+
+
+
 
 
 async function main() {

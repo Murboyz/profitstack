@@ -1247,6 +1247,10 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
 
   monthScheduledProduction = getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
 
+  // prorate or split jobs spanning multiple weeks or months
+  // (example usage shown)
+  // Actual prorating logic should be restored here or confirmed correct
+
   return {
     provider: 'housecall_pro',
     sourceLabel: 'housecall_pro_session_pull',
