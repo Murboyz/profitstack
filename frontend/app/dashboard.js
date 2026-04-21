@@ -362,12 +362,30 @@ async function renderDashboard() {
       : activeWeekApprovedSales;
     const salesWeek = currentWeekApprovedDisplay;
     const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
-    const monthScheduledProduction = parseNumber(dashboard.settings?.monthProduction ?? 0);
-    const monthlyProductionDelta = monthScheduledProduction - monthlyExpenseTarget;
+    const visiblePastWeeksTotal = previousWeekHistory
+  .slice(0, 3)
+  .reduce((sum, week) => sum + parseNumber(week.scheduledProduction || 0), 0);
+
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
       .reverse();
+const visiblePastWeeksTotal = previousWeekHistory
+  .slice(0, 3)
+  .reduce((sum, week) => sum + parseNumber(week.scheduledProduction || 0), 0);
+
+const productionOutlookTotal =
+  parseNumber(dashboard.weeks.nextWeek.scheduledProduction || 0) +
+  parseNumber(dashboard.weeks.weekPlus2.scheduledProduction || 0) +
+  parseNumber(dashboard.weeks.weekPlus3.scheduledProduction || 0);
+
+const monthScheduledProduction =
+  visiblePastWeeksTotal +
+  parseNumber(dashboard.weeks.currentWeek.scheduledProduction || 0) +
+  productionOutlookTotal;
+
+const monthlyProductionDelta = 0;
+
     const defaultHistoryWeek = previousWeekHistory[0]?.weekStartDate || dashboard.weeks.lastWeek.weekStartDate;
     const historyWeekKey = readHistoryWeek(defaultHistoryWeek);
     const selectedHistoryWeek = previousWeekHistory.find((week) => week.weekStartDate === historyWeekKey) || previousWeekHistory[0] || {
