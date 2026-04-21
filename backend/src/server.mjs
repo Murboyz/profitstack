@@ -1235,7 +1235,7 @@ function formatOrganizationSettings(item, organizationId, rollups = null, monthP
     opportunityCount: item?.opportunity_count == null ? null : Number(item.opportunity_count),
     salesToday: item?.sales_today == null ? Number(rollups?.salesToday ?? 0) : Number(item.sales_today),
     salesMonth: item?.sales_month == null ? Number(rollups?.salesMonth ?? 0) : Number(item.sales_month),
-    salesYear: item?.sales_year == null ? Number(rollups?.monthScheduledProduction ?? 0) : Number(item.sales_year),
+    salesYear: Number(rollups?.monthScheduledProduction ?? 0),
     monthProduction: monthProduction ?? (rollups ? Number(rollups.monthScheduledProduction ?? 0) : 0),
     updatedAt: item?.updated_at || null,
   };
