@@ -1227,7 +1227,7 @@ function toIntegerOrNull(value) {
   return Number.isFinite(num) ? num : null;
 }
 
-function formatOrganizationSettings(item, organizationId, rollups = null) {
+function formatOrganizationSettings(item, organizationId, rollups = null, monthProduction = null) {
   return {
     organizationId,
     monthlyExpenseTarget: item?.monthly_expense_target == null ? null : Number(item.monthly_expense_target),
@@ -1236,6 +1236,7 @@ function formatOrganizationSettings(item, organizationId, rollups = null) {
     salesToday: item?.sales_today == null ? Number(rollups?.salesToday ?? 0) : Number(item.sales_today),
     salesMonth: item?.sales_month == null ? Number(rollups?.salesMonth ?? 0) : Number(item.sales_month),
     salesYear: item?.sales_year == null ? Number(rollups?.monthScheduledProduction ?? 0) : Number(item.sales_year),
+    monthProduction: monthProduction ?? (rollups ? Number(rollups.monthScheduledProduction ?? 0) : 0),
     updatedAt: item?.updated_at || null,
   };
 }
@@ -1412,7 +1413,8 @@ const persistentMonthScheduledProduction = sumMonthScheduledProduction(mergedWee
 
 return sendJson(res, 200, {
   organization: formatSession(viewContext).organization,
-  settings: formatOrganizationSettings(organizationSettings, viewContext.organization.id, { ...rollups, monthScheduledProduction: persistentMonthScheduledProduction }),
+  settings: formatOrganizationSettings(organizationSettings, viewContext.organization.id, { ...rollups, monthScheduledProduction: persistentMonthScheduledProduction }, persistentMonthScheduledProduction + (rollups?.monthProductionOutlook || 0)), // Explicit monthProduction as scheduled + outlook
+
   crmConnection: formatDashboardCrmConnection(crmConnection),
   weeks: mergedWeeks,
   weekHistory: formatWeekHistory(weekMetrics, overrides),
