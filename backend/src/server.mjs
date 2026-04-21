@@ -291,7 +291,7 @@ async function getAdminClientsOverview() {
       } : null,
       metrics: {
         salesMonth: Number(setting?.sales_month || 0),
-        monthProduction: Number(setting?.sales_year || 0),
+        monthProduction: Number(setting?.month_scheduled_production || 0),
         monthlyExpenseTarget: Number(setting?.monthly_expense_target || 0),
         profitGoalPercent: Number(setting?.profit_percentage || 0),
         latestWeekStart: latestWeek?.week_start_date || null,
