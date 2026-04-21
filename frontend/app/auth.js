@@ -75,7 +75,7 @@ export async function apiFetch(path, options = {}) {
   const method = String(options.method || 'GET').toUpperCase();
   const adminOrg = new URLSearchParams(window.location.search).get('org');
   const requestUrl = new URL(`${API_BASE}${path}`, window.location.href);
-  if (adminOrg && method === 'GET' && !requestUrl.searchParams.has('org')) {
+  if (adminOrg && !requestUrl.searchParams.has('org')) {
     requestUrl.searchParams.set('org', adminOrg);
   }
   const headers = {

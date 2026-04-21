@@ -14,6 +14,9 @@ import {
   getUserByEmail,
   linkUserAuthIdentity,
   getOrganizationById,
+  getOrganizationBySlug,
+  insertOrganization,
+  insertUser,
   listOrganizations,
   getOrganizationSettingsByOrg,
   listOrganizationSettings,
@@ -369,6 +372,148 @@ async function createStripeCheckoutSession({ req, context }) {
     successUrl,
     cancelUrl,
   };
+}
+
+async function readRawBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+function verifyStripeSignature(rawBody, signatureHeader, secret, toleranceSeconds = 300) {
+  if (!secret) throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
+  if (!signatureHeader) throw new Error('Missing Stripe-Signature header');
+
+  const parts = String(signatureHeader).split(',').reduce((acc, pair) => {
+    const [key, value] = pair.split('=');
+    if (!key) return acc;
+    if (key === 't') acc.timestamp = value;
+    if (key === 'v1') acc.v1.push(value);
+    return acc;
+  }, { timestamp: null, v1: [] });
+
+  if (!parts.timestamp || parts.v1.length === 0) {
+    throw new Error('Malformed Stripe-Signature header');
+  }
+
+  const signedPayload = `${parts.timestamp}.${rawBody.toString('utf8')}`;
+  const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+  const expectedBuf = Buffer.from(expected, 'hex');
+  const match = parts.v1.some((candidate) => {
+    try {
+      const candidateBuf = Buffer.from(candidate, 'hex');
+      return candidateBuf.length === expectedBuf.length
+        && crypto.timingSafeEqual(candidateBuf, expectedBuf);
+    } catch {
+      return false;
+    }
+  });
+
+  if (!match) throw new Error('Stripe signature mismatch');
+
+  const ageSeconds = Math.floor(Date.now() / 1000) - Number(parts.timestamp);
+  if (Number.isFinite(toleranceSeconds) && Math.abs(ageSeconds) > toleranceSeconds) {
+    throw new Error('Stripe signature timestamp outside tolerance');
+  }
+}
+
+function slugifyOrg(text) {
+  const base = String(text || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+  return base || 'org';
+}
+
+async function ensureUniqueOrgSlug(base) {
+  let candidate = slugifyOrg(base);
+  let suffix = 1;
+  while (await getOrganizationBySlug(candidate)) {
+    suffix += 1;
+    candidate = `${slugifyOrg(base)}-${suffix}`;
+    if (suffix > 50) {
+      candidate = `${slugifyOrg(base)}-${crypto.randomBytes(3).toString('hex')}`;
+      break;
+    }
+  }
+  return candidate;
+}
+
+async function provisionTenantFromCheckout(session) {
+  const email = String(
+    session?.customer_details?.email
+    || session?.customer_email
+    || session?.metadata?.user_email
+    || ''
+  ).trim().toLowerCase();
+
+  if (!email) {
+    throw new Error('Checkout session missing customer email');
+  }
+
+  const metadata = session?.metadata || {};
+  const requestedOrgId = metadata.organization_id || session?.client_reference_id || null;
+
+  if (requestedOrgId) {
+    const existing = await getOrganizationById(requestedOrgId);
+    if (existing) {
+      return { organization: existing, provisioned: false, emailed: false };
+    }
+  }
+
+  const existingUser = await getUserByEmail(email);
+  if (existingUser?.organization_id) {
+    const existingOrg = await getOrganizationById(existingUser.organization_id);
+    if (existingOrg) {
+      return { organization: existingOrg, provisioned: false, emailed: false };
+    }
+  }
+
+  const displayName = String(
+    session?.customer_details?.name
+    || metadata.organization_slug
+    || email.split('@')[0]
+  ).trim() || email;
+
+  const slug = await ensureUniqueOrgSlug(metadata.organization_slug || displayName);
+  const organizationId = crypto.randomUUID();
+  const organization = await insertOrganization({
+    id: organizationId,
+    name: displayName,
+    slug,
+    timezone: 'America/Chicago',
+    status: 'active',
+  });
+
+  const userId = crypto.randomUUID();
+  await insertUser({
+    id: userId,
+    organization_id: organizationId,
+    email,
+    full_name: String(session?.customer_details?.name || '').trim() || null,
+    role: 'admin',
+  });
+
+  await upsertOrganizationSettings({
+    organization_id: organizationId,
+    monthly_expense_target: null,
+    profit_percent_goal: 10,
+    updated_at: new Date().toISOString(),
+  }).catch(() => null);
+
+  let emailed = false;
+  try {
+    const redirectTo = `${String(getBillingEnv().appUrl || '').replace(/\/$/, '')}/reset-password.html`;
+    await generateRecoveryLink(email, redirectTo);
+    emailed = true;
+  } catch (error) {
+    console.warn('Stripe webhook: failed to send recovery link', error?.message || error);
+  }
+
+  return { organization: organization || { id: organizationId, slug }, provisioned: true, emailed };
 }
 
 async function serveStatic(req, res) {
@@ -1290,6 +1435,41 @@ const server = http.createServer(async (req, res) => {
         });
       }
 
+      if (req.method === 'POST' && pathname === '/api/stripe/webhook') {
+        const env = getSupabaseEnv();
+        const rawBody = await readRawBody(req);
+        try {
+          verifyStripeSignature(rawBody, req.headers['stripe-signature'], env.STRIPE_WEBHOOK_SECRET);
+        } catch (error) {
+          return sendJson(res, 400, { error: `Webhook signature verification failed: ${error.message}` });
+        }
+
+        let event;
+        try {
+          event = JSON.parse(rawBody.toString('utf8'));
+        } catch {
+          return sendJson(res, 400, { error: 'Invalid JSON body' });
+        }
+
+        try {
+          if (event?.type === 'checkout.session.completed') {
+            const session = event?.data?.object || {};
+            const result = await provisionTenantFromCheckout(session);
+            return sendJson(res, 200, {
+              ok: true,
+              handled: event.type,
+              provisioned: Boolean(result.provisioned),
+              emailed: Boolean(result.emailed),
+              organizationId: result.organization?.id || null,
+            });
+          }
+          return sendJson(res, 200, { ok: true, handled: event?.type || 'unknown', provisioned: false });
+        } catch (error) {
+          console.error('Stripe webhook handler failed:', error);
+          return sendJson(res, 500, { error: error.message });
+        }
+      }
+
       if (req.method === 'POST' && pathname === '/api/auth/magic-link') {
         const body = await readJsonBody(req);
         const email = String(body.email || '').trim().toLowerCase();
@@ -1585,7 +1765,8 @@ return sendJson(res, 200, {
       }
       if (req.method === 'POST' && pathname === '/api/sync-runs') {
         const body = await readJsonBody(req);
-        const crmConnection = await getCrmConnectionByOrg(context.organization.id);
+        const targetOrgId = viewContext.organization.id;
+        const crmConnection = await getCrmConnectionByOrg(targetOrgId);
         const now = new Date().toISOString();
         const startedAt = body.startedAt || now;
         const finishedAt = body.finishedAt || now;
@@ -1593,7 +1774,7 @@ return sendJson(res, 200, {
         const recordsPulled = Number(body.recordsPulled ?? 0);
         const saved = await insertSyncRun({
           id: crypto.randomUUID(),
-          organization_id: context.organization.id,
+          organization_id: targetOrgId,
           crm_connection_id: crmConnection?.id || null,
           started_at: startedAt,
           finished_at: finishedAt,
@@ -1606,13 +1787,14 @@ return sendJson(res, 200, {
       }
       if (req.method === 'POST' && pathname === '/api/sync-runs/execute') {
         const body = await readJsonBody(req);
-        const crmConnection = await getCrmConnectionByOrg(context.organization.id);
+        const targetOrgId = viewContext.organization.id;
+        const crmConnection = await getCrmConnectionByOrg(targetOrgId);
         const startedAt = body.startedAt || new Date().toISOString();
-        const organizationSettings = await getOrganizationSettingsByOrg(context.organization.id);
-        const existingOverrides = await getMetricOverridesByOrg(context.organization.id);
+        const organizationSettings = await getOrganizationSettingsByOrg(targetOrgId);
+        const existingOverrides = await getMetricOverridesByOrg(targetOrgId);
 
         try {
-          const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection, context.organization.timezone || 'UTC');
+          const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection, viewContext.organization.timezone || 'UTC');
           const snapshotInput = body.snapshot
             || fetchedSnapshot
             || crmConnection?.encrypted_credentials?.fields?.manualSnapshot
@@ -1626,7 +1808,7 @@ return sendJson(res, 200, {
           const normalizedWeeks = normalizeSnapshotPayload(snapshotInput);
           const snapshotRow = await insertCrmSnapshot({
             id: crypto.randomUUID(),
-            organization_id: context.organization.id,
+            organization_id: targetOrgId,
             crm_connection_id: crmConnection?.id || null,
             provider: crmConnection?.provider || body.provider || 'manual_import',
             source_label: body.sourceLabel || 'manual sync snapshot',
@@ -1637,7 +1819,7 @@ return sendJson(res, 200, {
           const persistedMetrics = await upsertWeekMetrics(
             normalizedWeeks.map((item) => ({
               id: crypto.randomUUID(),
-              organization_id: context.organization.id,
+              organization_id: targetOrgId,
               week_start_date: item.week_start_date,
               week_end_date: item.week_end_date,
               scheduled_production: item.scheduled_production,
@@ -1682,7 +1864,7 @@ return sendJson(res, 200, {
               if (existingSnapshotKeys.has(snapshotKey)) continue;
               await upsertMetricOverride({
                 id: crypto.randomUUID(),
-                organization_id: context.organization.id,
+                organization_id: targetOrgId,
                 week_start_date: item.week_start_date,
                 metric_key: metricKey,
                 metric_value: metricValue,
@@ -1696,7 +1878,7 @@ return sendJson(res, 200, {
           const finishedAt = new Date().toISOString();
           const syncRun = await insertSyncRun({
             id: crypto.randomUUID(),
-            organization_id: context.organization.id,
+            organization_id: targetOrgId,
             crm_connection_id: crmConnection?.id || null,
             started_at: startedAt,
             finished_at: finishedAt,
@@ -1708,7 +1890,7 @@ return sendJson(res, 200, {
 
           if (organizationSettings?.id || snapshotInput?.rollups?.salesToday != null || snapshotInput?.rollups?.salesMonth != null) {
             await upsertOrganizationSettings({
-              organization_id: context.organization.id,
+              organization_id: targetOrgId,
               monthly_expense_target: organizationSettings?.monthly_expense_target ?? null,
               profit_percent_goal: organizationSettings?.profit_percent_goal ?? null,
               opportunity_count: organizationSettings?.opportunity_count ?? null,
@@ -1723,7 +1905,7 @@ return sendJson(res, 200, {
           if (crmConnection?.id) {
             await upsertCrmConnection({
               id: crmConnection.id,
-              organization_id: context.organization.id,
+              organization_id: targetOrgId,
               provider: crmConnection.provider,
               status: 'connected',
               auth_type: crmConnection.auth_type,
@@ -1744,7 +1926,7 @@ return sendJson(res, 200, {
           const finishedAt = new Date().toISOString();
           await insertSyncRun({
             id: crypto.randomUUID(),
-            organization_id: context.organization.id,
+            organization_id: targetOrgId,
             crm_connection_id: crmConnection?.id || null,
             started_at: startedAt,
             finished_at: finishedAt,
@@ -1757,7 +1939,7 @@ return sendJson(res, 200, {
           if (crmConnection?.id) {
             await upsertCrmConnection({
               id: crmConnection.id,
-              organization_id: context.organization.id,
+              organization_id: targetOrgId,
               provider: crmConnection.provider,
               status: crmConnection.status || 'connected',
               auth_type: crmConnection.auth_type,

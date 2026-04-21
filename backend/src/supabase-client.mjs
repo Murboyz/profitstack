@@ -32,6 +32,7 @@ export function getSupabaseEnv() {
     STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || fileEnv.STRIPE_PUBLISHABLE_KEY,
     STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID || fileEnv.STRIPE_PRICE_ID,
     STRIPE_PRICE_DISPLAY: process.env.STRIPE_PRICE_DISPLAY || fileEnv.STRIPE_PRICE_DISPLAY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || fileEnv.STRIPE_WEBHOOK_SECRET,
     BILLING_SUPPORT_EMAIL: process.env.BILLING_SUPPORT_EMAIL || fileEnv.BILLING_SUPPORT_EMAIL,
     APP_URL: process.env.APP_URL || fileEnv.APP_URL,
   };
@@ -192,8 +193,35 @@ export async function getOrganizationById(id) {
   return rows[0] || null;
 }
 
+export async function getOrganizationBySlug(slug) {
+  const rows = await supabaseRequest(`/rest/v1/organizations?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`);
+  return rows[0] || null;
+}
+
 export async function listOrganizations() {
   return supabaseRequest('/rest/v1/organizations?select=*&order=created_at.asc');
+}
+
+export async function insertOrganization(payload) {
+  const rows = await supabaseRequest('/rest/v1/organizations', {
+    method: 'POST',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: payload,
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+export async function insertUser(payload) {
+  const rows = await supabaseRequest('/rest/v1/users', {
+    method: 'POST',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: payload,
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
 }
 
 export async function getOrganizationSettingsByOrg(organizationId) {

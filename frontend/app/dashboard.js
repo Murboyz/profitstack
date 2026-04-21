@@ -362,27 +362,20 @@ async function renderDashboard() {
       : activeWeekApprovedSales;
     const salesWeek = currentWeekApprovedDisplay;
     const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
-
+    const monthPrefix = String(dashboard.weeks.currentWeek?.weekStartDate || '').slice(0, 7);
+    const pastMonthScheduled = (dashboard.weekHistory || [])
+      .filter((week) => String(week.weekStartDate || '').startsWith(monthPrefix))
+      .reduce((sum, week) => sum + parseNumber(week.scheduledProductionSnapshot ?? week.scheduledProduction ?? 0), 0);
+    const outlookScheduled = parseNumber(dashboard.weeks.nextWeek?.scheduledProduction ?? 0)
+      + parseNumber(dashboard.weeks.weekPlus2?.scheduledProduction ?? 0)
+      + parseNumber(dashboard.weeks.weekPlus3?.scheduledProduction ?? 0);
+    const monthScheduledProduction = pastMonthScheduled
+      + parseNumber(dashboard.weeks.currentWeek?.scheduledProduction ?? 0)
+      + outlookScheduled;
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)
       .reverse();
-const visiblePastWeeksTotal = previousWeekHistory
-  .slice(0, 3)
-  .reduce((sum, week) => sum + parseNumber(week.scheduledProduction || 0), 0);
-
-const productionOutlookTotal =
-  parseNumber(dashboard.weeks.nextWeek.scheduledProduction || 0) +
-  parseNumber(dashboard.weeks.weekPlus2.scheduledProduction || 0) +
-  parseNumber(dashboard.weeks.weekPlus3.scheduledProduction || 0);
-
-const monthScheduledProduction =
-  visiblePastWeeksTotal +
-  parseNumber(dashboard.weeks.currentWeek.scheduledProduction || 0) +
-  productionOutlookTotal;
-
-const monthlyProductionDelta = 0;
-
     const defaultHistoryWeek = previousWeekHistory[0]?.weekStartDate || dashboard.weeks.lastWeek.weekStartDate;
     const historyWeekKey = readHistoryWeek(defaultHistoryWeek);
     const selectedHistoryWeek = previousWeekHistory.find((week) => week.weekStartDate === historyWeekKey) || previousWeekHistory[0] || {
@@ -442,9 +435,9 @@ const monthlyProductionDelta = 0;
             </select>
           </div>
           <div class="actions">
-            <button id="refreshButton" type="button" ${ADMIN_VIEW_MODE ? 'disabled' : ''}>Refresh Data</button>
+            <button id="refreshButton" type="button">Refresh Data</button>
           </div>
-          <div class="muted">${ADMIN_VIEW_MODE ? 'Admin client view is read-only.' : 'Targets auto-save when you change them.'}</div>
+          <div class="muted">${ADMIN_VIEW_MODE ? 'Admin client view: targets are read-only, but you can refresh their live data.' : 'Targets auto-save when you change them.'}</div>
 
           <div class="card">
             <h3>Data Status</h3>
@@ -482,10 +475,10 @@ const monthlyProductionDelta = 0;
               <div class="v">${money.format(targetMetrics.weeklyGoal)}</div>
               <div class="note">Break-even + profit goal</div>
             </div>
-            <div class="stat ${monthlyProductionDelta >= 0 ? 'green' : 'red'}">
+            <div class="stat blue">
               <div class="k">Month Production</div>
               <div class="v">${money.format(monthScheduledProduction)}</div>
-              <div class="note">${monthlyProductionDelta >= 0 ? money.format(monthlyProductionDelta) + ' over target' : money.format(Math.abs(monthlyProductionDelta)) + ' under target'}</div>
+              <div class="note">Snapshots + current week + outlook</div>
             </div>
           </div>
 
@@ -622,18 +615,23 @@ const monthlyProductionDelta = 0;
       });
     }
     const cleanupSetupGuidance = bindSetupGuidance(setupMode);
-    if (!ADMIN_VIEW_MODE) {
-      document.getElementById('refreshButton').addEventListener('click', async () => {
+    const refreshButton = document.getElementById('refreshButton');
+    if (refreshButton) {
+      refreshButton.addEventListener('click', async () => {
         try {
           cleanupSetupGuidance();
           showSyncOverlay();
-          if (status) status.textContent = 'Running live CRM sync. Please wait 30 to 60 seconds…';
+          if (status) status.textContent = ADMIN_VIEW_MODE
+            ? 'Refreshing client live CRM data. Please wait 30 to 60 seconds…'
+            : 'Running live CRM sync. Please wait 30 to 60 seconds…';
           const syncResult = await executeLiveSync();
           if (status) status.textContent = syncResult.message || 'Live CRM sync complete.';
-          const url = new URL(window.location.href);
-          url.searchParams.delete('setup');
-          sessionStorage.removeItem(SETUP_STEP_STORAGE_KEY);
-          window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+          if (!ADMIN_VIEW_MODE) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('setup');
+            sessionStorage.removeItem(SETUP_STEP_STORAGE_KEY);
+            window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+          }
           await renderDashboard();
         } catch (error) {
           if (status) status.textContent = `Live sync failed: ${error.message}`;
