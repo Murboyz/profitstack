@@ -362,9 +362,6 @@ async function renderDashboard() {
       : activeWeekApprovedSales;
     const salesWeek = currentWeekApprovedDisplay;
     const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
-    const visiblePastWeeksTotal = previousWeekHistory
-  .slice(0, 3)
-  .reduce((sum, week) => sum + parseNumber(week.scheduledProduction || 0), 0);
 
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
