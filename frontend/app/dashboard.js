@@ -382,8 +382,17 @@ function allocateWeekAmountToCurrentMonth(weekStartDate, weekEndDate, totalAmoun
 }
 
 const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWeek].reduce((sum, week) => {
-  const approvedSales = parseNumber(week.approvedSales || week.approvedSalesSnapshot || 0);
-  return sum + allocateWeekAmountToCurrentMonth(week.weekStartDate, week.weekEndDate, approvedSales);
+  const isCurrentWeek = week.weekStartDate === dashboard.weeks.currentWeek.weekStartDate;
+
+  const approvedSales = isCurrentWeek
+    ? parseNumber(currentWeekApprovedDisplay || 0)
+    : parseNumber(week.approvedSales || week.approvedSalesSnapshot || 0);
+
+  return sum + allocateWeekAmountToCurrentMonth(
+    week.weekStartDate,
+    week.weekEndDate,
+    approvedSales
+  );
 }, 0);
     const monthPrefix = String(dashboard.weeks.currentWeek?.weekStartDate || '').slice(0, 7);
     const pastMonthScheduled = (dashboard.weekHistory || [])
