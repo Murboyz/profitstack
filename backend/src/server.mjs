@@ -1300,13 +1300,12 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
   for (const bucket of weekMap.values()) {
     bucket.approvedSales = jobCreatedApprovedSales.get(bucket.key) || 0;
   }
-const currentMonthKey = todayDate.slice(0, 7);
 
-for (const [dateKey, amount] of dailySalesMap.entries()) {
-  if (dateKey.slice(0, 7) === currentMonthKey) {
-    salesMonth += amount;
+  for (const [dateKey, amount] of dailySalesMap.entries()) {
+    if (dateKey.slice(0, 7) === currentMonthKey) {
+      salesMonth += amount;
+    }
   }
-}
   monthScheduledProduction = getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
 
   return {
