@@ -10,12 +10,20 @@ function parseEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
   const text = fs.readFileSync(filePath, 'utf8');
   const out = {};
-  for (const line of text.split(/\r?\n/)) {
-    if (!line || line.trim().startsWith('#')) continue;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
     const idx = line.indexOf('=');
     if (idx === -1) continue;
     const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
+    if (!key) continue;
+    let value = line.slice(idx + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    } else {
+      const hashIdx = value.indexOf(' #');
+      if (hashIdx !== -1) value = value.slice(0, hashIdx).trim();
+    }
     out[key] = value;
   }
   return out;

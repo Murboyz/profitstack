@@ -398,9 +398,14 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
     const pastMonthScheduled = (dashboard.weekHistory || [])
       .filter((week) => String(week.weekStartDate || '').startsWith(monthPrefix))
       .reduce((sum, week) => sum + parseNumber(week.scheduledProductionSnapshot ?? week.scheduledProduction ?? 0), 0);
-    const outlookScheduled = parseNumber(dashboard.weeks.nextWeek?.scheduledProduction ?? 0)
-      + parseNumber(dashboard.weeks.weekPlus2?.scheduledProduction ?? 0)
-      + parseNumber(dashboard.weeks.weekPlus3?.scheduledProduction ?? 0);
+    const outlookWeeks = [
+      dashboard.weeks.nextWeek,
+      dashboard.weeks.weekPlus2,
+      dashboard.weeks.weekPlus3,
+    ];
+    const outlookScheduled = outlookWeeks
+      .filter((week) => String(week?.weekStartDate || '').startsWith(monthPrefix))
+      .reduce((sum, week) => sum + parseNumber(week?.scheduledProduction ?? 0), 0);
     const monthScheduledProduction = pastMonthScheduled
       + parseNumber(dashboard.weeks.currentWeek?.scheduledProduction ?? 0)
       + outlookScheduled;
