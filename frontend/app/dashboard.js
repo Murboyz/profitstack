@@ -357,7 +357,34 @@ async function renderDashboard() {
       ? currentWeekApprovedDisplay
       : activeWeekApprovedSales;
     const salesWeek = currentWeekApprovedDisplay;
-    const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
+const monthStartDate = `${currentMonthKey}-01`;
+const [salesYearNum, salesMonthNum] = currentMonthKey.split('-').map(Number);
+const nextMonthStartDate = new Date(Date.UTC(salesYearNum, salesMonthNum, 1)).toISOString().slice(0, 10);
+
+function allocateWeekAmountToCurrentMonth(weekStartDate, weekEndDate, totalAmount) {
+  if (!(totalAmount > 0) || !weekStartDate || !weekEndDate) return 0;
+
+  const monthStart = new Date(`${monthStartDate}T00:00:00.000Z`);
+  const monthEndExclusive = new Date(`${nextMonthStartDate}T00:00:00.000Z`);
+  const weekStart = new Date(`${weekStartDate}T00:00:00.000Z`);
+  const weekEndExclusive = new Date(`${weekEndDate}T23:59:59.999Z`);
+  weekEndExclusive.setUTCMilliseconds(weekEndExclusive.getUTCMilliseconds() + 1);
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(1, Math.ceil((weekEndExclusive.getTime() - weekStart.getTime()) / dayMs));
+  const overlapStart = Math.max(weekStart.getTime(), monthStart.getTime());
+  const overlapEnd = Math.min(weekEndExclusive.getTime(), monthEndExclusive.getTime());
+  if (overlapEnd <= overlapStart) return 0;
+
+  const overlapDays = Math.max(1, Math.ceil((overlapEnd - overlapStart) / dayMs));
+  return totalAmount * (overlapDays / totalDays);
+}
+
+const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWeek].reduce((sum, week) => {
+  const approvedSales = parseNumber(week.approvedSales || week.approvedSalesSnapshot || 0);
+  return sum + allocateWeekAmountToCurrentMonth(week.weekStartDate, week.weekEndDate, approvedSales);
+}, 0);
     const monthPrefix = String(dashboard.weeks.currentWeek?.weekStartDate || '').slice(0, 7);
     const pastMonthScheduled = (dashboard.weekHistory || [])
       .filter((week) => String(week.weekStartDate || '').startsWith(monthPrefix))
