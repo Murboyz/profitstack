@@ -1272,9 +1272,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     if (createdDate === todayDate) {
       salesToday += totalAmount;
     }
-    if (createdDate.slice(0, 7) === todayDate.slice(0, 7)) {
-      salesMonth += totalAmount;
-    }
   }
 
   for (const item of payload.calendarItems || []) {
@@ -1301,7 +1298,33 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   for (const bucket of weekMap.values()) {
     bucket.approvedSales = jobCreatedApprovedSales.get(bucket.key) || 0;
   }
+const currentMonthKey = todayDate.slice(0, 7);
+const monthStartDate = `${currentMonthKey}-01`;
+const [year, month] = currentMonthKey.split('-').map(Number);
+const nextMonthStartDate = formatDateOnly(new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)));
 
+let correctedSalesMonth = 0;
+
+for (const bucket of weekMap.values()) {
+  const approvedSales = Number(bucket.approvedSales || 0);
+  if (!(approvedSales > 0)) continue;
+
+  if (bucket.weekStartDate < monthStartDate && bucket.weekEndDate >= monthStartDate) {
+    correctedSalesMonth += getWeekAllocatedAmountForMonth(
+      currentMonthKey,
+      bucket.weekStartDate,
+      bucket.weekEndDate,
+      approvedSales
+    );
+    continue;
+  }
+
+  if (bucket.weekStartDate >= monthStartDate && bucket.weekStartDate < nextMonthStartDate) {
+    correctedSalesMonth += approvedSales;
+  }
+}
+
+salesMonth = correctedSalesMonth;
   monthScheduledProduction = getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
 
   return {
