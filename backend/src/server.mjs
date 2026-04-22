@@ -1260,7 +1260,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
   let salesMonth = 0;
   let monthScheduledProduction = 0;
   const jobCreatedApprovedSales = new Map();
-  const rollupJobDetails = payload.rollupJobDetails || payload.jobDetails || [];
+  const rollupJobDetails = payload.jobDetails || [];
   for (const job of rollupJobDetails) {
     jobDetailsById.set(job.id, job);
     const totalAmount = toCurrencyNumber(job.total_amount || 0);
