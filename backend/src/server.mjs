@@ -1258,6 +1258,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
 
   let salesToday = 0;
   let salesMonth = 0;
+  const dailySalesMap = new Map();
   let monthScheduledProduction = 0;
   const jobCreatedApprovedSales = new Map();
   const rollupJobDetails = payload.jobDetails || [];
@@ -1269,6 +1270,7 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
       jobCreatedApprovedSales.set(bucket.key, (jobCreatedApprovedSales.get(bucket.key) || 0) + totalAmount);
     });
     const createdDate = formatDateInTimeZone(job.created_at, timeZone);
+dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmount);
     if (createdDate === todayDate) {
       salesToday += totalAmount;
     }
@@ -1299,32 +1301,12 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     bucket.approvedSales = jobCreatedApprovedSales.get(bucket.key) || 0;
   }
 const currentMonthKey = todayDate.slice(0, 7);
-const monthStartDate = `${currentMonthKey}-01`;
-const [year, month] = currentMonthKey.split('-').map(Number);
-const nextMonthStartDate = formatDateOnly(new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)));
 
-let correctedSalesMonth = 0;
-
-for (const bucket of weekMap.values()) {
-  const approvedSales = Number(bucket.approvedSales || 0);
-  if (!(approvedSales > 0)) continue;
-
-  if (bucket.weekStartDate < monthStartDate && bucket.weekEndDate >= monthStartDate) {
-    correctedSalesMonth += getWeekAllocatedAmountForMonth(
-      currentMonthKey,
-      bucket.weekStartDate,
-      bucket.weekEndDate,
-      approvedSales
-    );
-    continue;
-  }
-
-  if (bucket.weekStartDate >= monthStartDate && bucket.weekStartDate < nextMonthStartDate) {
-    correctedSalesMonth += approvedSales;
+for (const [dateKey, amount] of dailySalesMap.entries()) {
+  if (dateKey.slice(0, 7) === currentMonthKey) {
+    salesMonth += amount;
   }
 }
-
-salesMonth = correctedSalesMonth;
   monthScheduledProduction = getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
 
   return {
