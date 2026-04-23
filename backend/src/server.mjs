@@ -10,6 +10,8 @@ import {
   generateMagicLink,
   generateRecoveryLink,
   createAuthUserWithPassword,
+  findAuthUserByEmail,
+  inviteAuthUserByEmail,
   getUserByAuthUserId,
   getUserByEmail,
   linkUserAuthIdentity,
@@ -468,7 +470,13 @@ async function provisionTenantFromCheckout(session) {
   if (existingUser?.organization_id) {
     const existingOrg = await getOrganizationById(existingUser.organization_id);
     if (existingOrg) {
-      return { organization: existingOrg, provisioned: false, emailed: false };
+      const linkResult = await ensureAuthIdentityForProvisionedUser(existingUser, email);
+      return {
+        organization: existingOrg,
+        provisioned: false,
+        emailed: linkResult.emailed,
+        authUserId: linkResult.authUserId,
+      };
     }
   }
 
@@ -488,12 +496,13 @@ async function provisionTenantFromCheckout(session) {
     status: 'active',
   });
 
+  const fullName = String(session?.customer_details?.name || '').trim() || null;
   const userId = crypto.randomUUID();
-  await insertUser({
+  const insertedUser = await insertUser({
     id: userId,
     organization_id: organizationId,
     email,
-    full_name: String(session?.customer_details?.name || '').trim() || null,
+    full_name: fullName,
     role: 'admin',
   });
 
@@ -504,16 +513,71 @@ async function provisionTenantFromCheckout(session) {
     updated_at: new Date().toISOString(),
   }).catch(() => null);
 
+  const linkResult = await ensureAuthIdentityForProvisionedUser(
+    insertedUser || { id: userId, organization_id: organizationId, email, full_name: fullName },
+    email,
+    { fullName, organizationId },
+  );
+
+  return {
+    organization: organization || { id: organizationId, slug },
+    provisioned: true,
+    emailed: linkResult.emailed,
+    authUserId: linkResult.authUserId,
+  };
+}
+
+async function ensureAuthIdentityForProvisionedUser(publicUser, email, extras = {}) {
+  const redirectTo = `${String(getBillingEnv().appUrl || '').replace(/\/$/, '')}/reset-password.html`;
+  const inviteData = {
+    full_name: extras.fullName || publicUser?.full_name || null,
+    organization_id: extras.organizationId || publicUser?.organization_id || null,
+    source: 'stripe_checkout',
+  };
+
+  let authUserId = publicUser?.auth_user_id || null;
   let emailed = false;
-  try {
-    const redirectTo = `${String(getBillingEnv().appUrl || '').replace(/\/$/, '')}/reset-password.html`;
-    await generateRecoveryLink(email, redirectTo);
-    emailed = true;
-  } catch (error) {
-    console.warn('Stripe webhook: failed to send recovery link', error?.message || error);
+
+  if (!authUserId) {
+    try {
+      const invited = await inviteAuthUserByEmail(email, redirectTo, inviteData);
+      authUserId = invited?.id || invited?.user?.id || null;
+      emailed = Boolean(authUserId);
+    } catch (error) {
+      const status = error?.status;
+      const body = String(error?.body || '').toLowerCase();
+      const alreadyExists = status === 422
+        || body.includes('already')
+        || body.includes('registered')
+        || body.includes('exists');
+      if (!alreadyExists) {
+        console.warn('Stripe webhook: admin invite failed', error?.message || error);
+      }
+      if (alreadyExists || !authUserId) {
+        const existingAuthUser = await findAuthUserByEmail(email);
+        authUserId = existingAuthUser?.id || null;
+      }
+    }
   }
 
-  return { organization: organization || { id: organizationId, slug }, provisioned: true, emailed };
+  if (authUserId && publicUser?.id && publicUser.auth_user_id !== authUserId) {
+    try {
+      await linkUserAuthIdentity(publicUser.id, authUserId);
+    } catch (error) {
+      console.warn('Stripe webhook: failed to link auth user to public.users', error?.message || error);
+    }
+  }
+
+  if (authUserId && !emailed) {
+    try {
+      await generateRecoveryLink(email, redirectTo);
+      emailed = true;
+    } catch (error) {
+      console.warn('Stripe webhook: failed to send recovery link', error?.message || error);
+    }
+  }
+
+  return { authUserId, emailed };
 }
 
 async function serveStatic(req, res) {

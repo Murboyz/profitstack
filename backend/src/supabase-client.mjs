@@ -108,7 +108,16 @@ async function supabaseAuthAdminRequest(pathname, { method = 'GET', body } = {})
   });
 
   if (!res.ok) {
-    throw new Error(`Supabase auth admin request failed: ${res.status} ${res.statusText}`);
+    let detail = '';
+    try {
+      detail = await res.text();
+    } catch {
+      detail = '';
+    }
+    const error = new Error(`Supabase auth admin request failed: ${res.status} ${res.statusText}${detail ? ` - ${detail}` : ''}`);
+    error.status = res.status;
+    error.body = detail;
+    throw error;
   }
 
   if (res.status === 204) return null;
@@ -132,6 +141,31 @@ export async function updateAuthUserPassword(authUserId, password) {
     body: {
       password,
       email_confirm: true,
+    },
+  });
+}
+
+export async function findAuthUserByEmail(email) {
+  if (!email) return null;
+  const query = new URLSearchParams({ filter: `email.eq.${email}` }).toString();
+  try {
+    const result = await supabaseAuthAdminRequest(`/auth/v1/admin/users?${query}`);
+    const users = Array.isArray(result) ? result : result?.users;
+    if (!Array.isArray(users)) return null;
+    const needle = String(email).trim().toLowerCase();
+    return users.find((u) => String(u?.email || '').trim().toLowerCase() === needle) || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function inviteAuthUserByEmail(email, redirectTo, data = {}) {
+  return supabaseAuthAdminRequest('/auth/v1/admin/invite', {
+    method: 'POST',
+    body: {
+      email,
+      data,
+      ...(redirectTo ? { redirect_to: redirectTo } : {}),
     },
   });
 }
