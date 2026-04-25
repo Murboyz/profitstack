@@ -235,6 +235,20 @@ export async function getOrganizationById(id) {
   return rows[0] || null;
 }
 
+export async function updateOrganization(id, patch) {
+  const rows = await supabaseRequest(`/rest/v1/organizations?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: {
+      ...patch,
+      updated_at: new Date().toISOString(),
+    },
+  });
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
 export async function getOrganizationBySlug(slug) {
   const rows = await supabaseRequest(`/rest/v1/organizations?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`);
   return rows[0] || null;

@@ -2,10 +2,10 @@ import { apiFetch, getCurrentUserEmail, requireLogin } from './auth.js';
 import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-const TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
+const LEGACY_TARGETS_STORAGE_KEY = 'profitstack_dashboard_targets';
+const LEGACY_TIMEZONE_STORAGE_KEY = 'profitstack_dashboard_timezone';
 const ACTIVE_WEEK_STORAGE_KEY = 'profitstack_dashboard_active_week';
 const AUTO_SYNC_STORAGE_KEY = 'profitstack_dashboard_auto_sync_done';
-const TIMEZONE_STORAGE_KEY = 'profitstack_dashboard_timezone';
 const HISTORY_WEEK_STORAGE_KEY = 'profitstack_dashboard_history_week';
 const EXPENSE_REMINDER_TEST_SEEN_KEY = 'profitstack_expense_reminder_test_seen';
 const EXPENSE_REMINDER_MONTH_DONE_KEY = 'profitstack_expense_reminder_month_done';
@@ -13,6 +13,15 @@ const CRM_DISCONNECTED_NOTICE_KEY = 'profitstack_crm_disconnected_notice_seen';
 const SETUP_STEP_STORAGE_KEY = 'profitstack_dashboard_setup_step';
 const ADMIN_VIEW_ORG = new URLSearchParams(window.location.search).get('org');
 const ADMIN_VIEW_MODE = Boolean(ADMIN_VIEW_ORG);
+
+// One-time cleanup: targets and timezone are now sourced from the database (organization_settings / organizations.timezone).
+// Stale per-browser values used to override the DB and caused localhost vs prod, and admin-vs-client, to disagree.
+try {
+  localStorage.removeItem(LEGACY_TARGETS_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_TIMEZONE_STORAGE_KEY);
+} catch {
+  // localStorage may be unavailable in private mode; safe to ignore.
+}
 
 function panel(title, body) {
   return `<div class="panel"><h2>${title}</h2>${body}</div>`;
@@ -33,23 +42,13 @@ function profitLabel(weekRevenue = 0, weeklyBreakEven = 0) {
   };
 }
 
-function readTargets(fallback = {}) {
+// Targets (Monthly Expense Target, Profit % Goal, etc.) come from the
+// organization_settings row served by /api/dashboard. We intentionally do NOT
+// layer localStorage on top: the server is the only source of truth so that
+// every browser, environment, and admin-view sees the same numbers.
+function readTargets(serverSettings = {}) {
   const defaults = { profitPercentGoal: 10 };
-  if (ADMIN_VIEW_MODE) {
-    return { ...defaults, ...fallback };
-  }
-  try {
-    const parsed = JSON.parse(localStorage.getItem(TARGETS_STORAGE_KEY) || '{}');
-    const merged = { ...defaults, ...fallback, ...parsed };
-    return merged;
-  } catch {
-    return { ...defaults, ...fallback };
-  }
-}
-
-function writeTargets(targets) {
-  if (ADMIN_VIEW_MODE) return;
-  localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
+  return { ...defaults, ...serverSettings };
 }
 
 function readActiveWeek() {
@@ -58,14 +57,6 @@ function readActiveWeek() {
 
 function writeActiveWeek(value) {
   localStorage.setItem(ACTIVE_WEEK_STORAGE_KEY, value);
-}
-
-function readTimezone(defaultTimezone = 'America/Chicago') {
-  return localStorage.getItem(TIMEZONE_STORAGE_KEY) || defaultTimezone;
-}
-
-function writeTimezone(value) {
-  localStorage.setItem(TIMEZONE_STORAGE_KEY, value);
 }
 
 function readHistoryWeek(defaultValue) {
@@ -137,7 +128,8 @@ function collectTargetInputs(baseTargets = {}) {
 function bindTargetInputs(baseTargets) {
   const save = async () => {
     const payload = collectTargetInputs(baseTargets);
-    writeTargets(payload);
+    // apiFetch auto-forwards `?org=<id>` from the page URL when an admin is
+    // viewing a client, so admin edits land on the client's row, not the admin's.
     await apiFetch('/api/account', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -312,8 +304,24 @@ async function executeLiveSync() {
     body: JSON.stringify({ sourceLabel: 'dashboard refresh' }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Live sync failed with ${res.status}`);
+  if (!res.ok) {
+    const error = new Error(data.error || `Live sync failed with ${res.status}`);
+    error.code = data.code || null;
+    error.status = res.status;
+    throw error;
+  }
   return data;
+}
+
+function showDisconnectedNoticeAgain() {
+  try {
+    sessionStorage.removeItem(CRM_DISCONNECTED_NOTICE_KEY);
+  } catch {
+    // ignore — sessionStorage may be unavailable
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set('crm', 'disconnected');
+  window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 }
 
 async function renderDashboard() {
@@ -342,8 +350,7 @@ async function renderDashboard() {
     const lastApprovedSales = dashboard.weeks.lastWeek.approvedSales || 0;
     const currentScheduled = dashboard.weeks.currentWeek.scheduledProduction || 0;
     const latestSyncRun = (syncRuns.items || [])[0] || null;
-    const organizationTimezone = session.organization.timezone || 'America/Chicago';
-    const timezone = readTimezone(organizationTimezone);
+    const timezone = session.organization.timezone || 'America/Chicago';
     const nextThreeScheduled = (dashboard.weeks.nextWeek.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus2.scheduledProduction || 0)
       + (dashboard.weeks.weekPlus3.scheduledProduction || 0);
@@ -613,8 +620,17 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
 
     bindTargetInputs(savedTargets);
     if (!ADMIN_VIEW_MODE) {
-      document.getElementById('timezoneSelect').addEventListener('change', (event) => {
-        writeTimezone(event.target.value);
+      document.getElementById('timezoneSelect').addEventListener('change', async (event) => {
+        const nextTimezone = event.target.value;
+        try {
+          await apiFetch('/api/account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timezone: nextTimezone }),
+          });
+        } catch (error) {
+          if (status) status.textContent = `Failed to save timezone: ${error.message}`;
+        }
         renderDashboard();
       });
     }
@@ -674,6 +690,10 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
           await renderDashboard();
         } catch (error) {
           if (status) status.textContent = `Live sync failed: ${error.message}`;
+          if (!ADMIN_VIEW_MODE && (error.code === 'crm_disconnected' || error.code === 'crm_not_configured')) {
+            showDisconnectedNoticeAgain();
+            await renderDashboard();
+          }
         } finally {
           hideSyncOverlay();
         }
@@ -690,6 +710,11 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
         return;
       } catch (error) {
         if (status) status.textContent = `Automatic live sync failed: ${error.message}`;
+        if (error.code === 'crm_disconnected' || error.code === 'crm_not_configured') {
+          showDisconnectedNoticeAgain();
+          await renderDashboard();
+          return;
+        }
       }
     }
 

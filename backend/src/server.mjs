@@ -17,6 +17,7 @@ import {
   linkUserAuthIdentity,
   getOrganizationById,
   getOrganizationBySlug,
+  updateOrganization,
   insertOrganization,
   insertUser,
   listOrganizations,
@@ -1697,6 +1698,12 @@ return sendJson(res, 200, {
         const body = await readJsonBody(req);
         const targetOrgId = viewContext.organization.id;
         const existingSettings = await getOrganizationSettingsByOrg(targetOrgId);
+
+        // Timezone lives on the organization itself; persist it when sent.
+        if (typeof body.timezone === 'string' && body.timezone.trim()) {
+          await updateOrganization(targetOrgId, { timezone: body.timezone.trim() });
+        }
+
         const saved = await upsertOrganizationSettings({
           organization_id: targetOrgId,
           monthly_expense_target: body.monthlyExpenseTarget === undefined
@@ -1875,14 +1882,45 @@ return sendJson(res, 200, {
 
         try {
           const fetchedSnapshot = body.snapshot ? null : await fetchSnapshotFromCrmConnection(crmConnection, viewContext.organization.timezone || 'UTC');
+          const credentialFields = crmConnection?.encrypted_credentials?.fields || {};
+          const manualSnapshot = credentialFields.manualSnapshot || credentialFields.snapshot || null;
           const snapshotInput = body.snapshot
             || fetchedSnapshot
-            || crmConnection?.encrypted_credentials?.fields?.manualSnapshot
-            || crmConnection?.encrypted_credentials?.fields?.snapshot
+            || manualSnapshot
             || null;
 
           if (!snapshotInput) {
-            throw new Error('No snapshot payload found to sync');
+            // Surface a specific reason so the UI can react (e.g. show the
+            // reconnect modal) instead of just blaming the user with a generic 500.
+            const provider = crmConnection?.provider || null;
+            const hasSessionCookie = Boolean(credentialFields.sessionCookie);
+            const hasSnapshotUrl = Boolean(
+              credentialFields.snapshotUrl
+              || credentialFields.exportUrl
+              || credentialFields.reportUrl
+            );
+
+            let statusCode = 409;
+            let code = 'sync_no_snapshot';
+            let message = 'No snapshot payload found to sync';
+
+            if (!crmConnection) {
+              code = 'crm_not_configured';
+              message = 'No CRM is configured for this account yet. Connect Housecall Pro from Connect CRM, then try again.';
+            } else if (provider === 'housecall_pro' && (!hasSessionCookie || crmConnection.status === 'disconnected')) {
+              code = 'crm_disconnected';
+              message = 'Housecall Pro is disconnected. Reconnect it, then click Refresh Data again.';
+            } else if (!hasSessionCookie && !hasSnapshotUrl && !manualSnapshot) {
+              code = 'crm_no_source';
+              message = 'This CRM has no snapshot source configured (no session cookie, snapshot URL, or saved snapshot).';
+            } else {
+              statusCode = 500;
+            }
+
+            const err = new Error(message);
+            err.statusCode = statusCode;
+            err.code = code;
+            throw err;
           }
 
           const normalizedWeeks = normalizeSnapshotPayload(snapshotInput);
@@ -2004,6 +2042,9 @@ return sendJson(res, 200, {
           });
         } catch (error) {
           const finishedAt = new Date().toISOString();
+          const statusCode = Number.isFinite(error?.statusCode) ? error.statusCode : 500;
+          const errorCode = error?.code || null;
+
           await insertSyncRun({
             id: crypto.randomUUID(),
             organization_id: targetOrgId,
@@ -2020,11 +2061,12 @@ return sendJson(res, 200, {
             const isAuthError = /\((401|403)\)/.test(String(error.message || ''))
               || /unauthor/i.test(String(error.message || ''))
               || /forbidden/i.test(String(error.message || ''));
+            const shouldMarkDisconnected = isAuthError || errorCode === 'crm_disconnected';
             await upsertCrmConnection({
               id: crmConnection.id,
               organization_id: targetOrgId,
               provider: crmConnection.provider,
-              status: isAuthError ? 'disconnected' : (crmConnection.status || 'connected'),
+              status: shouldMarkDisconnected ? 'disconnected' : (crmConnection.status || 'connected'),
               auth_type: crmConnection.auth_type,
               encrypted_credentials: crmConnection.encrypted_credentials,
               last_sync_at: crmConnection.last_sync_at,
@@ -2032,7 +2074,7 @@ return sendJson(res, 200, {
             });
           }
 
-          return sendJson(res, 500, { error: error.message });
+          return sendJson(res, statusCode, { error: error.message, code: errorCode });
         }
       }
       if (req.method === 'GET' && pathname === '/api/organizations/me') {
