@@ -145,7 +145,6 @@ function requireAdmin(context) {
 async function getAdminViewOrganization(context, requestedOrgId) {
   if (!requestedOrgId) return null;
   if (String(context?.user?.role || '').toLowerCase() !== 'admin') return null;
-  if (String(context?.organization?.slug || '') !== 'the-nut-report-admin') return null;
   if (requestedOrgId === context.organization.id) return context.organization;
   return getOrganizationById(requestedOrgId);
 }
@@ -838,6 +837,14 @@ function normalizeHousecallSessionCookie(value) {
   return input;
 }
 
+function looksLikeHousecallAuthCookie(cookieString) {
+  const value = String(cookieString || '').toLowerCase();
+  if (!value) return false;
+  return /(^|;|\s)_?housecall_pro_session=[^;\s]+/.test(value)
+    || /(^|;|\s)_?housecall_session=[^;\s]+/.test(value)
+    || /(^|;|\s)remember_pro_user_token=[^;\s]+/.test(value);
+}
+
 function buildCredentialEnvelope(body, context) {
   const rawFields = typeof body.credentials === 'object' && body.credentials !== null ? body.credentials : {};
   const fields = { ...rawFields };
@@ -845,6 +852,10 @@ function buildCredentialEnvelope(body, context) {
     fields.sessionCookie = normalizeHousecallSessionCookie(fields.sessionCookie);
   }
   const fieldKeys = Object.keys(fields).filter((key) => Boolean(key) && fields[key] !== undefined && fields[key] !== null && fields[key] !== '');
+  let hasCredentials = fieldKeys.length > 0;
+  if (body.provider === 'housecall_pro') {
+    hasCredentials = Boolean(fields.sessionCookie) && looksLikeHousecallAuthCookie(fields.sessionCookie);
+  }
   return {
     version: 1,
     provider: body.provider,
@@ -852,7 +863,7 @@ function buildCredentialEnvelope(body, context) {
     accountLabel: body.accountLabel || null,
     savedAt: new Date().toISOString(),
     savedByUserId: context.user?.id || null,
-    hasCredentials: fieldKeys.length > 0,
+    hasCredentials,
     fieldKeys,
     fields,
   };
@@ -1684,9 +1695,10 @@ return sendJson(res, 200, {
       }
       if (req.method === 'POST' && pathname === '/api/account') {
         const body = await readJsonBody(req);
-        const existingSettings = await getOrganizationSettingsByOrg(context.organization.id);
+        const targetOrgId = viewContext.organization.id;
+        const existingSettings = await getOrganizationSettingsByOrg(targetOrgId);
         const saved = await upsertOrganizationSettings({
-          organization_id: context.organization.id,
+          organization_id: targetOrgId,
           monthly_expense_target: body.monthlyExpenseTarget === undefined
             ? existingSettings?.monthly_expense_target ?? null
             : toNumberOrNull(body.monthlyExpenseTarget),
@@ -1711,7 +1723,7 @@ return sendJson(res, 200, {
         return sendJson(res, 200, {
           ok: true,
           message: 'Organization settings saved',
-          settings: formatOrganizationSettings(saved?.[0] || null, context.organization.id),
+          settings: formatOrganizationSettings(saved?.[0] || null, targetOrgId),
         });
       }
       if (req.method === 'GET' && pathname === '/api/crm-connection') {
@@ -2005,11 +2017,14 @@ return sendJson(res, 200, {
           });
 
           if (crmConnection?.id) {
+            const isAuthError = /\((401|403)\)/.test(String(error.message || ''))
+              || /unauthor/i.test(String(error.message || ''))
+              || /forbidden/i.test(String(error.message || ''));
             await upsertCrmConnection({
               id: crmConnection.id,
               organization_id: targetOrgId,
               provider: crmConnection.provider,
-              status: crmConnection.status || 'connected',
+              status: isAuthError ? 'disconnected' : (crmConnection.status || 'connected'),
               auth_type: crmConnection.auth_type,
               encrypted_credentials: crmConnection.encrypted_credentials,
               last_sync_at: crmConnection.last_sync_at,

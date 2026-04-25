@@ -35,6 +35,9 @@ function profitLabel(weekRevenue = 0, weeklyBreakEven = 0) {
 
 function readTargets(fallback = {}) {
   const defaults = { profitPercentGoal: 10 };
+  if (ADMIN_VIEW_MODE) {
+    return { ...defaults, ...fallback };
+  }
   try {
     const parsed = JSON.parse(localStorage.getItem(TARGETS_STORAGE_KEY) || '{}');
     const merged = { ...defaults, ...fallback, ...parsed };
@@ -45,6 +48,7 @@ function readTargets(fallback = {}) {
 }
 
 function writeTargets(targets) {
+  if (ADMIN_VIEW_MODE) return;
   localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targets));
 }
 
@@ -426,13 +430,11 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
     const targetMetrics = computeTargets(monthlyExpenseTarget, profitPercentGoal, activeWeekScheduled);
     const selectedHistoryScheduled = selectedHistoryWeek.scheduledProductionSnapshot ?? selectedHistoryWeek.scheduledProduction ?? 0;
     const selectedHistoryApproved = selectedHistoryWeek.approvedSalesSnapshot ?? selectedHistoryWeek.approvedSales ?? 0;
-    const selectedHistoryBreakEven = selectedHistoryWeek.weeklyBreakEvenSnapshot ?? targetMetrics.weeklyBreakEven;
-    const selectedHistoryProfit = profitLabel(selectedHistoryScheduled, selectedHistoryBreakEven);
+    const selectedHistoryBreakEvenSnapshot = selectedHistoryWeek.weeklyBreakEvenSnapshot ?? null;
+    const selectedHistoryProfit = selectedHistoryBreakEvenSnapshot != null
+      ? profitLabel(selectedHistoryScheduled, selectedHistoryBreakEvenSnapshot)
+      : null;
     const companySpo = computeCompanySpo(activeWeekApprovedSales, opportunityCount);
-    const lastWeekGoalDelta = (dashboard.weeks.lastWeek.scheduledProduction || 0) - targetMetrics.weeklyGoal;
-    const lastWeekGoalLabel = lastWeekGoalDelta >= 0
-      ? `${money.format(lastWeekGoalDelta)} over goal`
-      : `${money.format(Math.abs(lastWeekGoalDelta))} below goal`;
 
     const searchParams = new URLSearchParams(window.location.search);
     const setupMode = !ADMIN_VIEW_MODE && searchParams.get('setup') === '1';
@@ -447,17 +449,17 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
       <div class="layout">
         <section class="panel control-panel ${setupMode ? 'setup-mode' : ''}">
           <h2>Control Panel</h2>
-          ${ADMIN_VIEW_MODE ? '<div class="clientbar"><strong>Admin view:</strong> this is a read-only client dashboard view. <a href="./admin.html">Return to admin panel</a></div>' : ''}
+          ${ADMIN_VIEW_MODE ? '<div class="clientbar"><strong>Admin view:</strong> you are editing this client\'s dashboard. Changes here save directly to their account. <a href="./admin.html">Return to admin panel</a></div>' : ''}
           ${setupMode ? '<div class="setup-helper" id="setupHelper"></div>' : ''}
           <div class="clientbar"><strong>${ADMIN_VIEW_MODE ? 'Client view:' : 'Live controls:'}</strong> ${ADMIN_VIEW_MODE ? 'you are seeing this client dashboard without switching into their login.' : 'adjust targets, sync fresh data, and coach from the numbers.'}</div>
 
           <div class="field">
             <label for="monthlyExpenseTarget">Monthly Expense Target</label>
-            <input id="monthlyExpenseTarget" value="${savedTargets.monthlyExpenseTarget ?? ''}" placeholder="35000" ${ADMIN_VIEW_MODE ? 'disabled' : ''} />
+            <input id="monthlyExpenseTarget" value="${savedTargets.monthlyExpenseTarget ?? ''}" placeholder="35000" />
           </div>
           <div class="field">
             <label for="profitPercentGoal">Profit % Goal</label>
-            <input id="profitPercentGoal" value="${savedTargets.profitPercentGoal ?? ''}" placeholder="10" ${ADMIN_VIEW_MODE ? 'disabled' : ''} />
+            <input id="profitPercentGoal" value="${savedTargets.profitPercentGoal ?? ''}" placeholder="10" />
           </div>
           <div class="field">
             <label for="timezoneSelect"><strong>Time Zone</strong></label>
@@ -474,7 +476,7 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
           <div class="actions">
             <button id="refreshButton" type="button">Refresh Data</button>
           </div>
-          <div class="muted">${ADMIN_VIEW_MODE ? 'Admin client view: targets are read-only, but you can refresh their live data.' : 'Targets auto-save when you change them.'}</div>
+          <div class="muted">${ADMIN_VIEW_MODE ? "Admin client view: target changes save to this client's settings. They will see them on their next login." : 'Targets auto-save when you change them.'}</div>
 
           <div class="card">
             <h3>Data Status</h3>
@@ -528,10 +530,10 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
           </div>
 
           <div class="week-nav">
-            <div class="week-shell ${activeWeekKey === 'lastWeek' ? 'active' : ''} ${lastWeekGoalDelta >= 0 ? 'good' : 'bad'}" data-week="lastWeek">
+            <div class="week-shell ${activeWeekKey === 'lastWeek' ? 'active' : ''}" data-week="lastWeek">
               <div class="title">Last Week</div>
               <div class="range">${dashboard.weeks.lastWeek.range}</div>
-              <div class="mini-note">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales · ${lastWeekGoalLabel}</div>
+              <div class="mini-note">${money.format(dashboard.weeks.lastWeek.scheduledProduction)} scheduled · ${money.format(lastApprovedSales)} sales</div>
             </div>
             <div class="week-shell ${activeWeekKey === 'currentWeek' ? 'active' : ''}" data-week="currentWeek">
               <div class="title">Current Week</div>
@@ -568,7 +570,7 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
               <div class="row"><span class="label">Range</span><strong>${selectedHistoryWeek.range}</strong></div>
               <div class="row"><span class="label">Approved Sales</span><strong>${money.format(selectedHistoryApproved)}</strong></div>
               <div class="row"><span class="label">Scheduled Production</span><strong>${money.format(selectedHistoryScheduled)}</strong></div>
-              <div class="row"><span class="label">Profit</span><strong class="${selectedHistoryProfit.className}">${selectedHistoryProfit.text}</strong></div>
+              ${selectedHistoryProfit ? `<div class="row"><span class="label">Profit</span><strong class="${selectedHistoryProfit.className}">${selectedHistoryProfit.text}</strong></div>` : ''}
               <div class="tag live">Live</div>
             `)}
             ${panel('Production Outlook', `
@@ -609,8 +611,8 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
       ` : ''}
     `;
 
+    bindTargetInputs(savedTargets);
     if (!ADMIN_VIEW_MODE) {
-      bindTargetInputs(savedTargets);
       document.getElementById('timezoneSelect').addEventListener('change', (event) => {
         writeTimezone(event.target.value);
         renderDashboard();
