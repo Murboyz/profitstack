@@ -406,8 +406,14 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
   );
 }, 0);
     const monthPrefix = String(dashboard.weeks.currentWeek?.weekStartDate || '').slice(0, 7);
+    const currentWeekStartDate = dashboard.weeks.currentWeek?.weekStartDate || '';
+    // weekHistory is the full week_metrics list (past + current + future),
+    // so we must filter to weeks STRICTLY BEFORE the current week here. Otherwise
+    // the current week (and any outlook weeks) get double-counted alongside
+    // currentWeek.scheduledProduction and outlookScheduled below.
     const pastMonthScheduled = (dashboard.weekHistory || [])
-      .filter((week) => String(week.weekStartDate || '').startsWith(monthPrefix))
+      .filter((week) => week.weekStartDate < currentWeekStartDate
+        && String(week.weekStartDate || '').startsWith(monthPrefix))
       .reduce((sum, week) => sum + parseNumber(week.scheduledProductionSnapshot ?? week.scheduledProduction ?? 0), 0);
     const outlookWeeks = [
       dashboard.weeks.nextWeek,
