@@ -1386,7 +1386,29 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
       salesMonth += amount;
     }
   }
-  monthScheduledProduction = getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
+
+  // Per-day scheduled production (in org timezone) so the dashboard can
+  // attribute jobs to the correct calendar month even when a week straddles
+  // two months (e.g. Apr 27 – May 3 with a job on May 1).
+  const dailyScheduledByDate = {};
+  for (const item of payload.calendarItems || []) {
+    if (String(item.type || '').toLowerCase() !== 'job') continue;
+    const itemStart = item.start || item.start_date;
+    if (!itemStart) continue;
+    const job = jobDetailsById.get(item.appointable_id || item.job_id);
+    const scheduledAmount = toCurrencyNumber(item.attributes?.amount || item.amount || job?.total_amount || 0);
+    if (!scheduledAmount) continue;
+    const dayKey = formatDateInTimeZone(itemStart, timeZone);
+    if (!dayKey) continue;
+    dailyScheduledByDate[dayKey] = (dailyScheduledByDate[dayKey] || 0) + scheduledAmount;
+  }
+
+  // Use the day-exact value when we have it; otherwise fall back to the
+  // pro-rated weekly approximation we used to ship.
+  const monthFromDaily = Object.entries(dailyScheduledByDate)
+    .filter(([dayKey]) => dayKey.slice(0, 7) === currentMonthKey)
+    .reduce((sum, [, amount]) => sum + amount, 0);
+  monthScheduledProduction = monthFromDaily || getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
 
   return {
     provider: 'housecall_pro',
@@ -1396,6 +1418,7 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
       salesToday,
       salesMonth,
       monthScheduledProduction,
+      dailyScheduledByDate,
     },
     weeks,
   };
@@ -1673,7 +1696,23 @@ const liveWeeks = buildWeeksFromMetrics(weekMetrics);
 const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
 const rollups = latestSnapshot?.payload?.rollups || null;
 
-function sumMonthScheduledProduction(mergedWeeks, currentMonthKey) {
+// Day-exact month attribution when the latest snapshot includes a per-day
+// breakdown. Falls back to the legacy week-aggregate sum so older snapshots
+// keep working until a fresh sync runs.
+function sumMonthScheduledProductionFromDaily(dailyScheduledByDate, monthKey) {
+  if (!dailyScheduledByDate || typeof dailyScheduledByDate !== 'object') return null;
+  let total = 0;
+  let hasAny = false;
+  for (const [dayKey, amount] of Object.entries(dailyScheduledByDate)) {
+    hasAny = true;
+    if (typeof dayKey === 'string' && dayKey.slice(0, 7) === monthKey) {
+      total += Number(amount) || 0;
+    }
+  }
+  return hasAny ? total : null;
+}
+
+function sumMonthScheduledProductionFromWeeks(mergedWeeks, currentMonthKey) {
   let total = 0;
   for (const week of Object.values(mergedWeeks)) {
     if (week.weekStartDate.startsWith(currentMonthKey)) {
@@ -1683,8 +1722,11 @@ function sumMonthScheduledProduction(mergedWeeks, currentMonthKey) {
   return total;
 }
 
-const currentMonthKey = formatDateInTimeZone(new Date(), 'UTC').slice(0, 7);
-const persistentMonthScheduledProduction = sumMonthScheduledProduction(mergedWeeks, currentMonthKey);
+const currentMonthKey = formatDateInTimeZone(new Date(), viewContext.organization.timezone || 'UTC').slice(0, 7);
+const dailyMonthScheduled = sumMonthScheduledProductionFromDaily(rollups?.dailyScheduledByDate, currentMonthKey);
+const persistentMonthScheduledProduction = dailyMonthScheduled != null
+  ? dailyMonthScheduled
+  : sumMonthScheduledProductionFromWeeks(mergedWeeks, currentMonthKey);
 
 return sendJson(res, 200, {
   organization: formatSession(viewContext).organization,

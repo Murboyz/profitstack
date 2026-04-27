@@ -5,11 +5,15 @@ const reasonMessages = {
   'missing-session': 'Sign in to continue.',
   'session-not-recognized': 'That session is no longer valid. Choose an approved user and sign in again.',
   'login-required': 'Sign in to continue.',
+  'reset-failed': 'That password-reset link could not be verified. Enter your email and request a new link below.',
 };
 
-const reason = new URLSearchParams(window.location.search).get('reason');
+const params = new URLSearchParams(window.location.search);
+const reason = params.get('reason');
 if (reason) {
-  document.getElementById('result').textContent = reasonMessages[reason] || 'Sign in to continue.';
+  const detail = params.get('detail');
+  const base = reasonMessages[reason] || 'Sign in to continue.';
+  document.getElementById('result').textContent = detail ? `${base} (${detail})` : base;
 }
 
 async function getPostLoginDestination(accessToken, fallbackEmail = '') {

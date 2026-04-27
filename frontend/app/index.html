@@ -210,6 +210,29 @@
   </style>
 </head>
 <body>
+  <script>
+    // Forward Supabase auth redirects (recovery / magic link / errors) that
+    // landed on the marketing root because Site URL was used as the fallback.
+    // Keeping this here so even if the Supabase URL allowlist drops something,
+    // users still end up on the right page instead of staring at the landing.
+    (function forwardAuthHash() {
+      var hash = window.location.hash || '';
+      if (!hash || hash.length < 2) return;
+      var params = new URLSearchParams(hash.slice(1));
+      var type = params.get('type');
+      var errorCode = params.get('error_code') || params.get('error');
+      var hasAccessToken = Boolean(params.get('access_token'));
+      if (type === 'recovery' || (hasAccessToken && type === 'recovery')) {
+        window.location.replace('./reset-password.html' + hash);
+        return;
+      }
+      if (errorCode) {
+        var description = params.get('error_description') || 'Email link could not be verified. Request a new password-reset link.';
+        var search = '?reason=' + encodeURIComponent('reset-failed') + '&detail=' + encodeURIComponent(description);
+        window.location.replace('./login.html' + search);
+      }
+    })();
+  </script>
   <div class="wrap">
 
     <div class="nav">

@@ -405,27 +405,11 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
     approvedSales
   );
 }, 0);
-    const monthPrefix = String(dashboard.weeks.currentWeek?.weekStartDate || '').slice(0, 7);
-    const currentWeekStartDate = dashboard.weeks.currentWeek?.weekStartDate || '';
-    // weekHistory is the full week_metrics list (past + current + future),
-    // so we must filter to weeks STRICTLY BEFORE the current week here. Otherwise
-    // the current week (and any outlook weeks) get double-counted alongside
-    // currentWeek.scheduledProduction and outlookScheduled below.
-    const pastMonthScheduled = (dashboard.weekHistory || [])
-      .filter((week) => week.weekStartDate < currentWeekStartDate
-        && String(week.weekStartDate || '').startsWith(monthPrefix))
-      .reduce((sum, week) => sum + parseNumber(week.scheduledProductionSnapshot ?? week.scheduledProduction ?? 0), 0);
-    const outlookWeeks = [
-      dashboard.weeks.nextWeek,
-      dashboard.weeks.weekPlus2,
-      dashboard.weeks.weekPlus3,
-    ];
-    const outlookScheduled = outlookWeeks
-      .filter((week) => String(week?.weekStartDate || '').startsWith(monthPrefix))
-      .reduce((sum, week) => sum + parseNumber(week?.scheduledProduction ?? 0), 0);
-    const monthScheduledProduction = pastMonthScheduled
-      + parseNumber(dashboard.weeks.currentWeek?.scheduledProduction ?? 0)
-      + outlookScheduled;
+    // Month Production is computed server-side using day-level data from the
+    // latest CRM snapshot so a job on May 1 in an Apr 27–May 3 week is
+    // attributed to May, not April. The server falls back to a weekly sum if
+    // no snapshot is available yet.
+    const monthScheduledProduction = parseNumber(dashboard.settings?.monthProduction ?? 0);
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
       .slice(-6)

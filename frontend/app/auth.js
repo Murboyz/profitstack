@@ -15,14 +15,32 @@ function decodeJwtPayload(token) {
 }
 
 function consumeAuthHash() {
-  const hash = new URLSearchParams(window.location.hash.slice(1));
-  const accessToken = hash.get('access_token');
+  // Supabase puts auth tokens in the URL hash by default. We also accept the
+  // same params on the query string so a recovery link copy-pasted into the
+  // address bar with ?access_token=... still works.
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const queryParams = new URLSearchParams(window.location.search);
+  const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
   if (!accessToken) return;
 
   const payload = decodeJwtPayload(accessToken);
   setAccessToken(accessToken);
   if (payload?.email) setCurrentUserEmail(payload.email);
-  window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}`);
+
+  // Strip auth params from both hash and query so they aren't leaked / shared.
+  if (hashParams.get('access_token')) {
+    window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}`);
+  } else if (queryParams.get('access_token')) {
+    queryParams.delete('access_token');
+    queryParams.delete('refresh_token');
+    queryParams.delete('expires_at');
+    queryParams.delete('expires_in');
+    queryParams.delete('token_type');
+    queryParams.delete('type');
+    queryParams.delete('sb');
+    const cleanedQuery = queryParams.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${cleanedQuery ? `?${cleanedQuery}` : ''}`);
+  }
 }
 
 consumeAuthHash();
