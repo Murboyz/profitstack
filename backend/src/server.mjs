@@ -49,6 +49,10 @@ const appRoot = path.resolve(__dirname, '../../frontend/app');
 const host = '0.0.0.0';
 const port = Number(process.env.PORT || 8787);
 
+/** Soft cooldown so password-reset cannot spam our service-role Supabase calls. */
+const recoveryLinkLastRequestByEmail = new Map();
+const RECOVERY_LINK_COOLDOWN_MS = 45_000;
+
 async function loadStatusText() {
   return fs.readFile(statusPath, 'utf8');
 }
@@ -1583,11 +1587,22 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 404, { error: 'No approved user found for that email' });
         }
 
+        const now = Date.now();
+        const lastRequest = recoveryLinkLastRequestByEmail.get(email) || 0;
+        if (now - lastRequest < RECOVERY_LINK_COOLDOWN_MS) {
+          const waitSec = Math.ceil((RECOVERY_LINK_COOLDOWN_MS - (now - lastRequest)) / 1000);
+          return sendJson(res, 429, {
+            error: `For security, you can only request a reset link every 45 seconds. Try again in ${waitSec} seconds.`,
+            code: 'rate_limited',
+          });
+        }
+
         const redirectTo = getSafeRedirectTo(req, body.redirectTo, '/reset-password.html');
-        const link = await generateRecoveryLink(email, redirectTo);
+        await generateRecoveryLink(email, redirectTo);
+        recoveryLinkLastRequestByEmail.set(email, now);
+        // Do not return action_link to the browser — anyone could POST an email and steal the reset URL.
         return sendJson(res, 200, {
           ok: true,
-          actionLink: link.action_link,
           redirectTo,
         });
       }

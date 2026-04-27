@@ -1,4 +1,5 @@
 import { getAccessToken, getCurrentUserEmail, setAccessToken, setCurrentUserEmail } from './auth.js';
+import { fetchFrontendConfig } from './config.js';
 
 const params = new URLSearchParams(window.location.search);
 const next = params.get('next');
@@ -7,12 +8,6 @@ const dashboardHref = next === 'dashboard-setup' ? './dashboard.html?setup=1&crm
 const loginHref = next === 'dashboard-setup'
   ? './login.html?next=dashboard-setup'
   : './login.html';
-
-async function getFrontendConfig() {
-  const res = await fetch('/api/frontend-config');
-  if (!res.ok) throw new Error(`Frontend config failed with ${res.status}`);
-  return res.json();
-}
 
 const existingEmail = getCurrentUserEmail();
 if (existingEmail) {
@@ -68,7 +63,7 @@ document.getElementById('signupForm').addEventListener('submit', async (event) =
       throw new Error(passwordData.error || `Password setup failed with ${passwordRes.status}`);
     }
 
-    const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+    const { supabaseUrl, supabaseAnonKey } = await fetchFrontendConfig();
     setCurrentUserEmail(email);
     const loginRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: 'POST',

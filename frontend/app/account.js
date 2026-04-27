@@ -1,4 +1,5 @@
 import { apiFetch, requireLogin, getAccessToken } from './auth.js';
+import { fetchFrontendConfig } from './config.js';
 import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 
@@ -6,12 +7,6 @@ const billingMessages = {
   success: 'Checkout completed. Once Stripe finishes provisioning, billing will show up on your account.',
   cancelled: 'Checkout was cancelled. You can come back and finish billing anytime.',
 };
-
-async function getFrontendConfig() {
-  const res = await fetch('/api/frontend-config');
-  if (!res.ok) throw new Error(`Frontend config failed with ${res.status}`);
-  return res.json();
-}
 
 async function main() {
   const app = document.getElementById('app');
@@ -91,7 +86,7 @@ async function main() {
       event.preventDefault();
       const result = document.getElementById('passwordResult');
       try {
-        const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+        const { supabaseUrl, supabaseAnonKey } = await fetchFrontendConfig();
         const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
           method: 'PUT',
           headers: {

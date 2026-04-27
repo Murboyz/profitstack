@@ -1,4 +1,5 @@
 import { setCurrentUserEmail, getCurrentUserEmail, clearCurrentUserEmail, setAccessToken } from './auth.js';
+import { apiUrl, fetchFrontendConfig } from './config.js';
 
 const reasonMessages = {
   'missing-session': 'Sign in to continue.',
@@ -11,17 +12,11 @@ if (reason) {
   document.getElementById('result').textContent = reasonMessages[reason] || 'Sign in to continue.';
 }
 
-async function getFrontendConfig() {
-  const res = await fetch('/api/frontend-config');
-  if (!res.ok) throw new Error(`Frontend config failed with ${res.status}`);
-  return res.json();
-}
-
 async function getPostLoginDestination(accessToken, fallbackEmail = '') {
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next');
   try {
-    const sessionRes = await fetch('/api/session', {
+    const sessionRes = await fetch(apiUrl('/api/session'), {
       headers: {
         ...(fallbackEmail ? { 'X-User-Email': fallbackEmail } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -34,7 +29,7 @@ async function getPostLoginDestination(accessToken, fallbackEmail = '') {
       }
     }
 
-    const res = await fetch('/api/crm-connection', {
+    const res = await fetch(apiUrl('/api/crm-connection'), {
       headers: {
         ...(fallbackEmail ? { 'X-User-Email': fallbackEmail } : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -58,7 +53,7 @@ async function completeMagicLinkLogin() {
   const accessToken = hash.get('access_token');
   if (!accessToken) return;
 
-  const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+  const { supabaseUrl, supabaseAnonKey } = await fetchFrontendConfig();
   const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: {
       apikey: supabaseAnonKey,
@@ -92,7 +87,7 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
   const result = document.getElementById('result');
 
   try {
-    const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
+    const { supabaseUrl, supabaseAnonKey } = await fetchFrontendConfig();
     const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: {
@@ -119,17 +114,20 @@ document.getElementById('forgotPasswordButton').addEventListener('click', async 
 
   try {
     if (!email) throw new Error('Enter your email first.');
-    const { supabaseUrl, supabaseAnonKey } = await getFrontendConfig();
     const redirectTo = `${window.location.origin}/reset-password.html`;
-    const res = await fetch(`${supabaseUrl}/auth/v1/recover`, {
+    // Use our backend (service role + generateRecoveryLink) instead of Supabase
+    // anon POST /recover — that endpoint shares a strict per-email rate limit (429).
+    const res = await fetch(apiUrl('/api/auth/recovery-link'), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseAnonKey,
-      },
-      body: JSON.stringify({ email, redirect_to: redirectTo }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, redirectTo }),
     });
-    if (!res.ok) throw new Error(`Reset email failed with ${res.status}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data.error || data.msg || `Reset request failed (${res.status})`;
+      result.textContent = `Could not send reset email: ${detail}`;
+      return;
+    }
     result.textContent = 'Password reset email sent. Check your inbox and use the link to set a new password.';
   } catch (error) {
     result.textContent = `Could not send reset email: ${error.message}`;
