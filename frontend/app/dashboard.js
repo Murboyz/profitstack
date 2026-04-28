@@ -368,47 +368,12 @@ async function renderDashboard() {
       ? currentWeekApprovedDisplay
       : activeWeekApprovedSales;
     const salesWeek = currentWeekApprovedDisplay;
-    const currentMonthKey = new Date().toISOString().slice(0, 7);
-const monthStartDate = `${currentMonthKey}-01`;
-const [salesYearNum, salesMonthNum] = currentMonthKey.split('-').map(Number);
-const nextMonthStartDate = new Date(Date.UTC(salesYearNum, salesMonthNum, 1)).toISOString().slice(0, 10);
-
-function allocateWeekAmountToCurrentMonth(weekStartDate, weekEndDate, totalAmount) {
-  if (!(totalAmount > 0) || !weekStartDate || !weekEndDate) return 0;
-
-  const monthStart = new Date(`${monthStartDate}T00:00:00.000Z`);
-  const monthEndExclusive = new Date(`${nextMonthStartDate}T00:00:00.000Z`);
-  const weekStart = new Date(`${weekStartDate}T00:00:00.000Z`);
-  const weekEndExclusive = new Date(`${weekEndDate}T23:59:59.999Z`);
-  weekEndExclusive.setUTCMilliseconds(weekEndExclusive.getUTCMilliseconds() + 1);
-
-  const dayMs = 24 * 60 * 60 * 1000;
-  const totalDays = Math.max(1, Math.ceil((weekEndExclusive.getTime() - weekStart.getTime()) / dayMs));
-  const overlapStart = Math.max(weekStart.getTime(), monthStart.getTime());
-  const overlapEnd = Math.min(weekEndExclusive.getTime(), monthEndExclusive.getTime());
-  if (overlapEnd <= overlapStart) return 0;
-
-  const overlapDays = Math.max(1, Math.ceil((overlapEnd - overlapStart) / dayMs));
-  return totalAmount * (overlapDays / totalDays);
-}
-
-const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWeek].reduce((sum, week) => {
-  const isCurrentWeek = week.weekStartDate === dashboard.weeks.currentWeek.weekStartDate;
-
-  const approvedSales = isCurrentWeek
-    ? parseNumber(currentWeekApprovedDisplay || 0)
-    : parseNumber(week.approvedSales || week.approvedSalesSnapshot || 0);
-
-  return sum + allocateWeekAmountToCurrentMonth(
-    week.weekStartDate,
-    week.weekEndDate,
-    approvedSales
-  );
-}, 0);
-    // Month Production is computed server-side using day-level data from the
-    // latest CRM snapshot so a job on May 1 in an Apr 27–May 3 week is
-    // attributed to May, not April. The server falls back to a weekly sum if
-    // no snapshot is available yet.
+    // Sales This Month and Month Production both come from the server, where
+    // they are computed as the simple sum of weekly reported numbers for every
+    // week that overlaps the current month (locked snapshot for past weeks,
+    // live value for the current week). This matches what the dashboard's
+    // own week cards add up to. See backend/src/server.mjs sumWeekMetricForMonth.
+    const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
     const monthScheduledProduction = parseNumber(dashboard.settings?.monthProduction ?? 0);
     const previousWeekHistory = (dashboard.weekHistory || [])
       .filter((week) => week.weekStartDate < dashboard.weeks.currentWeek.weekStartDate)
@@ -514,7 +479,7 @@ const salesMonth = [...(dashboard.weekHistory || []), dashboard.weeks.currentWee
             <div class="stat blue">
               <div class="k">Month Production</div>
               <div class="v">${money.format(monthScheduledProduction)}</div>
-              <div class="note">Snapshots + current week + outlook</div>
+              <div class="note">Sum of weekly scheduled production this month</div>
             </div>
           </div>
 

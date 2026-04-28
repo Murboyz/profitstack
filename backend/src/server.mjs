@@ -272,7 +272,8 @@ async function getAdminClientsOverview() {
     const crm = crmMap.get(organization.id) || null;
     const latestSync = syncMap.get(organization.id) || null;
     const latestWeek = latestWeekByOrg.get(organization.id) || null;
-    const recentWeeks = (recentWeeksByOrg.get(organization.id) || [])
+    const orgWeekMetrics = recentWeeksByOrg.get(organization.id) || [];
+    const recentWeeks = [...orgWeekMetrics]
       .sort((a, b) => String(b.week_start_date).localeCompare(String(a.week_start_date)))
       .slice(0, 6)
       .map((item) => ({
@@ -281,6 +282,27 @@ async function getAdminClientsOverview() {
         scheduledProduction: Number(item.scheduled_production || 0),
         approvedSales: Number(item.approved_sales || 0),
       }));
+
+    // Match the dashboard's definition: sum of weekly reported numbers for
+    // every week that overlaps the current month, in the org's own timezone.
+    // Admin overview does not load metric_overrides, so the base column is
+    // used; that matches the locked snapshot for past weeks because snapshots
+    // are written from the same column on sync.
+    const orgMonthKey = formatDateInTimeZone(new Date(), organization.timezone || 'UTC').slice(0, 7);
+    const monthProductionFromWeeks = sumWeekMetricForMonth(
+      orgWeekMetrics,
+      [],
+      orgMonthKey,
+      null,
+      'scheduled_production',
+    );
+    const salesMonthFromWeeks = sumWeekMetricForMonth(
+      orgWeekMetrics,
+      [],
+      orgMonthKey,
+      null,
+      'approved_sales',
+    );
 
     clients.push({
       organization: {
@@ -299,8 +321,8 @@ async function getAdminClientsOverview() {
         createdAt: primaryUser.created_at,
       } : null,
       metrics: {
-        salesMonth: Number(setting?.sales_month || 0),
-        monthProduction: (Number(setting?.month_scheduled_production || 0) + Number(setting?.month_production_outlook || 0)), 
+        salesMonth: salesMonthFromWeeks,
+        monthProduction: monthProductionFromWeeks,
         monthlyExpenseTarget: Number(setting?.monthly_expense_target || 0),
         profitGoalPercent: Number(setting?.profit_percentage || 0),
         latestWeekStart: latestWeek?.week_start_date || null,
@@ -1479,18 +1501,58 @@ function toIntegerOrNull(value) {
   return Number.isFinite(num) ? num : null;
 }
 
-function formatOrganizationSettings(item, organizationId, rollups = null, monthProduction = null) {
+function formatOrganizationSettings(item, organizationId, rollups = null, monthProduction = null, salesMonth = null) {
   return {
     organizationId,
     monthlyExpenseTarget: item?.monthly_expense_target == null ? null : Number(item.monthly_expense_target),
     profitPercentGoal: item?.profit_percent_goal == null ? null : Number(item.profit_percent_goal),
     opportunityCount: item?.opportunity_count == null ? null : Number(item.opportunity_count),
     salesToday: Number(rollups?.salesToday ?? 0),
-    salesMonth: Number(rollups?.salesMonth ?? 0),
+    salesMonth: salesMonth != null ? Number(salesMonth) : Number(rollups?.salesMonth ?? 0),
     salesYear: Number(rollups?.monthScheduledProduction ?? 0),
     monthProduction: monthProduction ?? (rollups ? Number(rollups.monthScheduledProduction ?? 0) : 0),
     updatedAt: item?.updated_at || null,
   };
+}
+
+// V1 metric contract: Month Production and Sales Month are sums of the user's
+// reported weekly numbers (week_metrics) for any week that overlaps the
+// current month. This is intentionally NOT pulled from the live HCP calendar
+// roll-up so the dashboard always equals the sum of the visible week cards.
+// Resolution order per week:
+//   1. locked snapshot override (past weeks)
+//   2. live manual override (current / future weeks edited by the user)
+//   3. base column from week_metrics
+// See V1_METRIC_CONTRACT.md.
+function sumWeekMetricForMonth(weekMetrics, overrides, monthKey, snapshotKey, baseColumn, liveOverrideKey = null) {
+  if (!monthKey) return 0;
+  const monthStart = `${monthKey}-01`;
+  const [year, month] = monthKey.split('-').map(Number);
+  const nextMonthStart = formatDateOnly(new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)));
+  const overrideMap = new Map(
+    (overrides || []).map((entry) => [`${entry.week_start_date}:${entry.metric_key}`, Number(entry.metric_value)])
+  );
+
+  let total = 0;
+  for (const row of weekMetrics || []) {
+    const weekStart = row.week_start_date;
+    const weekEnd = row.week_end_date;
+    if (!weekStart || !weekEnd) continue;
+    if (weekStart >= nextMonthStart) continue;
+    if (weekEnd < monthStart) continue;
+    const snapshotValue = snapshotKey ? overrideMap.get(`${weekStart}:${snapshotKey}`) : undefined;
+    const liveOverrideValue = liveOverrideKey ? overrideMap.get(`${weekStart}:${liveOverrideKey}`) : undefined;
+    let value;
+    if (snapshotValue != null) {
+      value = snapshotValue;
+    } else if (liveOverrideValue != null) {
+      value = liveOverrideValue;
+    } else {
+      value = Number(row[baseColumn] || 0);
+    }
+    total += value;
+  }
+  return total;
 }
 
 function formatWeekHistory(rows = [], overrides = []) {
@@ -1696,41 +1758,37 @@ const liveWeeks = buildWeeksFromMetrics(weekMetrics);
 const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
 const rollups = latestSnapshot?.payload?.rollups || null;
 
-// Day-exact month attribution when the latest snapshot includes a per-day
-// breakdown. Falls back to the legacy week-aggregate sum so older snapshots
-// keep working until a fresh sync runs.
-function sumMonthScheduledProductionFromDaily(dailyScheduledByDate, monthKey) {
-  if (!dailyScheduledByDate || typeof dailyScheduledByDate !== 'object') return null;
-  let total = 0;
-  let hasAny = false;
-  for (const [dayKey, amount] of Object.entries(dailyScheduledByDate)) {
-    hasAny = true;
-    if (typeof dayKey === 'string' && dayKey.slice(0, 7) === monthKey) {
-      total += Number(amount) || 0;
-    }
-  }
-  return hasAny ? total : null;
-}
-
-function sumMonthScheduledProductionFromWeeks(mergedWeeks, currentMonthKey) {
-  let total = 0;
-  for (const week of Object.values(mergedWeeks)) {
-    if (week.weekStartDate.startsWith(currentMonthKey)) {
-      total += week.scheduledProduction || 0;
-    }
-  }
-  return total;
-}
-
 const currentMonthKey = formatDateInTimeZone(new Date(), viewContext.organization.timezone || 'UTC').slice(0, 7);
-const dailyMonthScheduled = sumMonthScheduledProductionFromDaily(rollups?.dailyScheduledByDate, currentMonthKey);
-const persistentMonthScheduledProduction = dailyMonthScheduled != null
-  ? dailyMonthScheduled
-  : sumMonthScheduledProductionFromWeeks(mergedWeeks, currentMonthKey);
+// Month Production and Sales Month are sums of the user's reported weekly
+// numbers for every week that overlaps the current month, using the locked
+// snapshot for past weeks. This intentionally bypasses any live HCP calendar
+// rollup so the cards always equal the sum of the dashboard's week cards.
+const monthProductionFromWeeks = sumWeekMetricForMonth(
+  weekMetrics,
+  overrides,
+  currentMonthKey,
+  'scheduledProductionSnapshot',
+  'scheduled_production',
+  'scheduledProduction',
+);
+const salesMonthFromWeeks = sumWeekMetricForMonth(
+  weekMetrics,
+  overrides,
+  currentMonthKey,
+  'approvedSalesSnapshot',
+  'approved_sales',
+  'approvedSales',
+);
 
 return sendJson(res, 200, {
   organization: formatSession(viewContext).organization,
-  settings: formatOrganizationSettings(organizationSettings, viewContext.organization.id, { ...rollups, monthScheduledProduction: persistentMonthScheduledProduction }, persistentMonthScheduledProduction + (rollups?.monthProductionOutlook || 0)), // Explicit monthProduction as scheduled + outlook
+  settings: formatOrganizationSettings(
+    organizationSettings,
+    viewContext.organization.id,
+    { ...rollups, monthScheduledProduction: monthProductionFromWeeks },
+    monthProductionFromWeeks,
+    salesMonthFromWeeks,
+  ),
 
   crmConnection: formatDashboardCrmConnection(crmConnection),
   weeks: mergedWeeks,

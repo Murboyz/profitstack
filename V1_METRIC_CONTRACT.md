@@ -90,13 +90,52 @@ Housecall Pro scheduled job data.
 
 ---
 
+### 6) Month Production
+**Definition:**
+Simple sum of every weekly Scheduled Production for any week that overlaps the current month (in the org's timezone).
+
+**Source:**
+The same `week_metrics` rows that drive the weekly cards. Past weeks use their locked `scheduledProductionSnapshot` override; the current week uses the live `scheduled_production` value from the latest sync.
+
+**Rule:**
+The Month Production card MUST equal the simple sum of the visible week cards for the month. It MUST NOT be re-derived from the HCP live calendar, daily HCP rollups, or any per-day attribution layer. If a week straddles two months, it counts at full value in BOTH months — by design, because that is what the user adds up from their own weekly report.
+
+**Used in:**
+- dashboard "Month Production" stat
+- admin client overview "Month production"
+
+**Implemented in:**
+- `backend/src/server.mjs` → `sumWeekMetricForMonth(..., 'scheduledProductionSnapshot', 'scheduled_production')`
+
+---
+
+### 7) Sales Month
+**Definition:**
+Simple sum of every weekly Approved Sales for any week that overlaps the current month (in the org's timezone).
+
+**Source:**
+The same `week_metrics` rows that drive the weekly cards. Past weeks use their locked `approvedSalesSnapshot` override; the current week uses the live `approved_sales` value from the latest sync.
+
+**Rule:**
+"Sales This Month" on the dashboard and "Sales month" in the admin overview MUST share this single definition. Do NOT add a parallel "sales month" derived from HCP `jobDetails.created_at` or any other rollup. The persisted `setting.sales_month` column is legacy and is no longer the source of truth for these cards.
+
+**Used in:**
+- dashboard "Sales This Month" row (Sales Performance card)
+- admin client overview "Sales month"
+
+**Implemented in:**
+- `backend/src/server.mjs` → `sumWeekMetricForMonth(..., 'approvedSalesSnapshot', 'approved_sales')`
+
+---
+
 ## Not in V1 launch contract
 These are explicitly out unless Chad says otherwise:
 - completed production
 - super-admin metrics
 - internal ops-only reporting
-- extra sales rollups that create noise
+- extra sales rollups that create noise (including any "sales month" computed from HCP `jobDetails.created_at`)
 - prototype-only numbers with no live source
+- pro-rated month attribution (was attempted, caused dashboard ≠ visible week sum, removed)
 
 ## Launch rule
 If a number is visible in V1, it must be one of:
