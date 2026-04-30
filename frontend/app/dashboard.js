@@ -368,11 +368,9 @@ async function renderDashboard() {
       ? currentWeekApprovedDisplay
       : activeWeekApprovedSales;
     const salesWeek = currentWeekApprovedDisplay;
-    // Sales This Month and Month Production both come from the server, where
-    // they are computed as the simple sum of weekly reported numbers for every
-    // week that overlaps the current month (locked snapshot for past weeks,
-    // live value for the current week). This matches what the dashboard's
-    // own week cards add up to. See backend/src/server.mjs sumWeekMetricForMonth.
+    // Sales This Month: server sums weekly approved sales overlapping the month.
+    // Month Production: server sums scheduled production by job scheduled date
+    // in the org calendar month (snapshot daily map), with a weekly fallback.
     const salesMonth = parseNumber(dashboard.settings?.salesMonth ?? 0);
     const monthScheduledProduction = parseNumber(dashboard.settings?.monthProduction ?? 0);
     const previousWeekHistory = (dashboard.weekHistory || [])
@@ -456,6 +454,14 @@ async function renderDashboard() {
 
         <section class="${setupMode ? 'setup-dim' : ''}">
           ${''}
+          ${dashboard.marketingDemo?.locked ? `
+            <div class="alertbar">
+              <div>
+                <strong>Marketing demo preview.</strong><br />
+                These numbers are fixed for tours and onboarding; refreshing data does not replace them. Live sync is intentionally skipped for this account.
+              </div>
+            </div>
+          ` : ''}
           ${crmConnection.status === 'disconnected' ? `
             <div class="alertbar">
               <div>
@@ -479,7 +485,7 @@ async function renderDashboard() {
             <div class="stat blue">
               <div class="k">Month Production</div>
               <div class="v">${money.format(monthScheduledProduction)}</div>
-              <div class="note">Sum of weekly scheduled production this month</div>
+              <div class="note">Scheduled jobs this calendar month (org time)</div>
             </div>
           </div>
 

@@ -36,7 +36,10 @@ async function main() {
 
     app.innerHTML = `
       <div class="panel">
+        ${client.metrics?.marketingDemo?.locked ? '<p class="muted" style="margin:0 0 1rem"><strong>Marketing demo</strong> — same fixed numbers as the client dashboard; sync is skipped for this tenant.</p>' : ''}
         <div class="metric-grid">
+          ${client.metrics?.salesToday != null ? `<div class="metric"><div class="eyebrow">Sales today</div><strong>${formatMoney(client.metrics.salesToday)}</strong></div>` : ''}
+          ${client.metrics?.approvedSalesThisWeek != null ? `<div class="metric"><div class="eyebrow">Sales this week</div><strong>${formatMoney(client.metrics.approvedSalesThisWeek)}</strong></div>` : ''}
           <div class="metric"><div class="eyebrow">Sales month</div><strong>${formatMoney(client.metrics?.salesMonth)}</strong></div>
           <div class="metric"><div class="eyebrow">Month production</div><strong>${formatMoney(client.metrics?.monthProduction)}</strong></div>
           <div class="metric"><div class="eyebrow">Expense target</div><strong>${formatMoney(client.metrics?.monthlyExpenseTarget)}</strong></div>
@@ -52,6 +55,7 @@ async function main() {
           <div class="row"><span class="muted">CRM</span><span>${client.crm?.status || 'not connected'}</span></div>
           <div class="row"><span class="muted">Last sync</span><span>${formatDate(client.sync?.finishedAt || client.crm?.lastSyncAt)}</span></div>
           <div class="row"><span class="muted">Billing</span><span>${client.billing?.subscriptionStatus || 'unknown'}</span></div>
+          ${client.metrics?.latestWeekStart ? `<div class="row"><span class="muted">Latest week</span><span>${client.metrics.latestWeekStart} · ${formatMoney(client.metrics.latestWeekScheduled)} scheduled · ${formatMoney(client.metrics.latestWeekApproved ?? 0)} approved</span></div>` : ''}
         </div>
 
         <div class="panel">

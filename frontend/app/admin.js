@@ -70,11 +70,14 @@ async function main() {
         </div>
 
         <div class="metric-grid">
+          ${client.metrics?.salesToday != null ? `<div class="metric"><div class="eyebrow">Sales today</div><strong>${formatMoney(client.metrics.salesToday)}</strong></div>` : ''}
+          ${client.metrics?.approvedSalesThisWeek != null ? `<div class="metric"><div class="eyebrow">Sales this week</div><strong>${formatMoney(client.metrics.approvedSalesThisWeek)}</strong></div>` : ''}
           <div class="metric"><div class="eyebrow">Sales month</div><strong>${formatMoney(client.metrics?.salesMonth)}</strong></div>
           <div class="metric"><div class="eyebrow">Month production</div><strong>${formatMoney(client.metrics?.monthProduction)}</strong></div>
           <div class="metric"><div class="eyebrow">Expense target</div><strong>${formatMoney(client.metrics?.monthlyExpenseTarget)}</strong></div>
           <div class="metric"><div class="eyebrow">Profit goal</div><strong>${Number(client.metrics?.profitGoalPercent || 0)}%</strong></div>
         </div>
+        ${client.metrics?.marketingDemo?.locked ? '<p class="muted" style="margin:8px 0 0">Marketing demo preview — totals fixed.</p>' : ''}
 
         <div style="margin-top:14px;">
           <div class="row"><span class="muted">Timezone</span><span>${client.organization.timezone || '—'}</span></div>
@@ -82,7 +85,7 @@ async function main() {
           <div class="row"><span class="muted">Last sync</span><span>${formatDate(client.sync?.finishedAt || client.crm?.lastSyncAt)}</span></div>
           <div class="row"><span class="muted">Billing</span><span><span class="${pillClass(client.billing?.subscriptionStatus)}">${client.billing?.subscriptionStatus || 'unknown'}</span>${client.billing?.cancelAtPeriodEnd ? ' · cancel set' : ''}</span></div>
           <div class="row"><span class="muted">Billing renewal</span><span>${formatDate(client.billing?.currentPeriodEnd)}</span></div>
-          <div class="row"><span class="muted">Latest week</span><span>${client.metrics?.latestWeekStart || '—'} · ${formatMoney(client.metrics?.latestWeekScheduled)}</span></div>
+          <div class="row"><span class="muted">Latest week</span><span>${client.metrics?.latestWeekStart || '—'} · ${formatMoney(client.metrics?.latestWeekScheduled)} scheduled${client.metrics?.latestWeekApproved != null ? ` · ${formatMoney(client.metrics.latestWeekApproved)} approved` : ''}</span></div>
         </div>
       </div>
     `).join('');

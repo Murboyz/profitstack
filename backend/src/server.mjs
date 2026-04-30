@@ -40,7 +40,16 @@ import {
   revokeSession,
   updateAuthUserPassword,
   listUsers,
+  listUsersByOrganization,
 } from './supabase-client.mjs';
+
+const CHAD_MARKETING_DEMO_EMAIL = 'chad@outsidethebusinessbox.com';
+const CHAD_MARKETING_DEMO_SALES_TODAY = 1867;
+const CHAD_MARKETING_DEMO_APPROVED_CURRENT_WEEK = 8970;
+const CHAD_MARKETING_DEMO_SCHED_LAST = 13256; // May 11–17
+const CHAD_MARKETING_DEMO_SCHED_CURRENT = 11654; // May 18–24
+const CHAD_MARKETING_DEMO_SALES_MONTH = 35280;
+const CHAD_MARKETING_DEMO_MONTH_PRODUCTION = 46840;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +57,121 @@ const statusPath = path.resolve(__dirname, '../../STATUS.md');
 const appRoot = path.resolve(__dirname, '../../frontend/app');
 const host = '0.0.0.0';
 const port = Number(process.env.PORT || 8787);
+
+function normalizeMarketingDemoEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+async function tenantUsesChadMarketingDemo(organizationId) {
+  if (!organizationId) return false;
+  const target = normalizeMarketingDemoEmail(CHAD_MARKETING_DEMO_EMAIL);
+  try {
+    const users = await listUsersByOrganization(organizationId);
+    return (users || []).some((item) => normalizeMarketingDemoEmail(item.email) === target);
+  } catch {
+    return false;
+  }
+}
+
+/** Recent weeks strip for `/api/admin/clients` — matches dashboard demo story (newest first). */
+function getChadMarketingDemoRecentWeekRowsForAdmin() {
+  return [
+    { weekStartDate: '2026-06-08', weekEndDate: '2026-06-14', scheduledProduction: 7625, approvedSales: 5510 },
+    { weekStartDate: '2026-06-01', weekEndDate: '2026-06-07', scheduledProduction: 8740, approvedSales: 6290 },
+    { weekStartDate: '2026-05-25', weekEndDate: '2026-05-31', scheduledProduction: 9835, approvedSales: 7145 },
+    {
+      weekStartDate: '2026-05-18',
+      weekEndDate: '2026-05-24',
+      scheduledProduction: CHAD_MARKETING_DEMO_SCHED_CURRENT,
+      approvedSales: CHAD_MARKETING_DEMO_APPROVED_CURRENT_WEEK,
+    },
+    { weekStartDate: '2026-05-11', weekEndDate: '2026-05-17', scheduledProduction: CHAD_MARKETING_DEMO_SCHED_LAST, approvedSales: 8125 },
+    { weekStartDate: '2026-05-04', weekEndDate: '2026-05-10', scheduledProduction: 9120, approvedSales: 7480 },
+  ];
+}
+/** Fixed metrics for onboarding / marketing (Chad Demo tenant only). */
+function applyChadMarketingDemoToDashboard(payload) {
+  const out = structuredClone(payload);
+
+  const w11 = '2026-05-11';
+  const e11 = '2026-05-17';
+  const w18 = '2026-05-18';
+  const e24 = '2026-05-24';
+  const w25 = '2026-05-25';
+  const e31 = '2026-05-31';
+  const jun1 = '2026-06-01';
+  const jun7 = '2026-06-07';
+  const jun8 = '2026-06-08';
+  const jun14 = '2026-06-14';
+
+  const DEMO_SCHED_LAST = CHAD_MARKETING_DEMO_SCHED_LAST;
+  const DEMO_SCHED_CURRENT = CHAD_MARKETING_DEMO_SCHED_CURRENT;
+  const DEMO_APPROVED_CURRENT = CHAD_MARKETING_DEMO_APPROVED_CURRENT_WEEK;
+  const DEMO_SALES_TODAY = CHAD_MARKETING_DEMO_SALES_TODAY;
+
+  const weekPartial = (
+    weekStartDate,
+    weekEndDate,
+    scheduledProduction,
+    approvedSales,
+  ) => ({
+    weekStartDate,
+    weekEndDate,
+    range: formatRange(weekStartDate, weekEndDate),
+    scheduledProduction,
+    approvedSales,
+    realizedSales3Weeks: 0,
+    capturedSales6Weeks: 0,
+  });
+
+  out.weeks = {
+    lastWeek: weekPartial(w11, e11, DEMO_SCHED_LAST, 8125),
+    currentWeek: weekPartial(w18, e24, DEMO_SCHED_CURRENT, DEMO_APPROVED_CURRENT),
+    nextWeek: weekPartial(w25, e31, 9835, 7145),
+    weekPlus2: weekPartial(jun1, jun7, 8740, 6290),
+    weekPlus3: weekPartial(jun8, jun14, 7625, 5510),
+  };
+
+  const hist = [];
+  hist.push({ week_start_date: '2026-04-13', week_end_date: '2026-04-19', scheduled_production: 6840, approved_sales: 6120 });
+  hist.push({ week_start_date: '2026-04-20', week_end_date: '2026-04-26', scheduled_production: 7245, approved_sales: 6580 });
+  hist.push({ week_start_date: '2026-04-27', week_end_date: '2026-05-03', scheduled_production: 9885, approved_sales: 8365 });
+  hist.push({
+    week_start_date: w11,
+    week_end_date: e11,
+    scheduled_production: DEMO_SCHED_LAST,
+    approved_sales: 8125,
+  });
+
+  const histFormatted = hist.map((row) => ({
+    weekStartDate: row.week_start_date,
+    weekEndDate: row.week_end_date,
+    range: formatRange(row.week_start_date, row.week_end_date),
+    scheduledProduction: Number(row.scheduled_production || 0),
+    approvedSales: Number(row.approved_sales ?? 0),
+    realizedSales3Weeks: 0,
+    capturedSales6Weeks: 0,
+    scheduledProductionSnapshot: Number(row.scheduled_production || 0),
+    approvedSalesSnapshot: Number(row.approved_sales ?? 0),
+    weeklyBreakEvenSnapshot: null,
+  }));
+  out.weekHistory = histFormatted;
+  out.overridesApplied = {};
+
+  out.settings = { ...(out.settings || {}) };
+  out.settings.salesToday = CHAD_MARKETING_DEMO_SALES_TODAY;
+  out.settings.salesMonth = CHAD_MARKETING_DEMO_SALES_MONTH;
+  out.settings.monthProduction = CHAD_MARKETING_DEMO_MONTH_PRODUCTION;
+  out.settings.organizationId ??= out.organization?.id ?? null;
+
+  out.marketingDemo = {
+    locked: true,
+    label: 'Marketing demo preview — totals are fixed for onboarding.',
+    emailGate: CHAD_MARKETING_DEMO_EMAIL,
+  };
+
+  return out;
+}
 
 /** Soft cooldown so password-reset cannot spam our service-role Supabase calls. */
 const recoveryLinkLastRequestByEmail = new Map();
@@ -283,12 +407,14 @@ async function getAdminClientsOverview() {
         approvedSales: Number(item.approved_sales || 0),
       }));
 
-    // Match the dashboard's definition: sum of weekly reported numbers for
-    // every week that overlaps the current month, in the org's own timezone.
-    // Admin overview does not load metric_overrides, so the base column is
-    // used; that matches the locked snapshot for past weeks because snapshots
-    // are written from the same column on sync.
     const orgMonthKey = formatDateInTimeZone(new Date(), organization.timezone || 'UTC').slice(0, 7);
+
+    const latestSnapshot = await getLatestCrmSnapshotByOrg(organization.id);
+    const snapRollups = latestSnapshot?.payload?.rollups || null;
+    const dailyMonthProduction = sumScheduledProductionForMonthFromDaily(snapRollups?.dailyScheduledByDate, orgMonthKey);
+
+    // Same fallbacks as /api/dashboard: calendar month from snapshot job days first,
+    // then weekly week_metrics overlaps (admin has no overrides map).
     const monthProductionFromWeeks = sumWeekMetricForMonth(
       orgWeekMetrics,
       [],
@@ -296,6 +422,7 @@ async function getAdminClientsOverview() {
       null,
       'scheduled_production',
     );
+    let monthProduction = dailyMonthProduction != null ? dailyMonthProduction : monthProductionFromWeeks;
     const salesMonthFromWeeks = sumWeekMetricForMonth(
       orgWeekMetrics,
       [],
@@ -303,6 +430,43 @@ async function getAdminClientsOverview() {
       null,
       'approved_sales',
     );
+    let salesMonthMetrics = salesMonthFromWeeks;
+    let marketingDemoBanner = null;
+    let recentWeeksOut = recentWeeks;
+    let latestWeekStartOut = latestWeek?.week_start_date || null;
+    let latestWeekScheduledOut = Number(latestWeek?.scheduled_production || 0);
+    let latestWeekApprovedOut = Number(latestWeek?.approved_sales || 0);
+    let demoSalesToday = null;
+    let demoApprovedThisWeek = null;
+
+    if (await tenantUsesChadMarketingDemo(organization.id)) {
+      monthProduction = CHAD_MARKETING_DEMO_MONTH_PRODUCTION;
+      salesMonthMetrics = CHAD_MARKETING_DEMO_SALES_MONTH;
+      marketingDemoBanner = {
+        locked: true,
+        emailGate: CHAD_MARKETING_DEMO_EMAIL,
+      };
+      recentWeeksOut = getChadMarketingDemoRecentWeekRowsForAdmin();
+      latestWeekStartOut = '2026-05-18';
+      latestWeekScheduledOut = CHAD_MARKETING_DEMO_SCHED_CURRENT;
+      latestWeekApprovedOut = CHAD_MARKETING_DEMO_APPROVED_CURRENT_WEEK;
+      demoSalesToday = CHAD_MARKETING_DEMO_SALES_TODAY;
+      demoApprovedThisWeek = CHAD_MARKETING_DEMO_APPROVED_CURRENT_WEEK;
+    }
+
+    const metricsPayload = {
+      salesMonth: salesMonthMetrics,
+      monthProduction,
+      marketingDemo: marketingDemoBanner,
+      monthlyExpenseTarget: Number(setting?.monthly_expense_target || 0),
+      profitGoalPercent: Number(setting?.profit_percentage || 0),
+      latestWeekStart: latestWeekStartOut,
+      latestWeekScheduled: latestWeekScheduledOut,
+      latestWeekApproved: latestWeekApprovedOut,
+      weeks: recentWeeksOut,
+    };
+    if (demoSalesToday != null) metricsPayload.salesToday = demoSalesToday;
+    if (demoApprovedThisWeek != null) metricsPayload.approvedSalesThisWeek = demoApprovedThisWeek;
 
     clients.push({
       organization: {
@@ -320,16 +484,7 @@ async function getAdminClientsOverview() {
         role: primaryUser.role,
         createdAt: primaryUser.created_at,
       } : null,
-      metrics: {
-        salesMonth: salesMonthFromWeeks,
-        monthProduction: monthProductionFromWeeks,
-        monthlyExpenseTarget: Number(setting?.monthly_expense_target || 0),
-        profitGoalPercent: Number(setting?.profit_percentage || 0),
-        latestWeekStart: latestWeek?.week_start_date || null,
-        latestWeekScheduled: Number(latestWeek?.scheduled_production || 0),
-        latestWeekApproved: Number(latestWeek?.approved_sales || 0),
-        weeks: recentWeeks,
-      },
+      metrics: metricsPayload,
       crm: crm ? {
         provider: crm.provider,
         status: crm.status,
@@ -1425,12 +1580,15 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
     dailyScheduledByDate[dayKey] = (dailyScheduledByDate[dayKey] || 0) + scheduledAmount;
   }
 
-  // Use the day-exact value when we have it; otherwise fall back to the
-  // pro-rated weekly approximation we used to ship.
-  const monthFromDaily = Object.entries(dailyScheduledByDate)
-    .filter(([dayKey]) => dayKey.slice(0, 7) === currentMonthKey)
-    .reduce((sum, [, amount]) => sum + amount, 0);
-  monthScheduledProduction = monthFromDaily || getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
+  const dailyScheduledKeys = Object.keys(dailyScheduledByDate);
+  const monthFromDaily = dailyScheduledKeys.length > 0
+    ? Object.entries(dailyScheduledByDate)
+      .filter(([dayKey]) => dayKey.slice(0, 7) === currentMonthKey)
+      .reduce((sum, [, amount]) => sum + amount, 0)
+    : null;
+  monthScheduledProduction = monthFromDaily != null
+    ? monthFromDaily
+    : getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
 
   return {
     provider: 'housecall_pro',
@@ -1515,11 +1673,26 @@ function formatOrganizationSettings(item, organizationId, rollups = null, monthP
   };
 }
 
-// V1 metric contract: Month Production and Sales Month are sums of the user's
-// reported weekly numbers (week_metrics) for any week that overlaps the
-// current month. This is intentionally NOT pulled from the live HCP calendar
-// roll-up so the dashboard always equals the sum of the visible week cards.
-// Resolution order per week:
+// Sum scheduled production for a calendar month from per-day buckets (job
+// scheduled start in org timezone). Uses latest CRM snapshot rollups. Returns
+// null if the map is missing or has no keys so callers fall back to weekly sums.
+function sumScheduledProductionForMonthFromDaily(dailyScheduledByDate, monthKey) {
+  if (!dailyScheduledByDate || typeof dailyScheduledByDate !== 'object') return null;
+  let total = 0;
+  let hasAny = false;
+  for (const [dayKey, amount] of Object.entries(dailyScheduledByDate)) {
+    hasAny = true;
+    if (typeof dayKey === 'string' && dayKey.slice(0, 7) === monthKey) {
+      total += Number(amount) || 0;
+    }
+  }
+  return hasAny ? total : null;
+}
+
+// V1 metric contract: Sales Month is summed from week_metrics. Month
+// Production prefers calendar-month attribution from snapshot daily scheduled
+// totals; see V1_METRIC_CONTRACT.md and sumScheduledProductionForMonthFromDaily.
+// Resolution order per week (week-based fallbacks only):
 //   1. locked snapshot override (past weeks)
 //   2. live manual override (current / future weeks edited by the user)
 //   3. base column from week_metrics
@@ -1759,10 +1932,11 @@ const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
 const rollups = latestSnapshot?.payload?.rollups || null;
 
 const currentMonthKey = formatDateInTimeZone(new Date(), viewContext.organization.timezone || 'UTC').slice(0, 7);
-// Month Production and Sales Month are sums of the user's reported weekly
-// numbers for every week that overlaps the current month, using the locked
-// snapshot for past weeks. This intentionally bypasses any live HCP calendar
-// rollup so the cards always equal the sum of the dashboard's week cards.
+// Month Production: prefer calendar-month totals from per-job scheduled
+// start dates (latest snapshot `dailyScheduledByDate`, org TZ). That excludes
+// early-May jobs from April when they share a rolling week with late April.
+// Fall back to summed week_metrics when snapshots predate daily maps.
+const dailyMonthProduction = sumScheduledProductionForMonthFromDaily(rollups?.dailyScheduledByDate, currentMonthKey);
 const monthProductionFromWeeks = sumWeekMetricForMonth(
   weekMetrics,
   overrides,
@@ -1771,6 +1945,8 @@ const monthProductionFromWeeks = sumWeekMetricForMonth(
   'scheduled_production',
   'scheduledProduction',
 );
+const monthProduction = dailyMonthProduction != null ? dailyMonthProduction : monthProductionFromWeeks;
+// Sales Month: sums of weekly approved sales overlapping the month (unchanged).
 const salesMonthFromWeeks = sumWeekMetricForMonth(
   weekMetrics,
   overrides,
@@ -1780,13 +1956,13 @@ const salesMonthFromWeeks = sumWeekMetricForMonth(
   'approvedSales',
 );
 
-return sendJson(res, 200, {
+let dashboardPayload = {
   organization: formatSession(viewContext).organization,
   settings: formatOrganizationSettings(
     organizationSettings,
     viewContext.organization.id,
-    { ...rollups, monthScheduledProduction: monthProductionFromWeeks },
-    monthProductionFromWeeks,
+    { ...rollups, monthScheduledProduction: monthProduction },
+    monthProduction,
     salesMonthFromWeeks,
   ),
 
@@ -1794,7 +1970,12 @@ return sendJson(res, 200, {
   weeks: mergedWeeks,
   weekHistory: formatWeekHistory(weekMetrics, overrides),
   overridesApplied: summarizeOverridesByWeek(mergedWeeks, overrides),
-});
+};
+if (await tenantUsesChadMarketingDemo(viewContext.organization.id)) {
+  dashboardPayload = applyChadMarketingDemoToDashboard(dashboardPayload);
+}
+
+return sendJson(res, 200, dashboardPayload);
       }
       if (req.method === 'GET' && pathname === '/api/account') {
         const settings = await getOrganizationSettingsByOrg(viewContext.organization.id);
@@ -1990,6 +2171,13 @@ return sendJson(res, 200, {
       if (req.method === 'POST' && pathname === '/api/sync-runs/execute') {
         const body = await readJsonBody(req);
         const targetOrgId = viewContext.organization.id;
+        if (await tenantUsesChadMarketingDemo(targetOrgId)) {
+          return sendJson(res, 200, {
+            ok: true,
+            message: 'Marketing demo: totals are fixed for onboarding. Live sync skipped.',
+            demo: true,
+          });
+        }
         const crmConnection = await getCrmConnectionByOrg(targetOrgId);
         const startedAt = body.startedAt || new Date().toISOString();
         const organizationSettings = await getOrganizationSettingsByOrg(targetOrgId);

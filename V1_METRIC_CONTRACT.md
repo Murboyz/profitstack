@@ -92,20 +92,20 @@ Housecall Pro scheduled job data.
 
 ### 6) Month Production
 **Definition:**
-Simple sum of every weekly Scheduled Production for any week that overlaps the current month (in the org's timezone).
+Scheduled production **attributed to calendar days** in the **current month** (org timezone). Each job’s scheduled start date buckets its amount into that calendar day; days are summed for `YYYY-MM`.
 
-**Source:**
-The same `week_metrics` rows that drive the weekly cards. Past weeks use their locked `scheduledProductionSnapshot` override; the current week uses the live `scheduled_production` value from the latest sync.
+**Source (primary):**
+Latest CRM snapshot rollup `rollups.dailyScheduledByDate`, built during sync from Housecall Pro calendar job items (scheduled start in org TZ). This keeps May 1–2 jobs out of April when they share a rolling Monday week with April.
 
-**Rule:**
-The Month Production card MUST equal the simple sum of the visible week cards for the month. It MUST NOT be re-derived from the HCP live calendar, daily HCP rollups, or any per-day attribution layer. If a week straddles two months, it counts at full value in BOTH months — by design, because that is what the user adds up from their own weekly report.
+**Fallback:**
+If the snapshot has **no** daily map (legacy / empty pull), sum weekly `week_metrics` for every week interval that overlaps the month (full week row per overlap), with snapshot + override resolution per week.
 
 **Used in:**
 - dashboard "Month Production" stat
 - admin client overview "Month production"
 
 **Implemented in:**
-- `backend/src/server.mjs` → `sumWeekMetricForMonth(..., 'scheduledProductionSnapshot', 'scheduled_production')`
+- `backend/src/server.mjs` → `sumScheduledProductionForMonthFromDaily(...)` then `sumWeekMetricForMonth(...)` fallback
 
 ---
 
@@ -135,7 +135,7 @@ These are explicitly out unless Chad says otherwise:
 - internal ops-only reporting
 - extra sales rollups that create noise (including any "sales month" computed from HCP `jobDetails.created_at`)
 - prototype-only numbers with no live source
-- pro-rated month attribution (was attempted, caused dashboard ≠ visible week sum, removed)
+- confusing “full overlapping week” month totals when that disagrees with calendar-month job dates (weekly fallback only when daily map is absent)
 
 ## Launch rule
 If a number is visible in V1, it must be one of:
