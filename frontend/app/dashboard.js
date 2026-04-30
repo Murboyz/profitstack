@@ -454,14 +454,6 @@ async function renderDashboard() {
 
         <section class="${setupMode ? 'setup-dim' : ''}">
           ${''}
-          ${dashboard.marketingDemo?.locked ? `
-            <div class="alertbar">
-              <div>
-                <strong>Marketing demo preview.</strong><br />
-                These numbers are fixed for tours and onboarding; refreshing data does not replace them. Live sync is intentionally skipped for this account.
-              </div>
-            </div>
-          ` : ''}
           ${crmConnection.status === 'disconnected' ? `
             <div class="alertbar">
               <div>

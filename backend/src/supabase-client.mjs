@@ -362,11 +362,6 @@ export async function listUsers() {
   return supabaseRequest('/rest/v1/users?select=*&order=created_at.asc');
 }
 
-export async function listUsersByOrganization(organizationId) {
-  const id = encodeURIComponent(organizationId);
-  return supabaseRequest(`/rest/v1/users?select=*&organization_id=eq.${id}&order=created_at.asc`);
-}
-
 export async function insertSyncRun(payload) {
   return supabaseRequest('/rest/v1/sync_runs', {
     method: 'POST',
