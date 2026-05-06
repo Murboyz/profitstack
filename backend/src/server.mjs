@@ -1007,6 +1007,25 @@ function incrementWeekMetric(weekMap, dateValue, updater) {
   updater(bucket);
 }
 
+function enumerateDayKeysInTimeZone(startValue, endValue, timeZone = 'UTC') {
+  const startKey = formatDateInTimeZone(startValue, timeZone);
+  const endKey = formatDateInTimeZone(endValue, timeZone);
+  if (!startKey) return [];
+  if (!endKey || endKey <= startKey) return [startKey];
+
+  const days = [];
+  // Step day-by-day in UTC at noon to avoid DST boundary slippage, then
+  // re-format into the org's business timezone so we get the correct local day.
+  const cursor = new Date(`${startKey}T12:00:00.000Z`);
+  const stop = new Date(`${endKey}T12:00:00.000Z`);
+  while (cursor.getTime() <= stop.getTime()) {
+    const key = formatDateInTimeZone(cursor, timeZone);
+    if (key && days[days.length - 1] !== key) days.push(key);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return days;
+}
+
 function getSpanAllocationByWeek(weekMap, startValue, endValue, totalAmount) {
   const start = new Date(startValue);
   const end = new Date(endValue);
@@ -1289,58 +1308,89 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     jobDetailsById.set(job.id, job);
   }
 
-  for (const item of payload.calendarItems || []) {
-    if (String(item.type || '').toLowerCase() !== 'job') continue;
-    const job = jobDetailsById.get(item.appointable_id || item.job_id);
-    const scheduledAmount = toCurrencyNumber(item.attributes?.amount || item.amount || job?.total_amount || 0);
-    incrementWeekMetric(weekMap, item.start || item.start_date, (bucket) => {
-      bucket.scheduledProduction += scheduledAmount;
-    });
-  }
-
-  const jobFamilies = new Map();
-  for (const job of payload.jobDetails || []) {
-    const baseInvoice = getBaseInvoiceNumber(job.invoice_number);
-    if (!baseInvoice) continue;
-    const family = jobFamilies.get(baseInvoice) || [];
-    family.push(job);
-    jobFamilies.set(baseInvoice, family);
-  }
-
-  for (const family of jobFamilies.values()) {
-    if (family.length < 2) continue;
-    const positiveSegments = family.filter((job) => toCurrencyNumber(job.total_amount || 0) > 0);
-    if (positiveSegments.length !== 1) continue;
-
-    const totalAmount = toCurrencyNumber(positiveSegments[0].total_amount || 0);
-    if (!totalAmount) continue;
-
-    const share = totalAmount / family.length;
-    incrementWeekMetric(weekMap, positiveSegments[0].scheduled_date, (bucket) => {
-      bucket.scheduledProduction -= totalAmount;
-    });
-    for (const segment of family) {
-      incrementWeekMetric(weekMap, segment.scheduled_date, (bucket) => {
-        bucket.scheduledProduction += share;
-      });
+  // Scheduled Production (V1 contract #1) — two parallel views:
+  //
+  //   • bucket.scheduledProduction (and dailyScheduledByDate) are HCP-aligned:
+  //     every job's full `total_amount` lands on its scheduled-start day's week.
+  //     This drives the Current Week card, Last Week Snapshot, week_metrics
+  //     persistence, and Month Production. It mirrors HCP "Jobs by scheduled
+  //     day" exactly.
+  //
+  //   • forecastByWeekStart is a separate, in-memory-only map for the
+  //     Production Outlook card. Multi-day jobs (end_time on a later business-TZ
+  //     day than start_time) are spread evenly across each calendar day of the
+  //     span, so a 2-week install shows up as crew load in BOTH future weeks.
+  //     This view is intentionally non-persistent: it's recomputed from the
+  //     latest snapshot every time the dashboard renders.
+  const dailyScheduledByDate = {};
+  const forecastByWeekStart = {};
+  const findWeekKeyContainingDay = (dayKey) => {
+    if (!dayKey) return null;
+    for (const week of weeks) {
+      if (week.weekStartDate <= dayKey && dayKey <= week.weekEndDate) return week.key;
     }
-  }
+    return null;
+  };
+  const jobScheduledStart = (job) => job?.schedule?.data?.start_time
+    || job?.schedule?.data?.scheduled_start
+    || job?.scheduled_start
+    || job?.scheduled_at
+    || job?.scheduled_date
+    || null;
+  const jobScheduledEnd = (job) => job?.schedule?.data?.end_time
+    || job?.schedule?.data?.scheduled_end
+    || job?.scheduled_end
+    || null;
 
+  const addForecastForDay = (dayKey, amount) => {
+    if (!dayKey || !(amount > 0)) return;
+    const weekKey = findWeekKeyContainingDay(dayKey);
+    if (!weekKey) return;
+    forecastByWeekStart[weekKey] = (forecastByWeekStart[weekKey] || 0) + amount;
+  };
+
+  const seenJobIdsForScheduledProduction = new Set();
   for (const job of payload.jobDetails || []) {
+    if (!job?.id || seenJobIdsForScheduledProduction.has(job.id)) continue;
     const totalAmount = toCurrencyNumber(job.total_amount || 0);
-    const scheduleStart = job.schedule?.data?.start_time;
-    const scheduleEnd = job.schedule?.data?.end_time;
-    const allocations = getSpanAllocationByWeek(weekMap, scheduleStart, scheduleEnd, totalAmount);
-    if (allocations.length <= 1) continue;
+    if (!totalAmount) continue;
+    const scheduledAt = jobScheduledStart(job);
+    if (!scheduledAt) continue;
+    const startDayKey = formatDateInTimeZone(scheduledAt, timeZone);
+    if (!startDayKey) continue;
+    seenJobIdsForScheduledProduction.add(job.id);
 
-    incrementWeekMetric(weekMap, scheduleStart, (bucket) => {
-      bucket.scheduledProduction -= totalAmount;
-    });
-    for (const allocation of allocations) {
-      const bucket = weekMap.get(allocation.weekKey);
-      if (!bucket) continue;
-      bucket.scheduledProduction += allocation.amount;
+    // HCP-aligned attribution (Current Week / Month Production / week_metrics).
+    dailyScheduledByDate[startDayKey] = (dailyScheduledByDate[startDayKey] || 0) + totalAmount;
+    const startWeekKey = findWeekKeyContainingDay(startDayKey);
+    if (startWeekKey) {
+      const bucket = weekMap.get(startWeekKey);
+      if (bucket) bucket.scheduledProduction += totalAmount;
     }
+
+    // Forecast attribution (Production Outlook only). Multi-day jobs spread
+    // evenly across the inclusive day span; single-day jobs match HCP exactly.
+    const scheduledEndAt = jobScheduledEnd(job);
+    const endDayKey = scheduledEndAt ? formatDateInTimeZone(scheduledEndAt, timeZone) : null;
+
+    if (endDayKey && endDayKey > startDayKey) {
+      const spanDays = enumerateDayKeysInTimeZone(scheduledAt, scheduledEndAt, timeZone);
+      if (spanDays.length >= 2) {
+        const perDay = totalAmount / spanDays.length;
+        for (const dayKey of spanDays) {
+          addForecastForDay(dayKey, perDay);
+        }
+        continue;
+      }
+    }
+
+    addForecastForDay(startDayKey, totalAmount);
+  }
+
+  // Stamp forecast onto each in-memory bucket so consumers that read
+  // `payload.weeks` directly (e.g. snapshot persistence) get both views.
+  for (const bucket of weeks) {
+    bucket.scheduledProductionForecast = forecastByWeekStart[bucket.key] ?? bucket.scheduledProduction;
   }
 
   for (const estimate of payload.estimates || []) {
@@ -1412,22 +1462,10 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
     }
   }
 
-  // Per-day scheduled production (in org timezone) so the dashboard can
-  // attribute jobs to the correct calendar month even when a week straddles
-  // two months (e.g. Apr 27 – May 3 with a job on May 1).
-  const dailyScheduledByDate = {};
-  for (const item of payload.calendarItems || []) {
-    if (String(item.type || '').toLowerCase() !== 'job') continue;
-    const itemStart = item.start || item.start_date;
-    if (!itemStart) continue;
-    const job = jobDetailsById.get(item.appointable_id || item.job_id);
-    const scheduledAmount = toCurrencyNumber(item.attributes?.amount || item.amount || job?.total_amount || 0);
-    if (!scheduledAmount) continue;
-    const dayKey = formatDateInTimeZone(itemStart, timeZone);
-    if (!dayKey) continue;
-    dailyScheduledByDate[dayKey] = (dailyScheduledByDate[dayKey] || 0) + scheduledAmount;
-  }
-
+  // dailyScheduledByDate is built above alongside the weekly Scheduled Production
+  // sums (one source of truth: HCP Jobs by scheduled day). Month Production
+  // attributes by calendar day in the org timezone so jobs scheduled in early
+  // May never count toward April's total.
   const dailyScheduledKeys = Object.keys(dailyScheduledByDate);
   const monthFromDaily = dailyScheduledKeys.length > 0
     ? Object.entries(dailyScheduledByDate)
@@ -1447,6 +1485,10 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
       salesMonth,
       monthScheduledProduction,
       dailyScheduledByDate,
+      // Production Outlook forecast (multi-day spread). Persisted in the
+      // crm_snapshots payload only; never written into week_metrics so the
+      // Current Week / Last Week values stay HCP-aligned.
+      forecastByWeekStart,
     },
     weeks,
   };
@@ -1776,8 +1818,24 @@ const server = http.createServer(async (req, res) => {
   getLatestCrmSnapshotByOrg(viewContext.organization.id),
 ]);
 const liveWeeks = buildWeeksFromMetrics(weekMetrics);
-const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
+const mergedWeeksBase = applyOverridesToWeeks(liveWeeks, overrides);
 const rollups = latestSnapshot?.payload?.rollups || null;
+
+// Production Outlook forecast: applies ONLY to nextWeek / weekPlus2 / weekPlus3.
+// Current Week and Last Week stay HCP-aligned (= bucket.scheduledProduction).
+const forecastByWeekStart = (rollups?.forecastByWeekStart && typeof rollups.forecastByWeekStart === 'object')
+  ? rollups.forecastByWeekStart
+  : {};
+const FORECAST_WEEK_KEYS = new Set(['nextWeek', 'weekPlus2', 'weekPlus3']);
+const mergedWeeks = Object.fromEntries(
+  Object.entries(mergedWeeksBase).map(([key, week]) => {
+    const baseScheduled = Number(week?.scheduledProduction || 0);
+    const forecast = FORECAST_WEEK_KEYS.has(key)
+      ? Number(forecastByWeekStart[week?.weekStartDate] ?? baseScheduled)
+      : baseScheduled;
+    return [key, { ...week, scheduledProductionForecast: forecast }];
+  })
+);
 
 const currentMonthKey = formatDateInTimeZone(new Date(), viewContext.organization.timezone || 'UTC').slice(0, 7);
 // Month Production: prefer calendar-month totals from per-job scheduled

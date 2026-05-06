@@ -534,9 +534,9 @@ async function renderDashboard() {
               <div class="tag live">Live</div>
             `)}
             ${panel('Production Outlook', `
-              <div class="row"><span class="label">${dashboard.weeks.nextWeek.range}</span><strong>${money.format(dashboard.weeks.nextWeek.scheduledProduction)}</strong></div>
-              <div class="row"><span class="label">${dashboard.weeks.weekPlus2.range}</span><strong>${money.format(dashboard.weeks.weekPlus2.scheduledProduction)}</strong></div>
-              <div class="row"><span class="label">${dashboard.weeks.weekPlus3.range}</span><strong>${money.format(dashboard.weeks.weekPlus3.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">${dashboard.weeks.nextWeek.range}</span><strong>${money.format(dashboard.weeks.nextWeek.scheduledProductionForecast ?? dashboard.weeks.nextWeek.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">${dashboard.weeks.weekPlus2.range}</span><strong>${money.format(dashboard.weeks.weekPlus2.scheduledProductionForecast ?? dashboard.weeks.weekPlus2.scheduledProduction)}</strong></div>
+              <div class="row"><span class="label">${dashboard.weeks.weekPlus3.range}</span><strong>${money.format(dashboard.weeks.weekPlus3.scheduledProductionForecast ?? dashboard.weeks.weekPlus3.scheduledProduction)}</strong></div>
               <div class="tag live">Live</div>
             `)}
           </div>

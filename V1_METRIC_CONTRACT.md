@@ -9,17 +9,45 @@ If a metric changes, update this file in the same commit.
 ## V1 launch metrics
 
 ### 1) Scheduled Production
+ProfitStack maintains **two parallel views** of scheduled production. They share the same source data; they differ only in how multi-day jobs are attributed.
+
+#### 1a) HCP-aligned (default, persisted)
 **Definition:**
-Total dollar value of scheduled jobs for the selected week.
+Total dollar value of jobs whose **scheduled-start day** lands inside the selected week. Mirrors HCP **Reporting → Custom → Jobs by scheduled day** with no status filter, exactly.
 
 **Source:**
-Housecall Pro calendar/job scheduling data.
+Housecall Pro `jobDetails`. For each job we read `schedule.data.start_time` (with `scheduled_start`/`scheduled_at`/`scheduled_date` fallbacks), convert to a calendar day in the **org business timezone**, and add the full `total_amount` to the week containing that day.
+
+**Rule:**
+Do not split by visit/calendar item, do not redistribute across an invoice family, and do not pro-rate across weeks. Every job's `total_amount` lives entirely in its scheduled-start day, exactly like HCP's Jobs report.
 
 **Used in:**
-- week cards
-- selected week view
+- Current Week card
+- Last Week Snapshot
+- Mini week tabs (last / current / next at the top of the dashboard)
 - weekly goal comparison
-- next 3 weeks outlook
+- daily map (`rollups.dailyScheduledByDate`) that drives Month Production
+- `week_metrics.scheduled_production` persistence and locked snapshots
+
+#### 1b) Forecast view (Production Outlook only, in-memory)
+**Definition:**
+Same data as 1a, but multi-day jobs (`schedule.end_time` lands on a later business-TZ calendar day than `schedule.start_time`) are spread **evenly across the inclusive calendar-day span** of the schedule. Single-day jobs match 1a exactly.
+
+**Example:**
+A $58k install scheduled May 22 → May 27 (6 days) shows as **$29k on May 18–24** and **$29k on May 25–31** in the Production Outlook card, while the Current Week card and HCP Jobs report still show the full $58k on May 18–24 (the start week).
+
+**Source:**
+Computed during sync into `rollups.forecastByWeekStart` on the snapshot payload. **Never written into `week_metrics`** — it is recomputed every time the dashboard renders, so historical persistence (and HCP reconciliation) stay clean.
+
+**Used in:**
+- Production Outlook card **only** (next week, week+2, week+3)
+
+**Implemented in:**
+- `backend/src/server.mjs` → `fetchHousecallProSnapshot(...)` builds both `bucket.scheduledProduction` (1a) and `forecastByWeekStart` (1b), using `enumerateDayKeysInTimeZone(...)` for the span enumeration.
+- The dashboard handler merges `forecastByWeekStart` onto `nextWeek / weekPlus2 / weekPlus3` only, exposing it as `scheduledProductionForecast`.
+
+**Rule:**
+The forecast view is a **deliberate productivity-view metric for crew load on future weeks**. It is allowed to disagree with HCP's Jobs-by-scheduled-day report; reconciliation against HCP must be done against view 1a (`scheduledProduction`).
 
 ---
 
@@ -95,7 +123,7 @@ Housecall Pro scheduled job data.
 Scheduled production **attributed to calendar days** in the **current month** (org timezone). Each job’s scheduled start date buckets its amount into that calendar day; days are summed for `YYYY-MM`.
 
 **Source (primary):**
-Latest CRM snapshot rollup `rollups.dailyScheduledByDate`, built during sync from Housecall Pro calendar job items (scheduled start in org TZ). This keeps May 1–2 jobs out of April when they share a rolling Monday week with April.
+Latest CRM snapshot rollup `rollups.dailyScheduledByDate`, built during sync from the same Jobs-by-scheduled-day pass that powers Scheduled Production (see metric #1). Each job's full `total_amount` is attributed to its scheduled-start calendar day in the org timezone, so May 1–2 jobs never roll into April even if they share a rolling Monday week with April.
 
 **Fallback:**
 If the snapshot has **no** daily map (legacy / empty pull), sum weekly `week_metrics` for every week interval that overlaps the month (full week row per overlap), with snapshot + override resolution per week.
