@@ -1308,22 +1308,12 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     jobDetailsById.set(job.id, job);
   }
 
-  // Scheduled Production (V1 contract #1) — two parallel views:
-  //
-  //   • bucket.scheduledProduction (and dailyScheduledByDate) are HCP-aligned:
-  //     every job's full `total_amount` lands on its scheduled-start day's week.
-  //     This drives the Current Week card, Last Week Snapshot, week_metrics
-  //     persistence, and Month Production. It mirrors HCP "Jobs by scheduled
-  //     day" exactly.
-  //
-  //   • forecastByWeekStart is a separate, in-memory-only map for the
-  //     Production Outlook card. Multi-day jobs (end_time on a later business-TZ
-  //     day than start_time) are spread evenly across each calendar day of the
-  //     span, so a 2-week install shows up as crew load in BOTH future weeks.
-  //     This view is intentionally non-persistent: it's recomputed from the
-  //     latest snapshot every time the dashboard renders.
+  // Scheduled Production (V1 contract #1):
+  // HCP-aligned across every card. Every job's full `total_amount` lands on
+  // its scheduled-start day's week, mirroring HCP "Jobs by scheduled day"
+  // exactly. No multi-day spread, no per-visit splitting, no invoice-family
+  // redistribution. Production Outlook reads the same values as Current Week.
   const dailyScheduledByDate = {};
-  const forecastByWeekStart = {};
   const findWeekKeyContainingDay = (dayKey) => {
     if (!dayKey) return null;
     for (const week of weeks) {
@@ -1337,17 +1327,6 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     || job?.scheduled_at
     || job?.scheduled_date
     || null;
-  const jobScheduledEnd = (job) => job?.schedule?.data?.end_time
-    || job?.schedule?.data?.scheduled_end
-    || job?.scheduled_end
-    || null;
-
-  const addForecastForDay = (dayKey, amount) => {
-    if (!dayKey || !(amount > 0)) return;
-    const weekKey = findWeekKeyContainingDay(dayKey);
-    if (!weekKey) return;
-    forecastByWeekStart[weekKey] = (forecastByWeekStart[weekKey] || 0) + amount;
-  };
 
   const seenJobIdsForScheduledProduction = new Set();
   for (const job of payload.jobDetails || []) {
@@ -1360,37 +1339,12 @@ async function fetchHousecallProSnapshot(crmConnection, timeZone = 'UTC') {
     if (!startDayKey) continue;
     seenJobIdsForScheduledProduction.add(job.id);
 
-    // HCP-aligned attribution (Current Week / Month Production / week_metrics).
     dailyScheduledByDate[startDayKey] = (dailyScheduledByDate[startDayKey] || 0) + totalAmount;
     const startWeekKey = findWeekKeyContainingDay(startDayKey);
     if (startWeekKey) {
       const bucket = weekMap.get(startWeekKey);
       if (bucket) bucket.scheduledProduction += totalAmount;
     }
-
-    // Forecast attribution (Production Outlook only). Multi-day jobs spread
-    // evenly across the inclusive day span; single-day jobs match HCP exactly.
-    const scheduledEndAt = jobScheduledEnd(job);
-    const endDayKey = scheduledEndAt ? formatDateInTimeZone(scheduledEndAt, timeZone) : null;
-
-    if (endDayKey && endDayKey > startDayKey) {
-      const spanDays = enumerateDayKeysInTimeZone(scheduledAt, scheduledEndAt, timeZone);
-      if (spanDays.length >= 2) {
-        const perDay = totalAmount / spanDays.length;
-        for (const dayKey of spanDays) {
-          addForecastForDay(dayKey, perDay);
-        }
-        continue;
-      }
-    }
-
-    addForecastForDay(startDayKey, totalAmount);
-  }
-
-  // Stamp forecast onto each in-memory bucket so consumers that read
-  // `payload.weeks` directly (e.g. snapshot persistence) get both views.
-  for (const bucket of weeks) {
-    bucket.scheduledProductionForecast = forecastByWeekStart[bucket.key] ?? bucket.scheduledProduction;
   }
 
   for (const estimate of payload.estimates || []) {
@@ -1485,10 +1439,6 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
       salesMonth,
       monthScheduledProduction,
       dailyScheduledByDate,
-      // Production Outlook forecast (multi-day spread). Persisted in the
-      // crm_snapshots payload only; never written into week_metrics so the
-      // Current Week / Last Week values stay HCP-aligned.
-      forecastByWeekStart,
     },
     weeks,
   };
@@ -1818,24 +1768,8 @@ const server = http.createServer(async (req, res) => {
   getLatestCrmSnapshotByOrg(viewContext.organization.id),
 ]);
 const liveWeeks = buildWeeksFromMetrics(weekMetrics);
-const mergedWeeksBase = applyOverridesToWeeks(liveWeeks, overrides);
+const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
 const rollups = latestSnapshot?.payload?.rollups || null;
-
-// Production Outlook forecast: applies ONLY to nextWeek / weekPlus2 / weekPlus3.
-// Current Week and Last Week stay HCP-aligned (= bucket.scheduledProduction).
-const forecastByWeekStart = (rollups?.forecastByWeekStart && typeof rollups.forecastByWeekStart === 'object')
-  ? rollups.forecastByWeekStart
-  : {};
-const FORECAST_WEEK_KEYS = new Set(['nextWeek', 'weekPlus2', 'weekPlus3']);
-const mergedWeeks = Object.fromEntries(
-  Object.entries(mergedWeeksBase).map(([key, week]) => {
-    const baseScheduled = Number(week?.scheduledProduction || 0);
-    const forecast = FORECAST_WEEK_KEYS.has(key)
-      ? Number(forecastByWeekStart[week?.weekStartDate] ?? baseScheduled)
-      : baseScheduled;
-    return [key, { ...week, scheduledProductionForecast: forecast }];
-  })
-);
 
 const currentMonthKey = formatDateInTimeZone(new Date(), viewContext.organization.timezone || 'UTC').slice(0, 7);
 // Month Production: prefer calendar-month totals from per-job scheduled
