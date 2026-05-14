@@ -137,6 +137,25 @@ The same `week_metrics` rows that drive the weekly cards. Past weeks use their l
 
 ---
 
+## Jobber field mapping
+
+When the connected CRM is **Jobber** (provider = `jobber`), the same metrics are computed from Jobber's GraphQL API using these field mappings:
+
+| ProfitStack metric | Jobber source | Logic |
+|---|---|---|
+| Scheduled Production (weekly + daily map) | `jobs` query → `job.total` | Full `total` on job's `startAt` day (org TZ), bucketed into the containing week. Same single-day rule as HCP (#1). |
+| Approved Sales | `quotes` query → approved/won quotes | Quote `total` attributed to `approvedAt` (fallback `createdAt`), bucketed into the containing week. |
+| Opportunities | `quotes` query → all quotes | +1 per quote, attributed to `createdAt` week. |
+| Sales Today | `jobs` query → `job.total` | Sum of jobs where `createdAt` in org TZ = today. |
+| Sales Month | `jobs` query → `job.total` | Sum of jobs where `createdAt` month = current month. |
+| Month Production | `dailyScheduledByDate` | Same calendar-day sum as HCP path (days in current month). |
+
+**Source version:** `jobber-graphql-v1` in `week_metrics.source_version`.
+
+**Token lifecycle:** OAuth access token expires in 1 hour. Automatic refresh via `grant_type=refresh_token` before each sync. If refresh fails, `crm_connections.status` is set to `disconnected` and the dashboard shows a reconnect prompt.
+
+---
+
 ## Not in V1 launch contract
 These are explicitly out unless Chad says otherwise:
 - completed production

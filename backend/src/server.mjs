@@ -139,6 +139,135 @@ function buildBillingSummary(req, context) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Jobber OAuth 2.0
+// ---------------------------------------------------------------------------
+const JOBBER_AUTH_BASE = process.env.JOBBER_AUTH_BASE || 'https://api.getjobber.com/api/oauth';
+const JOBBER_GRAPHQL_URL = process.env.JOBBER_GRAPHQL_URL || 'https://api.getjobber.com/api/graphql';
+
+function getJobberEnv() {
+  return {
+    clientId: process.env.JOBBER_CLIENT_ID || '',
+    clientSecret: process.env.JOBBER_CLIENT_SECRET || '',
+    redirectUri: process.env.JOBBER_REDIRECT_URI || '',
+    scopes: process.env.JOBBER_SCOPES || 'read_clients read_jobs read_invoices read_quotes',
+  };
+}
+
+function jobberOAuthConfigured() {
+  const env = getJobberEnv();
+  return Boolean(env.clientId && env.clientSecret && env.redirectUri);
+}
+
+function buildJobberState(organizationId) {
+  const payload = JSON.stringify({ org: organizationId, ts: Date.now() });
+  const secret = process.env.JOBBER_CLIENT_SECRET || process.env.ENCRYPTION_KEY || 'dev-fallback';
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return Buffer.from(`${sig}.${payload}`).toString('base64url');
+}
+
+function verifyJobberState(stateParam) {
+  const secret = process.env.JOBBER_CLIENT_SECRET || process.env.ENCRYPTION_KEY || 'dev-fallback';
+  const raw = Buffer.from(stateParam, 'base64url').toString('utf8');
+  const dotIndex = raw.indexOf('.');
+  if (dotIndex < 1) return null;
+  const sig = raw.slice(0, dotIndex);
+  const payloadStr = raw.slice(dotIndex + 1);
+  const expected = crypto.createHmac('sha256', secret).update(payloadStr).digest('hex');
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try {
+    const data = JSON.parse(payloadStr);
+    if (Date.now() - data.ts > 10 * 60 * 1000) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function jobberTokenExchange(grantType, params) {
+  const env = getJobberEnv();
+  const body = {
+    client_id: env.clientId,
+    client_secret: env.clientSecret,
+    ...params,
+    grant_type: grantType,
+  };
+  const response = await fetch(`${JOBBER_AUTH_BASE}/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Jobber token exchange failed (${response.status}): ${text.slice(0, 300)}`);
+  }
+  return response.json();
+}
+
+async function jobberRefreshAccessToken(crmConnection) {
+  const fields = crmConnection?.encrypted_credentials?.fields || {};
+  const refreshToken = fields.refreshToken;
+  if (!refreshToken) throw new Error('No Jobber refresh token available');
+  const env = getJobberEnv();
+  const tokens = await jobberTokenExchange('refresh_token', {
+    refresh_token: refreshToken,
+    redirect_uri: env.redirectUri,
+  });
+  const newFields = {
+    ...fields,
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token || refreshToken,
+    expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000,
+  };
+  await upsertCrmConnection({
+    id: crmConnection.id,
+    organization_id: crmConnection.organization_id,
+    provider: 'jobber',
+    status: 'connected',
+    auth_type: 'oauth2',
+    encrypted_credentials: { ...crmConnection.encrypted_credentials, fields: newFields },
+    last_sync_at: crmConnection.last_sync_at,
+    last_error: null,
+  });
+  return newFields.accessToken;
+}
+
+async function getJobberAccessToken(crmConnection) {
+  const fields = crmConnection?.encrypted_credentials?.fields || {};
+  if (!fields.accessToken) throw new Error('No Jobber access token stored');
+  const bufferMs = 5 * 60 * 1000;
+  if (fields.expiresAt && Date.now() > fields.expiresAt - bufferMs) {
+    return jobberRefreshAccessToken(crmConnection);
+  }
+  return fields.accessToken;
+}
+
+async function jobberGraphql(accessToken, query, variables = {}) {
+  const response = await fetch(JOBBER_GRAPHQL_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      'X-JOBBER-GRAPHQL-VERSION': '2024-06-14',
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (response.status === 401 || response.status === 403) {
+    const err = new Error(`Jobber GraphQL auth error (${response.status})`);
+    err.statusCode = response.status;
+    throw err;
+  }
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Jobber GraphQL error (${response.status}): ${text.slice(0, 300)}`);
+  }
+  const json = await response.json();
+  if (json.errors?.length) {
+    throw new Error(`Jobber GraphQL errors: ${JSON.stringify(json.errors).slice(0, 400)}`);
+  }
+  return json.data;
+}
+
 function requireAdmin(context) {
   if (String(context?.user?.role || '').toLowerCase() !== 'admin') {
     const error = new Error('Admin access required');
@@ -1444,10 +1573,172 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
   };
 }
 
+async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
+  const accessToken = await getJobberAccessToken(crmConnection);
+  const now = new Date();
+  const weeks = buildWeekBuckets(now, 8, 2);
+  const weekMap = new Map(weeks.map((week) => [week.key, week]));
+  const currentMonthKey = formatDateInTimeZone(now, 'UTC').slice(0, 7);
+  const todayDate = formatDateInTimeZone(now, timeZone);
+  const rangeStart = weeks[0].weekStartDate;
+  const rangeEnd = weeks[weeks.length - 1].weekEndDate;
+
+  const JOBS_QUERY = `
+    query FetchJobs($cursor: String) {
+      jobs(first: 100, after: $cursor, filter: {
+        startAt: { gte: "${rangeStart}T00:00:00Z" }
+      }) {
+        nodes {
+          id
+          jobNumber
+          title
+          total
+          startAt
+          endAt
+          closedAt
+          jobStatus
+          createdAt
+          quote { id total approvedAt }
+          lineItems { nodes { name qty totalPrice } }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  `;
+
+  const QUOTES_QUERY = `
+    query FetchQuotes($cursor: String) {
+      quotes(first: 100, after: $cursor) {
+        nodes {
+          id
+          quoteNumber
+          quoteStatus
+          total
+          createdAt
+          approvedAt
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  `;
+
+  const allJobs = [];
+  let cursor = null;
+  for (let page = 0; page < 20; page++) {
+    const data = await jobberGraphql(accessToken, JOBS_QUERY, { cursor });
+    const nodes = data?.jobs?.nodes || [];
+    allJobs.push(...nodes);
+    if (!data?.jobs?.pageInfo?.hasNextPage) break;
+    cursor = data.jobs.pageInfo.endCursor;
+  }
+
+  const allQuotes = [];
+  cursor = null;
+  for (let page = 0; page < 10; page++) {
+    const data = await jobberGraphql(accessToken, QUOTES_QUERY, { cursor });
+    const nodes = data?.quotes?.nodes || [];
+    allQuotes.push(...nodes);
+    if (!data?.quotes?.pageInfo?.hasNextPage) break;
+    cursor = data.quotes.pageInfo.endCursor;
+    const oldestCreated = nodes[nodes.length - 1]?.createdAt;
+    if (oldestCreated && oldestCreated < `${rangeStart}T00:00:00Z`) break;
+  }
+
+  // Scheduled Production: full job total on scheduled-start day (HCP-aligned)
+  const dailyScheduledByDate = {};
+  const findWeekKeyContainingDay = (dayKey) => {
+    if (!dayKey) return null;
+    for (const week of weeks) {
+      if (week.weekStartDate <= dayKey && dayKey <= week.weekEndDate) return week.key;
+    }
+    return null;
+  };
+
+  const seenJobIds = new Set();
+  for (const job of allJobs) {
+    if (!job?.id || seenJobIds.has(job.id)) continue;
+    const totalAmount = Number(job.total || 0);
+    if (!totalAmount) continue;
+    const scheduledAt = job.startAt;
+    if (!scheduledAt) continue;
+    const dayKey = formatDateInTimeZone(scheduledAt, timeZone);
+    if (!dayKey) continue;
+    seenJobIds.add(job.id);
+
+    dailyScheduledByDate[dayKey] = (dailyScheduledByDate[dayKey] || 0) + totalAmount;
+    const weekKey = findWeekKeyContainingDay(dayKey);
+    if (weekKey) {
+      const bucket = weekMap.get(weekKey);
+      if (bucket) bucket.scheduledProduction += totalAmount;
+    }
+  }
+
+  // Approved Sales from quotes approved in range
+  for (const quote of allQuotes) {
+    if (String(quote.quoteStatus || '').toLowerCase() !== 'approved'
+      && String(quote.quoteStatus || '').toLowerCase() !== 'won') continue;
+    const approvedAt = quote.approvedAt || quote.createdAt;
+    if (!approvedAt) continue;
+    const value = Number(quote.total || 0);
+    if (!value) continue;
+    incrementWeekMetric(weekMap, approvedAt, (bucket) => {
+      bucket.approvedSales += value;
+    });
+  }
+
+  // Opportunities: quotes created in range
+  for (const quote of allQuotes) {
+    const createdAt = quote.createdAt;
+    if (!createdAt) continue;
+    incrementWeekMetric(weekMap, createdAt, (bucket) => {
+      bucket.opportunities += 1;
+    });
+  }
+
+  // Sales Today / Sales Month (from jobs created in range)
+  let salesToday = 0;
+  let salesMonth = 0;
+  for (const job of allJobs) {
+    const totalAmount = Number(job.total || 0);
+    if (!totalAmount) continue;
+    const createdDate = formatDateInTimeZone(job.createdAt, timeZone);
+    if (!createdDate) continue;
+    if (createdDate === todayDate) salesToday += totalAmount;
+    if (createdDate.slice(0, 7) === currentMonthKey) salesMonth += totalAmount;
+  }
+
+  // Month Production from daily map
+  const dailyScheduledKeys = Object.keys(dailyScheduledByDate);
+  const monthFromDaily = dailyScheduledKeys.length > 0
+    ? Object.entries(dailyScheduledByDate)
+      .filter(([dayKey]) => dayKey.slice(0, 7) === currentMonthKey)
+      .reduce((sum, [, amount]) => sum + amount, 0)
+    : null;
+  const monthScheduledProduction = monthFromDaily != null
+    ? monthFromDaily
+    : getVisibleMonthScheduledProduction(currentMonthKey, weekMap);
+
+  return {
+    provider: 'jobber',
+    sourceLabel: 'jobber_graphql_pull',
+    fetchedAt: new Date().toISOString(),
+    rollups: {
+      salesToday,
+      salesMonth,
+      monthScheduledProduction,
+      dailyScheduledByDate,
+    },
+    weeks,
+  };
+}
+
 async function fetchSnapshotFromCrmConnection(crmConnection, timeZone = 'UTC') {
   const fields = crmConnection?.encrypted_credentials?.fields || {};
   if (crmConnection?.provider === 'housecall_pro' && fields.sessionCookie) {
     return fetchHousecallProSnapshot(crmConnection, timeZone);
+  }
+  if (crmConnection?.provider === 'jobber' && fields.accessToken) {
+    return fetchJobberSnapshot(crmConnection, timeZone);
   }
   const snapshotUrl = fields.snapshotUrl || fields.exportUrl || fields.reportUrl || null;
   if (!snapshotUrl) return null;
@@ -1651,6 +1942,106 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 500, { error: error.message });
         }
       }
+
+      // ----- Jobber OAuth routes (no session required for callback) -----
+      if (req.method === 'GET' && pathname === '/api/jobber/authorize') {
+        if (!jobberOAuthConfigured()) {
+          return sendJson(res, 501, { error: 'Jobber OAuth is not configured on this server.' });
+        }
+        // Accept token from query param since this is a full-page navigation (no Bearer header)
+        const tokenParam = requestUrl.searchParams.get('token');
+        if (tokenParam) {
+          req.headers.authorization = `Bearer ${tokenParam}`;
+        }
+        const context = await resolveContext(req);
+        const env = getJobberEnv();
+        const state = buildJobberState(context.organization.id);
+        const authUrl = new URL(`${JOBBER_AUTH_BASE}/authorize`);
+        authUrl.searchParams.set('client_id', env.clientId);
+        authUrl.searchParams.set('redirect_uri', env.redirectUri);
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('scope', env.scopes);
+        authUrl.searchParams.set('state', state);
+        res.writeHead(302, { Location: authUrl.toString() });
+        return res.end();
+      }
+
+      if (req.method === 'GET' && pathname === '/oauth/callback') {
+        const code = requestUrl.searchParams.get('code');
+        const stateParam = requestUrl.searchParams.get('state');
+        const errorParam = requestUrl.searchParams.get('error');
+        const origin = getRequestOrigin(req);
+
+        if (errorParam) {
+          res.writeHead(302, { Location: `${origin}/crm.html?jobber=error&reason=${encodeURIComponent(errorParam)}` });
+          return res.end();
+        }
+        if (!code || !stateParam) {
+          res.writeHead(302, { Location: `${origin}/crm.html?jobber=error&reason=missing_code` });
+          return res.end();
+        }
+        const stateData = verifyJobberState(stateParam);
+        if (!stateData) {
+          res.writeHead(302, { Location: `${origin}/crm.html?jobber=error&reason=invalid_state` });
+          return res.end();
+        }
+
+        const env = getJobberEnv();
+        const tokens = await jobberTokenExchange('authorization_code', {
+          code,
+          redirect_uri: env.redirectUri,
+        });
+
+        const credentialEnvelope = {
+          version: 1,
+          provider: 'jobber',
+          authType: 'oauth2',
+          accountLabel: 'Jobber account',
+          savedAt: new Date().toISOString(),
+          hasCredentials: true,
+          fieldKeys: ['accessToken', 'refreshToken', 'expiresAt'],
+          fields: {
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000,
+            scope: env.scopes,
+          },
+        };
+
+        const existing = await getCrmConnectionByOrg(stateData.org);
+        await upsertCrmConnection({
+          id: existing?.id || crypto.randomUUID(),
+          organization_id: stateData.org,
+          provider: 'jobber',
+          status: 'connected',
+          auth_type: 'oauth2',
+          encrypted_credentials: credentialEnvelope,
+          last_sync_at: new Date().toISOString(),
+          last_error: null,
+        });
+
+        res.writeHead(302, { Location: `${origin}/crm.html?jobber=connected` });
+        return res.end();
+      }
+      if (req.method === 'POST' && pathname === '/api/jobber/webhooks') {
+        const rawBody = await readRawBody(req);
+        const jobberEnv = getJobberEnv();
+        const signature = req.headers['x-jobber-hmac-sha256'] || '';
+        if (jobberEnv.clientSecret && signature) {
+          const expected = crypto.createHmac('sha256', jobberEnv.clientSecret)
+            .update(rawBody)
+            .digest('base64');
+          if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+            return sendJson(res, 401, { error: 'Invalid webhook signature' });
+          }
+        }
+        // Acknowledge immediately; no processing in V1 — topic is logged for observability.
+        let payload;
+        try { payload = JSON.parse(rawBody.toString('utf8')); } catch { payload = {}; }
+        console.log('[jobber-webhook]', payload.topic || 'unknown_topic', payload.app_id || '');
+        return sendJson(res, 200, { ok: true, topic: payload.topic || null });
+      }
+      // ----- End Jobber OAuth routes -----
 
       if (req.method === 'POST' && pathname === '/api/auth/magic-link') {
         const body = await readJsonBody(req);
@@ -1934,15 +2325,17 @@ return sendJson(res, 200, {
       }
       if (req.method === 'POST' && pathname === '/api/crm-connection/disconnect') {
         const existing = await getCrmConnectionByOrg(context.organization.id);
+        const provider = existing?.provider || 'unknown';
+        const providerLabel = provider === 'jobber' ? 'Jobber' : 'Housecall Pro';
         const saved = await upsertCrmConnection({
           id: existing?.id || '50000000-0000-0000-0000-000000000001',
           organization_id: context.organization.id,
-          provider: existing?.provider || 'housecall_pro',
+          provider,
           status: 'disconnected',
           auth_type: existing?.auth_type || 'session_or_oauth',
           encrypted_credentials: {
             version: 1,
-            provider: existing?.provider || 'housecall_pro',
+            provider,
             authType: existing?.auth_type || 'session_or_oauth',
             accountLabel: existing?.encrypted_credentials?.accountLabel || null,
             savedAt: new Date().toISOString(),
@@ -1956,7 +2349,7 @@ return sendJson(res, 200, {
         });
         return sendJson(res, 200, {
           ok: true,
-          message: 'Housecall Pro disconnected. Your last synced numbers were kept.',
+          message: `${providerLabel} disconnected. Your last synced numbers were kept.`,
           item: formatCrmConnectionDetail(saved?.[0] || null),
         });
       }
@@ -2037,13 +2430,16 @@ return sendJson(res, 200, {
 
             if (!crmConnection) {
               code = 'crm_not_configured';
-              message = 'No CRM is configured for this account yet. Connect Housecall Pro from Connect CRM, then try again.';
+              message = 'No CRM is configured for this account yet. Connect your CRM from the Connect CRM page, then try again.';
+            } else if (provider === 'jobber' && (!credentialFields.accessToken || crmConnection.status === 'disconnected')) {
+              code = 'crm_disconnected';
+              message = 'Jobber is disconnected. Reconnect it from the CRM page, then click Refresh Data again.';
             } else if (provider === 'housecall_pro' && (!hasSessionCookie || crmConnection.status === 'disconnected')) {
               code = 'crm_disconnected';
               message = 'Housecall Pro is disconnected. Reconnect it, then click Refresh Data again.';
-            } else if (!hasSessionCookie && !hasSnapshotUrl && !manualSnapshot) {
+            } else if (!hasSessionCookie && !hasSnapshotUrl && !manualSnapshot && !credentialFields.accessToken) {
               code = 'crm_no_source';
-              message = 'This CRM has no snapshot source configured (no session cookie, snapshot URL, or saved snapshot).';
+              message = 'This CRM has no snapshot source configured (no session cookie, access token, snapshot URL, or saved snapshot).';
             } else {
               statusCode = 500;
             }

@@ -1,4 +1,4 @@
-import { apiFetch, requireLogin } from './auth.js';
+import { apiFetch, requireLogin, getAccessToken } from './auth.js';
 import { renderSessionBanner } from './session-banner.js';
 requireLogin();
 
@@ -23,17 +23,20 @@ async function loadStatus() {
   const data = await res.json();
   const status = data.status || 'not_connected';
   const statusLabel = status.replaceAll('_', ' ');
+  const isJobber = data.provider === 'jobber';
+  const providerLabel = isJobber ? 'Jobber' : 'Housecall Pro';
+  const statusDesc = status === 'connected'
+    ? `Your ${providerLabel} account is connected for this organization.`
+    : status === 'disconnected'
+      ? `${providerLabel} is disconnected. Your last synced numbers remain on the dashboard until you refresh with a new connection.`
+      : 'No CRM is connected yet.';
   app.innerHTML = `
     <div>
       <div class="status-badge ${statusBadgeClass(status)}">${escapeHtml(statusLabel)}</div>
     </div>
     <div>
-      <h3>${escapeHtml(data.provider === 'housecall_pro' ? 'Housecall Pro' : 'CRM Connection')}</h3>
-      <p>${status === 'connected'
-        ? 'Your active Housecall Pro session is saved for this organization.'
-        : status === 'disconnected'
-          ? 'Housecall Pro is disconnected. Your last synced numbers remain on the dashboard until you refresh with a new connection.'
-          : 'No active Housecall Pro session is saved yet.'}</p>
+      <h3>${escapeHtml(providerLabel)}</h3>
+      <p>${statusDesc}</p>
     </div>
     <div class="row"><span>Connection Name</span><strong>${escapeHtml(data.accountLabel || '—')}</strong></div>
     <div class="row"><span>Auth Type</span><strong>${escapeHtml(data.authType || '—')}</strong></div>
@@ -41,7 +44,7 @@ async function loadStatus() {
     <div class="row"><span>Saved At</span><strong>${escapeHtml(data.savedAt || '—')}</strong></div>
     <div class="row"><span>Last Sync</span><strong>${escapeHtml(data.lastSyncAt || '—')}</strong></div>
     <div class="row"><span>Last Error</span><strong>${escapeHtml(data.lastError || 'None')}</strong></div>
-    ${status === 'connected' ? '<div class="actions"><button type="button" id="disconnectButton">Disconnect Housecall Pro</button></div>' : ''}
+    ${status === 'connected' ? `<div class="actions"><button type="button" id="disconnectButton">Disconnect ${escapeHtml(providerLabel)}</button></div>` : ''}
   `;
 
   const disconnectButton = document.getElementById('disconnectButton');
@@ -92,6 +95,15 @@ function renderOnboardingMessage() {
   if (mode === 'connect-crm' && result) {
     result.innerHTML = `<p class="muted">Next step: connect Housecall Pro here, then you will go straight to ${next === 'dashboard-setup' ? 'the final setup step for expenses, profit goal, and timezone.' : 'the dashboard.'}</p>`;
   }
+
+  const jobberResult = document.getElementById('jobberResult');
+  const jobberStatus = params.get('jobber');
+  if (jobberStatus === 'connected' && jobberResult) {
+    jobberResult.innerHTML = '<p class="success">Jobber connected successfully. Go to the dashboard and click Refresh Data.</p>';
+  } else if (jobberStatus === 'error' && jobberResult) {
+    const reason = params.get('reason') || 'unknown';
+    jobberResult.innerHTML = `<p class="error">Jobber connection failed: ${escapeHtml(reason)}. Please try again.</p>`;
+  }
 }
 
 async function main() {
@@ -102,6 +114,14 @@ async function main() {
     await renderSessionBanner();
     renderOnboardingMessage();
     await loadStatus();
+
+    const jobberBtn = document.getElementById('jobberConnectBtn');
+    if (jobberBtn) {
+      jobberBtn.addEventListener('click', () => {
+        const token = getAccessToken();
+        window.location.href = `/api/jobber/authorize?token=${encodeURIComponent(token)}`;
+      });
+    }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();

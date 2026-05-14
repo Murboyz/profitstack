@@ -22,6 +22,9 @@ Then open:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `DATABASE_URL`
 - `STRIPE_WEBHOOK_SECRET` (if Stripe checkout is enabled)
+- `JOBBER_CLIENT_ID` (if Jobber integration is enabled)
+- `JOBBER_CLIENT_SECRET` (if Jobber integration is enabled)
+- `JOBBER_REDIRECT_URI` — must be the **public HTTPS** callback URL registered in Jobber Developer Center (e.g. `https://thenutreport.com/oauth/callback`)
 
 ## Stripe webhook
 - Endpoint: `POST {APP_URL}/api/stripe/webhook`
@@ -40,6 +43,14 @@ docker run --env-file .env.local -p 8787:8787 profitstack
 
 ## Health check
 - `GET /api/health`
+
+## Jobber OAuth
+- Register your app at [Jobber Developer Center](https://developer.getjobber.com)
+- Callback URL: `{APP_URL}/oauth/callback` (must be public HTTPS in production)
+- Webhook URL: `{APP_URL}/api/jobber/webhooks`
+- Set env vars `JOBBER_CLIENT_ID`, `JOBBER_CLIENT_SECRET`, `JOBBER_REDIRECT_URI`
+- Users connect from the CRM page (click "Connect Jobber")
+- Token refresh is automatic; if refresh fails the connection shows as disconnected
 
 ## Notes
 - current auth is still an app-shell login, not full Supabase Auth

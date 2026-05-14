@@ -134,6 +134,19 @@
       </div>
     </div>
 
+    <div class="panel" id="jobberPanel">
+      <div class="eyebrow" style="background: rgba(52,211,153,.12); color: var(--green); border-color: rgba(52,211,153,.24);">Jobber Connect</div>
+      <h2>Connect Jobber</h2>
+      <p>Click the button below to authorize The Nut Report to read your Jobber data. You'll be redirected to Jobber's sign-in page and then sent back here automatically.</p>
+      <div class="note disclaimer-strong" style="margin-top: 14px;">
+        <strong>Single CRM slot</strong><br />Each account can have one CRM connected at a time. Connecting Jobber will replace any existing Housecall Pro connection. Your previously synced numbers remain on the dashboard.
+      </div>
+      <div class="actions">
+        <button class="primary" type="button" id="jobberConnectBtn">Connect Jobber</button>
+      </div>
+      <div id="jobberResult" class="result"></div>
+    </div>
+
     <div class="panel">
       <h2>Connect Housecall Pro</h2>
       <form id="crmForm">

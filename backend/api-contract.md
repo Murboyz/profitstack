@@ -155,9 +155,22 @@ Request shape:
 }
 ```
 
+### GET /api/jobber/authorize
+Initiates Jobber OAuth. Session required. Returns a 302 redirect to Jobber's authorize page with `client_id`, `redirect_uri`, `response_type=code`, `scope`, and a signed `state` token.
+
+### GET /oauth/callback
+Jobber OAuth callback. Receives `code` and `state` query params. Validates state, exchanges code for tokens, persists to `crm_connections` with `provider: 'jobber'`, then 302-redirects to `/crm.html?jobber=connected`.
+
+### POST /api/jobber/webhooks
+Receives Jobber webhook events. Verifies HMAC signature (`x-jobber-hmac-sha256` header) against `JOBBER_CLIENT_SECRET`. Acknowledges with 200 and logs the topic. No sync is triggered in V1.
+
+### POST /api/crm-connection/disconnect
+Disconnects the current CRM (any provider). Clears credentials; keeps last synced numbers. Response message adapts to the active provider name (Housecall Pro or Jobber).
+
 ## Rules
 - merged dashboard response is the main frontend payload
 - frontend should not compute business-critical metrics on its own
 - overrides are explicit and inspectable
 - CRM connection state is separate from dashboard metrics
 - sync history is visible for trust and debugging
+- single CRM slot: connecting Jobber replaces HCP and vice versa
