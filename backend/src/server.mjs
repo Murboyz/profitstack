@@ -1966,7 +1966,7 @@ const server = http.createServer(async (req, res) => {
         return res.end();
       }
 
-      if (req.method === 'GET' && pathname === '/oauth/callback') {
+      if (req.method === 'GET' && pathname === '/api/jobber/oauth/callback') {
         const code = requestUrl.searchParams.get('code');
         const stateParam = requestUrl.searchParams.get('state');
         const errorParam = requestUrl.searchParams.get('error');
