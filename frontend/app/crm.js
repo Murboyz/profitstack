@@ -85,7 +85,17 @@ async function loadStatus() {
 
   const saveButton = document.getElementById('saveButton');
   if (saveButton) {
-    saveButton.textContent = status === 'connected' ? `Update ${providerLabel} Connection` : 'Save Housecall Pro Connection';
+    saveButton.textContent = 'Save Housecall Pro Connection';
+  }
+
+  const jobberPanel = document.getElementById('jobberPanel');
+  const hcpPanel = document.getElementById('hcpPanel');
+  if (status === 'connected' && isJobber) {
+    if (jobberPanel) jobberPanel.classList.add('active-provider');
+    if (hcpPanel) hcpPanel.classList.add('inactive-provider');
+  } else if (status === 'connected' && !isJobber) {
+    if (hcpPanel) hcpPanel.classList.add('active-provider');
+    if (jobberPanel) jobberPanel.classList.add('inactive-provider');
   }
 
   return data;

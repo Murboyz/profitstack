@@ -22,7 +22,7 @@
     body { margin: 0; font-family: Inter, Arial, sans-serif; background: var(--bg); color: var(--text); }
     .wrap { max-width: 1040px; margin: 0 auto; padding: 28px; }
     .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.22); min-width: 0; overflow: hidden; }
-    .hero { display: grid; grid-template-columns: 1.15fr minmax(0, .85fr); gap: 20px; align-items: start; }
+    .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
     .eyebrow { display: inline-block; margin-bottom: 12px; padding: 7px 11px; border-radius: 999px; background: var(--blue-soft); color: #dbe6ff; border: 1px solid rgba(91,140,255,.22); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     h1, h2, h3 { margin: 0 0 10px; }
     p { margin: 0; line-height: 1.6; color: var(--muted); }
@@ -62,8 +62,16 @@
     details { border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 14px 16px; background: rgba(255,255,255,.02); }
     summary { cursor: pointer; font-weight: 800; }
     .muted { color: var(--muted); }
+    .crm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .crm-option { margin-bottom: 0; transition: opacity .2s, border-color .2s; }
+    .crm-option.active-provider { border-color: rgba(52,211,153,.4); }
+    .crm-option.inactive-provider { opacity: .55; }
+    .crm-option.inactive-provider:hover { opacity: .85; }
+    .crm-features { display: grid; gap: 8px; margin-top: 14px; }
+    .crm-feature { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    .crm-feature::before { content: '✓'; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(52,211,153,.12); color: var(--green); font-size: 11px; font-weight: 800; flex-shrink: 0; }
     @media (max-width: 860px) {
-      .hero, .step-grid, .session-banner-grid { grid-template-columns: 1fr; }
+      .crm-grid, .step-grid, .session-banner-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 720px) {
       .wrap { padding: 16px; }
@@ -89,97 +97,96 @@
 
     <div class="panel" id="sessionBanner">Loading session…</div>
 
-    <section class="hero">
-      <div class="panel">
-        <div class="eyebrow">Housecall Pro Connect</div>
-        <h2>Connect Housecall Pro and start pulling live numbers.</h2>
-        <p>Use the connect button below to go straight to Housecall Pro. If HCP is already logged in on this computer, it should open already signed in. If not, log in there, then come back here to finish the connection.</p>
-        <div class="note disclaimer-strong" style="margin-top: 16px; margin-bottom: 0;">
-          <strong>Important disclaimer</strong><br />By using this tool, you acknowledge that all projections and performance indicators are estimates based on the information provided and data available from integrated systems. This tool is intended for guidance only and should not be relied upon as the sole source for financial decisions.
+    <div class="panel stack" id="statusCard">Loading connection status…</div>
+
+    <div class="note disclaimer-strong" style="margin-bottom: 16px;">
+      <strong>One CRM at a time</strong> — Each account can have one CRM connected. Connecting a new CRM replaces the previous one. Your last synced numbers stay on the dashboard.
+    </div>
+
+    <section class="crm-grid">
+      <div class="panel crm-option" id="jobberPanel">
+        <div class="eyebrow" style="background: rgba(52,211,153,.12); color: var(--green); border-color: rgba(52,211,153,.24);">Jobber</div>
+        <h2>Connect Jobber</h2>
+        <p>Authorize The Nut Report to read your Jobber data. You'll be redirected to Jobber's sign-in page and sent back here automatically.</p>
+        <div class="crm-features">
+          <div class="crm-feature">OAuth 2.0 — secure, no passwords stored</div>
+          <div class="crm-feature">Pulls jobs, quotes, and scheduling data</div>
+          <div class="crm-feature">One-click connect</div>
         </div>
-        <div class="note" style="margin-top: 12px; margin-bottom: 0;">
-          <strong>Best on desktop for the first connection</strong><br />You can review the dashboard on mobile, but the initial Housecall Pro connection is much smoother on desktop because HCP session capture is awkward on mobile.
+        <div class="actions">
+          <button class="primary" type="button" id="jobberConnectBtn">Connect Jobber</button>
         </div>
-        <div class="note chrome-only" style="margin-top: 12px; margin-bottom: 0;">
-          <strong>Before you connect</strong><br />This connection only works in <strong>Google Chrome</strong> with an active <strong>Housecall Pro</strong> login in the <strong>same Chrome profile</strong> as The Nut Report. Keep both tabs open, then use the Chrome helper to connect.
+        <div id="jobberResult" class="result"></div>
+      </div>
+
+      <div class="panel crm-option" id="hcpPanel">
+        <div class="eyebrow">Housecall Pro</div>
+        <h2>Connect Housecall Pro</h2>
+        <p>Use Chrome helper or paste session manually. Requires an active HCP login in the same Chrome profile.</p>
+        <div class="crm-features">
+          <div class="crm-feature">Chrome extension auto-connect</div>
+          <div class="crm-feature">Pulls calendar, jobs, and estimates</div>
+          <div class="crm-feature">Desktop Chrome required for first setup</div>
         </div>
         <div class="actions">
           <a class="button primary" href="https://pro.housecallpro.com/app" target="_blank" rel="noreferrer">Open Housecall Pro</a>
-          <a class="button secondary" href="./connect-crm.html?next=dashboard-setup">Install Chrome helper</a>
-          <a class="button secondary" href="./dashboard.html">Back to Dashboard</a>
+          <a class="button secondary" href="./connect-crm.html?next=dashboard-setup">Chrome helper</a>
         </div>
       </div>
-      <div class="panel stack" id="statusCard">Loading connection status…</div>
     </section>
 
-    <div class="panel">
-      <h2>Desktop connect flow</h2>
-      <div class="step-grid" style="margin-top: 14px;">
-        <div class="step-card">
-          <strong>1. Stay logged into The Nut Report</strong>
-          <p>Keep this Nut Report tab open in Chrome. The helper uses this tab to know which account to connect.</p>
+    <div class="panel" id="hcpDetailsPanel">
+      <details>
+        <summary>Housecall Pro — detailed setup instructions</summary>
+        <div style="margin-top: 16px;">
+          <div class="step-grid">
+            <div class="step-card">
+              <strong>1. Stay logged into The Nut Report</strong>
+              <p>Keep this tab open in Chrome. The helper uses this tab to know which account to connect.</p>
+            </div>
+            <div class="step-card">
+              <strong>2. Log into Housecall Pro</strong>
+              <p>Open HCP in the same Chrome profile and make sure the login is active.</p>
+            </div>
+            <div class="step-card">
+              <strong>3. Click the Chrome helper</strong>
+              <p>The helper captures the active HCP session and connects it automatically.</p>
+            </div>
+          </div>
+          <div class="note" style="margin-top: 16px;">
+            <strong>After connecting</strong><br />Go to the dashboard and click <strong>Refresh Data</strong>. If HCP logs you out later, reconnect the same way.
+          </div>
         </div>
-        <div class="step-card">
-          <strong>2. Log into Housecall Pro</strong>
-          <p>Use the top button to go straight into Housecall Pro and make sure the client login is active in the same Chrome profile.</p>
-        </div>
-        <div class="step-card">
-          <strong>3. Click the Chrome helper</strong>
-          <p>Use the helper to capture the active HCP session and connect it automatically to this account.</p>
-        </div>
-      </div>
-      <div class="note" style="margin-top: 16px;">
-        <strong>Then do this</strong><br />Come back to the dashboard and click <strong>Refresh Data</strong>. If Housecall Pro logs the client out later, reconnect the same way. On Sunday night, the dashboard may already roll into the next week if your reporting week starts Monday.
-      </div>
-      <div class="note" style="margin-top: 12px; background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.08); color: var(--muted);">
-        <strong>If the helper does not connect</strong><br />Make sure you are in Google Chrome, logged into Housecall Pro, and using the same Chrome profile for both tabs. If needed, use the manual fallback below or email <a href="mailto:outsidethebusinessbox@gmail.com">outsidethebusinessbox@gmail.com</a>.
-      </div>
+      </details>
     </div>
 
-    <div class="panel" id="jobberPanel">
-      <div class="eyebrow" style="background: rgba(52,211,153,.12); color: var(--green); border-color: rgba(52,211,153,.24);">Jobber Connect</div>
-      <h2>Connect Jobber</h2>
-      <p>Click the button below to authorize The Nut Report to read your Jobber data. You'll be redirected to Jobber's sign-in page and then sent back here automatically.</p>
-      <div class="note disclaimer-strong" style="margin-top: 14px;">
-        <strong>Single CRM slot</strong><br />Each account can have one CRM connected at a time. Connecting Jobber will replace any existing Housecall Pro connection. Your previously synced numbers remain on the dashboard.
-      </div>
-      <div class="actions">
-        <button class="primary" type="button" id="jobberConnectBtn">Connect Jobber</button>
-      </div>
-      <div id="jobberResult" class="result"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Connect Housecall Pro</h2>
-      <form id="crmForm">
-        <div>
-          <label for="provider">CRM Provider</label>
-          <select id="provider">
-            <option value="housecall_pro">Housecall Pro</option>
-          </select>
+    <div class="panel" id="hcpManualPanel">
+      <details>
+        <summary>Manual fallback — paste Housecall Pro session</summary>
+        <div style="margin-top: 16px;">
+          <form id="crmForm">
+            <input type="hidden" id="provider" value="housecall_pro" />
+            <div>
+              <label for="accountLabel">Connection Name</label>
+              <input id="accountLabel" value="Primary Housecall Pro account" />
+              <div class="field-help">A label you'll recognize if you need to reconnect later.</div>
+            </div>
+            <div>
+              <label for="sessionCookie">Housecall Pro session cookie</label>
+              <textarea id="sessionCookie" placeholder="Paste the active Housecall Pro cookie string here"></textarea>
+              <div class="field-help">Paste the full cookie string from your browser. The app handles formatting.</div>
+            </div>
+            <div>
+              <label for="locationId">Location ID (optional)</label>
+              <input id="locationId" placeholder="Leave blank if unknown" />
+            </div>
+            <div class="actions">
+              <button class="primary" type="submit" id="saveButton">Save Housecall Pro Connection</button>
+            </div>
+          </form>
+          <div class="result" id="result"></div>
         </div>
-        <div>
-          <label for="accountLabel">Connection Name</label>
-          <input id="accountLabel" value="Primary Housecall Pro account" />
-          <div class="field-help">Use something the client will recognize later if they reconnect.</div>
-        </div>
-        <details>
-          <summary>Fallback only: paste Housecall Pro session manually</summary>
-          <div style="margin-top: 14px;">
-            <label for="sessionCookie">Housecall Pro session cookie / cookie string</label>
-            <textarea id="sessionCookie" placeholder="Paste the active Housecall Pro cookie string here"></textarea>
-            <div class="field-help">You can paste the full copied cookie string. The app will clean the `Cookie:` prefix if it is included.</div>
-          </div>
-          <div style="margin-top: 14px;">
-            <label for="locationId">Location ID (optional)</label>
-            <input id="locationId" placeholder="Leave blank if unknown" />
-          </div>
-        </details>
-        <div class="actions">
-          <button class="primary" type="submit" id="saveButton">Save Housecall Pro Connection</button>
-        </div>
-      </form>
-      <div class="result" id="result"></div>
+      </details>
     </div>
   </div>
   <script type="module" src="./crm.js"></script>
