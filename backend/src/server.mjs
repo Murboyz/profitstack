@@ -1608,9 +1608,8 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
           id
           quoteNumber
           quoteStatus
-          total
           createdAt
-          approvedAt
+          lineItems { nodes { name qty totalPrice } }
         }
         pageInfo { hasNextPage endCursor }
       }
@@ -1668,15 +1667,16 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     }
   }
 
-  // Approved Sales from quotes approved in range
+  // Approved Sales from quotes with approved/won status
   for (const quote of allQuotes) {
-    if (String(quote.quoteStatus || '').toLowerCase() !== 'approved'
-      && String(quote.quoteStatus || '').toLowerCase() !== 'won') continue;
-    const approvedAt = quote.approvedAt || quote.createdAt;
-    if (!approvedAt) continue;
-    const value = Number(quote.total || 0);
+    const status = String(quote.quoteStatus || '').toLowerCase();
+    if (status !== 'approved' && status !== 'won') continue;
+    const dateKey = quote.createdAt;
+    if (!dateKey) continue;
+    const lineItems = quote.lineItems?.nodes || [];
+    const value = lineItems.reduce((sum, li) => sum + Number(li.totalPrice || 0), 0);
     if (!value) continue;
-    incrementWeekMetric(weekMap, approvedAt, (bucket) => {
+    incrementWeekMetric(weekMap, dateKey, (bucket) => {
       bucket.approvedSales += value;
     });
   }
