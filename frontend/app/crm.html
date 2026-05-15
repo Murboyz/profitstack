@@ -21,8 +21,8 @@
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Inter, Arial, sans-serif; background: var(--bg); color: var(--text); }
     .wrap { max-width: 1040px; margin: 0 auto; padding: 28px; }
-    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.22); }
-    .hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 20px; align-items: stretch; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.22); min-width: 0; overflow: hidden; }
+    .hero { display: grid; grid-template-columns: 1.15fr minmax(0, .85fr); gap: 20px; align-items: start; }
     .eyebrow { display: inline-block; margin-bottom: 12px; padding: 7px 11px; border-radius: 999px; background: var(--blue-soft); color: #dbe6ff; border: 1px solid rgba(91,140,255,.22); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     h1, h2, h3 { margin: 0 0 10px; }
     p { margin: 0; line-height: 1.6; color: var(--muted); }
@@ -33,10 +33,11 @@
     .status-warning { background: rgba(249,221,141,.1); color: var(--yellow); border: 1px solid rgba(249,221,141,.22); }
     .status-pending { background: rgba(249,221,141,.1); color: var(--yellow); border: 1px solid rgba(249,221,141,.22); }
     .status-missing { background: rgba(255,255,255,.04); color: var(--muted); border: 1px solid rgba(255,255,255,.08); }
-    .stack { display: grid; gap: 14px; }
-    .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .stack { display: grid; gap: 14px; min-width: 0; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.06); flex-wrap: wrap; }
     .row:last-child { border-bottom: 0; }
-    .row span:first-child { color: var(--muted); }
+    .row span:first-child { color: var(--muted); flex-shrink: 0; }
+    .row strong { text-align: right; word-break: break-word; min-width: 0; }
     .session-banner-label, .session-banner-meta { color: var(--muted); }
     .session-banner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
     .session-banner-value { font-size: 18px; font-weight: 700; }
