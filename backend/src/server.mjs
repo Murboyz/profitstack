@@ -28,6 +28,8 @@ import {
   upsertWeekMetrics,
   getMetricOverridesByOrg,
   upsertMetricOverride,
+  deleteMetricOverridesByOrg,
+  deleteWeekMetricsByOrg,
   upsertOrganizationSettings,
   getCrmConnectionByOrg,
   listCrmConnections,
@@ -36,6 +38,7 @@ import {
   listSyncRuns,
   insertSyncRun,
   insertCrmSnapshot,
+  deleteCrmSnapshotsByOrg,
   getLatestCrmSnapshotByOrg,
   revokeSession,
   updateAuthUserPassword,
@@ -2054,6 +2057,14 @@ const server = http.createServer(async (req, res) => {
         };
 
         const existing = await getCrmConnectionByOrg(stateData.org);
+        if (existing?.provider && existing.provider !== 'jobber') {
+          console.log(`[jobber-oauth] Switching CRM from ${existing.provider} to jobber for org ${stateData.org} — clearing old metrics and overrides`);
+          await Promise.all([
+            deleteMetricOverridesByOrg(stateData.org),
+            deleteWeekMetricsByOrg(stateData.org),
+            deleteCrmSnapshotsByOrg(stateData.org),
+          ]);
+        }
         await upsertCrmConnection({
           id: existing?.id || crypto.randomUUID(),
           organization_id: stateData.org,
@@ -2312,8 +2323,17 @@ return sendJson(res, 200, {
       if (req.method === 'POST' && pathname === '/api/crm-connection') {
         const body = await readJsonBody(req);
         const credentialEnvelope = buildCredentialEnvelope(body, context);
+        const existingConn = await getCrmConnectionByOrg(context.organization.id);
+        if (existingConn?.provider && existingConn.provider !== body.provider) {
+          console.log(`[crm-connect] Switching CRM from ${existingConn.provider} to ${body.provider} for org ${context.organization.id} — clearing old metrics and overrides`);
+          await Promise.all([
+            deleteMetricOverridesByOrg(context.organization.id),
+            deleteWeekMetricsByOrg(context.organization.id),
+            deleteCrmSnapshotsByOrg(context.organization.id),
+          ]);
+        }
         const saved = await upsertCrmConnection({
-          id: '50000000-0000-0000-0000-000000000001',
+          id: existingConn?.id || '50000000-0000-0000-0000-000000000001',
           organization_id: context.organization.id,
           provider: body.provider,
           status: credentialEnvelope.hasCredentials ? 'connected' : 'pending',

@@ -321,6 +321,20 @@ export async function getMetricOverridesByOrg(organizationId) {
   return supabaseRequest(`/rest/v1/metric_overrides?select=*&organization_id=eq.${organizationId}&order=week_start_date.asc`);
 }
 
+export async function deleteMetricOverridesByOrg(organizationId) {
+  return supabaseRequest(`/rest/v1/metric_overrides?organization_id=eq.${organizationId}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=representation' },
+  });
+}
+
+export async function deleteWeekMetricsByOrg(organizationId) {
+  return supabaseRequest(`/rest/v1/week_metrics?organization_id=eq.${organizationId}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=representation' },
+  });
+}
+
 export async function upsertMetricOverride(payload) {
   return supabaseRequest('/rest/v1/metric_overrides?on_conflict=organization_id,week_start_date,metric_key', {
     method: 'POST',
@@ -369,6 +383,13 @@ export async function insertSyncRun(payload) {
       Prefer: 'return=representation',
     },
     body: payload,
+  });
+}
+
+export async function deleteCrmSnapshotsByOrg(organizationId) {
+  return supabaseRequest(`/rest/v1/crm_snapshots?organization_id=eq.${organizationId}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=representation' },
   });
 }
 
