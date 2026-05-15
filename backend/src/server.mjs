@@ -242,30 +242,50 @@ async function getJobberAccessToken(crmConnection) {
   return fields.accessToken;
 }
 
-async function jobberGraphql(accessToken, query, variables = {}) {
-  const response = await fetch(JOBBER_GRAPHQL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-      'X-JOBBER-GRAPHQL-VERSION': '2024-06-10',
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (response.status === 401 || response.status === 403) {
-    const err = new Error(`Jobber GraphQL auth error (${response.status})`);
-    err.statusCode = response.status;
-    throw err;
+async function jobberGraphql(accessToken, query, variables = {}, retries = 3) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(JOBBER_GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        'X-JOBBER-GRAPHQL-VERSION': '2024-06-10',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (response.status === 401 || response.status === 403) {
+      const err = new Error(`Jobber GraphQL auth error (${response.status})`);
+      err.statusCode = response.status;
+      throw err;
+    }
+    if (response.status === 429 && attempt < retries) {
+      const waitSec = Math.pow(2, attempt + 1);
+      console.log(`[jobber] Throttled (429), waiting ${waitSec}s before retry ${attempt + 1}/${retries}`);
+      await new Promise((r) => setTimeout(r, waitSec * 1000));
+      continue;
+    }
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Jobber GraphQL error (${response.status}): ${text.slice(0, 300)}`);
+    }
+    const json = await response.json();
+    const isThrottled = json.errors?.some((e) => e.extensions?.code === 'THROTTLED');
+    if (isThrottled && attempt < retries) {
+      const cost = json.extensions?.cost || {};
+      const available = cost.throttleStatus?.currentlyAvailable || 0;
+      const restoreRate = cost.throttleStatus?.restoreRate || 500;
+      const needed = cost.requestedQueryCost || 1000;
+      const waitSec = Math.max(2, Math.ceil((needed - available) / restoreRate) + 1);
+      console.log(`[jobber] Throttled (THROTTLED), need ${needed} pts, have ${available}, waiting ${waitSec}s`);
+      await new Promise((r) => setTimeout(r, waitSec * 1000));
+      continue;
+    }
+    if (json.errors?.length) {
+      throw new Error(`Jobber GraphQL errors: ${JSON.stringify(json.errors).slice(0, 400)}`);
+    }
+    return json.data;
   }
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Jobber GraphQL error (${response.status}): ${text.slice(0, 300)}`);
-  }
-  const json = await response.json();
-  if (json.errors?.length) {
-    throw new Error(`Jobber GraphQL errors: ${JSON.stringify(json.errors).slice(0, 400)}`);
-  }
-  return json.data;
+  throw new Error('Jobber GraphQL: max retries exceeded after throttling');
 }
 
 function requireAdmin(context) {
@@ -1585,11 +1605,9 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
 
   const JOBS_QUERY = `
     query FetchJobs($cursor: String) {
-      jobs(first: 100, after: $cursor) {
+      jobs(first: 25, after: $cursor) {
         nodes {
           id
-          jobNumber
-          title
           total
           startAt
           endAt
@@ -1603,13 +1621,12 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
 
   const QUOTES_QUERY = `
     query FetchQuotes($cursor: String) {
-      quotes(first: 100, after: $cursor) {
+      quotes(first: 25, after: $cursor) {
         nodes {
           id
-          quoteNumber
           quoteStatus
           createdAt
-          lineItems { nodes { name qty totalPrice } }
+          lineItems(first: 20) { nodes { totalPrice } }
         }
         pageInfo { hasNextPage endCursor }
       }
@@ -1618,7 +1635,8 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
 
   const allJobs = [];
   let cursor = null;
-  for (let page = 0; page < 20; page++) {
+  for (let page = 0; page < 40; page++) {
+    if (page > 0) await new Promise((r) => setTimeout(r, 500));
     const data = await jobberGraphql(accessToken, JOBS_QUERY, { cursor });
     const nodes = data?.jobs?.nodes || [];
     allJobs.push(...nodes);
@@ -1628,7 +1646,8 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
 
   const allQuotes = [];
   cursor = null;
-  for (let page = 0; page < 10; page++) {
+  for (let page = 0; page < 20; page++) {
+    if (page > 0) await new Promise((r) => setTimeout(r, 500));
     const data = await jobberGraphql(accessToken, QUOTES_QUERY, { cursor });
     const nodes = data?.quotes?.nodes || [];
     allQuotes.push(...nodes);
