@@ -1585,9 +1585,7 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
 
   const JOBS_QUERY = `
     query FetchJobs($cursor: String) {
-      jobs(first: 100, after: $cursor, filter: {
-        startAt: { gte: "${rangeStart}T00:00:00Z" }
-      }) {
+      jobs(first: 100, after: $cursor) {
         nodes {
           id
           jobNumber
@@ -1595,11 +1593,8 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
           total
           startAt
           endAt
-          closedAt
           jobStatus
           createdAt
-          quote { id total approvedAt }
-          lineItems { nodes { name qty totalPrice } }
         }
         pageInfo { hasNextPage endCursor }
       }
@@ -1662,7 +1657,7 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     const scheduledAt = job.startAt;
     if (!scheduledAt) continue;
     const dayKey = formatDateInTimeZone(scheduledAt, timeZone);
-    if (!dayKey) continue;
+    if (!dayKey || dayKey < rangeStart || dayKey > rangeEnd) continue;
     seenJobIds.add(job.id);
 
     dailyScheduledByDate[dayKey] = (dailyScheduledByDate[dayKey] || 0) + totalAmount;
