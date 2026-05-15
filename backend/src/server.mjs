@@ -2530,6 +2530,7 @@ return sendJson(res, 200, {
         const targetOrgId = viewContext.organization.id;
         const crmConnection = await getCrmConnectionByOrg(targetOrgId);
         const startedAt = body.startedAt || new Date().toISOString();
+
         const organizationSettings = await getOrganizationSettingsByOrg(targetOrgId);
         const existingOverrides = await getMetricOverridesByOrg(targetOrgId);
 
@@ -2580,6 +2581,21 @@ return sendJson(res, 200, {
           }
 
           const normalizedWeeks = normalizeSnapshotPayload(snapshotInput);
+
+          // ---- Self-heal: refresh system-generated snapshot overrides ----
+          // We have a valid fresh snapshot from the active CRM. Wipe any
+          // existing system-generated snapshot overrides so the per-week
+          // upserts below re-create them with values derived from the
+          // current CRM data and the org's CURRENT settings (Monthly
+          // Expense Target, etc.). This makes Refresh Data idempotent and
+          // self-healing — stale break-even/approved/scheduled snapshots
+          // from a previous CRM are cleared every refresh. User-entered
+          // manual overrides (different metric_keys) are NOT touched.
+          if (crmConnection?.provider) {
+            await deleteSystemSnapshotOverridesByOrg(targetOrgId);
+          }
+          // ---------------------------------------------------------------
+
           const snapshotRow = await insertCrmSnapshot({
             id: crypto.randomUUID(),
             organization_id: targetOrgId,
@@ -2610,11 +2626,18 @@ return sendJson(res, 200, {
           const weeklyBreakEvenSnapshot = organizationSettings?.monthly_expense_target == null
             ? null
             : Number(organizationSettings.monthly_expense_target) / 4;
-          const existingSnapshotKeys = new Set(
-            (existingOverrides || [])
-              .filter((item) => ['scheduledProductionSnapshot', 'approvedSalesSnapshot', 'weeklyBreakEvenSnapshot', 'realizedSales3Weeks', 'capturedSales6Weeks'].includes(item.metric_key))
-              .map((item) => `${item.week_start_date}:${item.metric_key}`)
-          );
+          // Note: system snapshot overrides were wiped above when a CRM
+          // connection exists, so this set is intentionally empty in that
+          // case — every per-week snapshot below gets re-written with
+          // current values. If no CRM is connected, no wipe happened and
+          // the legacy "skip if already locked" behavior still applies.
+          const existingSnapshotKeys = crmConnection?.provider
+            ? new Set()
+            : new Set(
+                (existingOverrides || [])
+                  .filter((item) => ['scheduledProductionSnapshot', 'approvedSalesSnapshot', 'weeklyBreakEvenSnapshot', 'realizedSales3Weeks', 'capturedSales6Weeks'].includes(item.metric_key))
+                  .map((item) => `${item.week_start_date}:${item.metric_key}`)
+              );
           const rawWeeks = Array.isArray(snapshotInput?.weeks) ? snapshotInput.weeks : [];
           const rawWeekMap = new Map(rawWeeks.map((item) => [item.weekStartDate, item]));
           for (const item of normalizedWeeks) {
