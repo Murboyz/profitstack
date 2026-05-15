@@ -65,6 +65,7 @@
     .crm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     .crm-option { margin-bottom: 0; transition: opacity .2s, border-color .2s; }
     .crm-option.active-provider { border-color: rgba(52,211,153,.4); }
+    .eyebrow-active { background: rgba(52,211,153,.12) !important; color: var(--green) !important; border-color: rgba(52,211,153,.24) !important; }
     .crm-option.inactive-provider { opacity: .55; }
     .crm-option.inactive-provider:hover { opacity: .85; }
     .crm-features { display: grid; gap: 8px; margin-top: 14px; }
@@ -105,7 +106,7 @@
 
     <section class="crm-grid">
       <div class="panel crm-option" id="jobberPanel">
-        <div class="eyebrow" style="background: rgba(52,211,153,.12); color: var(--green); border-color: rgba(52,211,153,.24);">Jobber</div>
+        <div class="eyebrow" id="jobberEyebrow">Jobber</div>
         <h2>Connect Jobber</h2>
         <p>Authorize The Nut Report to read your Jobber data. You'll be redirected to Jobber's sign-in page and sent back here automatically.</p>
         <div class="crm-features">

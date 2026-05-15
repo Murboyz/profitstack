@@ -90,12 +90,22 @@ async function loadStatus() {
 
   const jobberPanel = document.getElementById('jobberPanel');
   const hcpPanel = document.getElementById('hcpPanel');
+  const jobberEyebrow = document.getElementById('jobberEyebrow');
+  const hcpEyebrow = document.querySelector('#hcpPanel .eyebrow');
+
+  if (jobberPanel) jobberPanel.classList.remove('active-provider', 'inactive-provider');
+  if (hcpPanel) hcpPanel.classList.remove('active-provider', 'inactive-provider');
+  if (jobberEyebrow) jobberEyebrow.classList.remove('eyebrow-active');
+  if (hcpEyebrow) hcpEyebrow.classList.remove('eyebrow-active');
+
   if (status === 'connected' && isJobber) {
     if (jobberPanel) jobberPanel.classList.add('active-provider');
     if (hcpPanel) hcpPanel.classList.add('inactive-provider');
+    if (jobberEyebrow) jobberEyebrow.classList.add('eyebrow-active');
   } else if (status === 'connected' && !isJobber) {
     if (hcpPanel) hcpPanel.classList.add('active-provider');
     if (jobberPanel) jobberPanel.classList.add('inactive-provider');
+    if (hcpEyebrow) hcpEyebrow.classList.add('eyebrow-active');
   }
 
   return data;
