@@ -458,10 +458,10 @@ async function renderDashboard() {
           ${crmConnection.status === 'disconnected' ? `
             <div class="alertbar">
               <div>
-                <strong>${crmProviderLabel} is disconnected.</strong><br />
+                <strong>CRM is disconnected.</strong><br />
                 Your last synced numbers are still here, but the next refresh needs a reconnect.
               </div>
-              <a href="./crm.html?onboarding=connect-crm">Reconnect ${crmProviderLabel}</a>
+              <a href="./crm.html">Reconnect CRM</a>
             </div>
           ` : ''}
           <div class="stats">
@@ -561,13 +561,10 @@ async function renderDashboard() {
       ${showDisconnectedModal ? `
         <div class="modal-backdrop" id="crmDisconnectedModal">
           <div class="modal-card">
-            <h3>${crmProviderLabel} is disconnected</h3>
-            <p>${crmProviderLabel === 'Jobber'
-              ? 'Your Jobber authorization may have expired. Reconnect from the CRM page to resume live data refreshes. Your reporting is still visible right now.'
-              : 'For the best reconnect experience, use a computer. If Housecall Pro is already logged in on this computer, the reconnect should open already signed in. If not, log in there, then come back to see the reporting and connection on your dashboard. Your reporting is still visible right now, but the next live refresh needs Housecall Pro reconnected.'
-            }</p>
+            <h3>CRM is disconnected</h3>
+            <p>Your CRM connection has expired or been disconnected. Reconnect from the CRM page to resume live data refreshes. Your reporting numbers are still visible, but the next Refresh Data needs an active CRM connection.</p>
             <div class="actions">
-              <a href="./crm.html?onboarding=connect-crm" class="btn-primary" id="crmReconnectLink">Reconnect ${crmProviderLabel}</a>
+              <a href="./crm.html" class="btn-primary" id="crmReconnectLink">Reconnect CRM</a>
               <button id="crmDisconnectedContinue" type="button">Keep viewing dashboard</button>
             </div>
           </div>
