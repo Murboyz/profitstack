@@ -11,7 +11,8 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function statusBadgeClass(status) {
+function statusBadgeClass(status, hasError) {
+  if (status === 'connected' && hasError) return 'status-warning';
   if (status === 'connected') return 'status-connected';
   if (status === 'pending') return 'status-pending';
   return 'status-missing';
@@ -22,17 +23,20 @@ async function loadStatus() {
   const res = await apiFetch('/api/crm-connection');
   const data = await res.json();
   const status = data.status || 'not_connected';
-  const statusLabel = status.replaceAll('_', ' ');
+  const hasError = Boolean(data.lastError);
   const isJobber = data.provider === 'jobber';
-  const providerLabel = isJobber ? 'Jobber' : 'Housecall Pro';
-  const statusDesc = status === 'connected'
-    ? `Your ${providerLabel} account is connected for this organization.`
-    : status === 'disconnected'
-      ? `${providerLabel} is disconnected. Your last synced numbers remain on the dashboard until you refresh with a new connection.`
-      : 'No CRM is connected yet.';
+  const providerLabel = isJobber ? 'Jobber' : data.provider === 'housecall_pro' ? 'Housecall Pro' : 'CRM';
+  const statusLabel = (status === 'connected' && hasError) ? 'connected (with errors)' : status.replaceAll('_', ' ');
+  const statusDesc = status === 'connected' && hasError
+    ? `Your ${providerLabel} account is connected but the last sync encountered an error. Try Refresh Data on the dashboard.`
+    : status === 'connected'
+      ? `Your ${providerLabel} account is connected for this organization.`
+      : status === 'disconnected'
+        ? `${providerLabel} is disconnected. Your last synced numbers remain on the dashboard until you refresh with a new connection.`
+        : 'No CRM is connected yet.';
   app.innerHTML = `
     <div>
-      <div class="status-badge ${statusBadgeClass(status)}">${escapeHtml(statusLabel)}</div>
+      <div class="status-badge ${statusBadgeClass(status, hasError)}">${escapeHtml(statusLabel)}</div>
     </div>
     <div>
       <h3>${escapeHtml(providerLabel)}</h3>
@@ -50,12 +54,12 @@ async function loadStatus() {
   const disconnectButton = document.getElementById('disconnectButton');
   if (disconnectButton) {
     disconnectButton.addEventListener('click', async () => {
-      const confirmed = window.confirm('Disconnect Housecall Pro? Your last synced numbers will stay on the dashboard, but future refreshes will require a reconnect.');
+      const confirmed = window.confirm(`Disconnect ${providerLabel}? Your last synced numbers will stay on the dashboard, but future refreshes will require a reconnect.`);
       if (!confirmed) return;
       disconnectButton.disabled = true;
       disconnectButton.textContent = 'Disconnecting…';
       const result = document.getElementById('result');
-      result.innerHTML = '<p class="muted">Disconnecting Housecall Pro without touching saved numbers…</p>';
+      result.innerHTML = `<p class="muted">Disconnecting ${escapeHtml(providerLabel)} without touching saved numbers…</p>`;
       try {
         const res = await apiFetch('/api/crm-connection/disconnect', {
           method: 'POST',
@@ -64,24 +68,24 @@ async function loadStatus() {
         });
         const payload = await res.json();
         if (!res.ok) {
-          result.innerHTML = `<p class="error">${escapeHtml(payload.error || 'Failed to disconnect Housecall Pro.')}</p>`;
+          result.innerHTML = `<p class="error">${escapeHtml(payload.error || `Failed to disconnect ${providerLabel}.`)}</p>`;
           disconnectButton.disabled = false;
-          disconnectButton.textContent = 'Disconnect Housecall Pro';
+          disconnectButton.textContent = `Disconnect ${escapeHtml(providerLabel)}`;
           return;
         }
-        result.innerHTML = `<p class="success">${escapeHtml(payload.message || 'Housecall Pro disconnected.')}</p>`;
+        result.innerHTML = `<p class="success">${escapeHtml(payload.message || `${providerLabel} disconnected.`)}</p>`;
         await loadStatus();
       } catch (error) {
-        result.innerHTML = `<p class="error">${escapeHtml(error.message || 'Failed to disconnect Housecall Pro.')}</p>`;
+        result.innerHTML = `<p class="error">${escapeHtml(error.message || `Failed to disconnect ${providerLabel}.`)}</p>`;
         disconnectButton.disabled = false;
-        disconnectButton.textContent = 'Disconnect Housecall Pro';
+        disconnectButton.textContent = `Disconnect ${escapeHtml(providerLabel)}`;
       }
     });
   }
 
   const saveButton = document.getElementById('saveButton');
   if (saveButton) {
-    saveButton.textContent = status === 'connected' ? 'Update Housecall Pro Connection' : 'Save Housecall Pro Connection';
+    saveButton.textContent = status === 'connected' ? `Update ${providerLabel} Connection` : 'Save Housecall Pro Connection';
   }
 
   return data;

@@ -248,7 +248,7 @@ async function jobberGraphql(accessToken, query, variables = {}) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
-      'X-JOBBER-GRAPHQL-VERSION': '2024-06-14',
+      'X-JOBBER-GRAPHQL-VERSION': '2024-06-10',
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -1096,7 +1096,7 @@ function endOfUtcWeek(start) {
   return addDays(start, 6);
 }
 
-function buildWeekBuckets(anchorDate = new Date(), count = 5, leadingWeeks = 1) {
+function buildWeekBuckets(anchorDate = new Date(), count = 5, leadingWeeks = 1, sourceVersion = 'housecall-pro-v1') {
   const firstWeek = startOfUtcWeek(anchorDate);
   firstWeek.setUTCDate(firstWeek.getUTCDate() - (leadingWeeks * 7));
   return Array.from({ length: count }, (_, index) => {
@@ -1112,7 +1112,7 @@ function buildWeekBuckets(anchorDate = new Date(), count = 5, leadingWeeks = 1) 
       completedProduction: 0,
       opportunities: 0,
       sourceConfidence: 'session_live_pull',
-      sourceVersion: 'housecall-pro-v1',
+      sourceVersion,
     };
   });
 }
@@ -1576,7 +1576,7 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
 async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
   const accessToken = await getJobberAccessToken(crmConnection);
   const now = new Date();
-  const weeks = buildWeekBuckets(now, 8, 2);
+  const weeks = buildWeekBuckets(now, 8, 2, 'jobber-graphql-v1');
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
   const currentMonthKey = formatDateInTimeZone(now, 'UTC').slice(0, 7);
   const todayDate = formatDateInTimeZone(now, timeZone);
@@ -2151,13 +2151,18 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, formatSession(viewContext));
       }
       if (req.method === 'GET' && pathname === '/api/dashboard') {
-        const [crmConnection, weekMetrics, overrides, organizationSettings, latestSnapshot] = await Promise.all([
-  getCrmConnectionByOrg(viewContext.organization.id),
+        const crmConnection = await getCrmConnectionByOrg(viewContext.organization.id);
+        const activeProvider = crmConnection?.provider || null;
+        const [allWeekMetrics, overrides, organizationSettings, latestSnapshot] = await Promise.all([
   getWeekMetricsByOrg(viewContext.organization.id),
   getMetricOverridesByOrg(viewContext.organization.id),
   getOrganizationSettingsByOrg(viewContext.organization.id),
-  getLatestCrmSnapshotByOrg(viewContext.organization.id),
+  getLatestCrmSnapshotByOrg(viewContext.organization.id, activeProvider),
 ]);
+const activeSourcePrefix = activeProvider === 'jobber' ? 'jobber-' : activeProvider === 'housecall_pro' ? 'housecall-pro-' : null;
+const weekMetrics = activeSourcePrefix
+  ? allWeekMetrics.filter((row) => (row.source_version || '').startsWith(activeSourcePrefix))
+  : allWeekMetrics;
 const liveWeeks = buildWeeksFromMetrics(weekMetrics);
 const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
 const rollups = latestSnapshot?.payload?.rollups || null;

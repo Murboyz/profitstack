@@ -344,7 +344,8 @@ async function renderDashboard() {
       loadJson('/api/health')
     ]);
 
-    if (status) status.textContent = `Loaded ${session.organization.name} · ${session.user.email} · CRM ${crmConnection.provider} · ${crmConnection.status}`;
+    const crmProviderLabel = crmConnection.provider === 'jobber' ? 'Jobber' : crmConnection.provider === 'housecall_pro' ? 'Housecall Pro' : 'CRM';
+    if (status) status.textContent = `Loaded ${session.organization.name} · ${session.user.email} · ${crmProviderLabel} · ${crmConnection.status}`;
 
     const currentApprovedSales = dashboard.weeks.currentWeek.approvedSales || 0;
     const lastApprovedSales = dashboard.weeks.lastWeek.approvedSales || 0;
@@ -440,7 +441,7 @@ async function renderDashboard() {
 
           <div class="card">
             <h3>Data Status</h3>
-            <div class="row"><span class="label">CRM</span><strong>${crmConnection.status || 'unknown'}</strong></div>
+            <div class="row"><span class="label">CRM Provider</span><strong><span class="crm-badge crm-badge-${crmConnection.status === 'connected' ? 'connected' : crmConnection.status === 'disconnected' ? 'disconnected' : 'none'}">${crmProviderLabel}${crmConnection.status === 'connected' ? ' — Connected' : crmConnection.status === 'disconnected' ? ' — Disconnected' : ''}</span></strong></div>
             <div class="row"><span class="label">Last Sync Status</span><strong>${latestSyncRun?.status || 'none yet'}</strong></div>
             <div class="row"><span class="label">Dashboard Timezone</span><strong>${timezone}</strong></div>
             <div class="row"><span class="label">Last Sync Finished</span><strong>${formatDateTime(latestSyncRun?.finishedAt, timezone)}</strong></div>
@@ -457,10 +458,10 @@ async function renderDashboard() {
           ${crmConnection.status === 'disconnected' ? `
             <div class="alertbar">
               <div>
-                <strong>Housecall Pro is disconnected.</strong><br />
+                <strong>${crmProviderLabel} is disconnected.</strong><br />
                 Your last synced numbers are still here, but the next refresh needs a reconnect.
               </div>
-              <a href="./crm.html?onboarding=connect-crm">Reconnect Housecall Pro</a>
+              <a href="./crm.html?onboarding=connect-crm">Reconnect ${crmProviderLabel}</a>
             </div>
           ` : ''}
           <div class="stats">
@@ -560,10 +561,13 @@ async function renderDashboard() {
       ${showDisconnectedModal ? `
         <div class="modal-backdrop" id="crmDisconnectedModal">
           <div class="modal-card">
-            <h3>Housecall Pro is disconnected</h3>
-            <p>For the best reconnect experience, use a computer. If Housecall Pro is already logged in on this computer, the reconnect should open already signed in. If not, log in there, then come back to see the reporting and connection on your dashboard. Your reporting is still visible right now, but the next live refresh needs Housecall Pro reconnected.</p>
+            <h3>${crmProviderLabel} is disconnected</h3>
+            <p>${crmProviderLabel === 'Jobber'
+              ? 'Your Jobber authorization may have expired. Reconnect from the CRM page to resume live data refreshes. Your reporting is still visible right now.'
+              : 'For the best reconnect experience, use a computer. If Housecall Pro is already logged in on this computer, the reconnect should open already signed in. If not, log in there, then come back to see the reporting and connection on your dashboard. Your reporting is still visible right now, but the next live refresh needs Housecall Pro reconnected.'
+            }</p>
             <div class="actions">
-              <a href="https://pro.housecallpro.com/app/log_in" target="_blank" rel="noreferrer" class="btn-primary" id="crmReconnectLink">Login / Reconnect Housecall Pro</a>
+              <a href="./crm.html?onboarding=connect-crm" class="btn-primary" id="crmReconnectLink">Reconnect ${crmProviderLabel}</a>
               <button id="crmDisconnectedContinue" type="button">Keep viewing dashboard</button>
             </div>
           </div>

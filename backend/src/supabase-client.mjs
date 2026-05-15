@@ -382,8 +382,9 @@ export async function insertCrmSnapshot(payload) {
   });
 }
 
-export async function getLatestCrmSnapshotByOrg(organizationId) {
-  const rows = await supabaseRequest(`/rest/v1/crm_snapshots?select=*&organization_id=eq.${organizationId}&order=created_at.desc&limit=1`);
+export async function getLatestCrmSnapshotByOrg(organizationId, provider = null) {
+  const providerFilter = provider ? `&provider=eq.${provider}` : '';
+  const rows = await supabaseRequest(`/rest/v1/crm_snapshots?select=*&organization_id=eq.${organizationId}${providerFilter}&order=created_at.desc&limit=1`);
   return rows[0] || null;
 }
 
