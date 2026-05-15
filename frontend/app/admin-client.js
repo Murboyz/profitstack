@@ -49,9 +49,16 @@ async function main() {
           <div class="eyebrow">Account</div>
           <div class="row"><span class="muted">Primary user</span><span>${client.primaryUser?.fullName || '—'}</span></div>
           <div class="row"><span class="muted">Email</span><span>${client.primaryUser?.email || '—'}</span></div>
-          <div class="row"><span class="muted">CRM</span><span>${client.crm?.status || 'not connected'}</span></div>
+          <div class="row"><span class="muted">CRM</span><span>${client.crm?.provider ? `${client.crm.provider} · ${client.crm.status || 'unknown'}` : 'not connected'}</span></div>
           <div class="row"><span class="muted">Last sync</span><span>${formatDate(client.sync?.finishedAt || client.crm?.lastSyncAt)}</span></div>
           <div class="row"><span class="muted">Billing</span><span>${client.billing?.subscriptionStatus || 'unknown'}</span></div>
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08);">
+            <button id="resetCrmDataBtn" type="button" class="btn btn-danger">Reset CRM Data</button>
+            <div id="resetCrmDataStatus" class="muted" style="margin-top: 8px; font-size: 12px;"></div>
+            <div class="muted" style="margin-top: 6px; font-size: 11px; line-height: 1.4;">
+              Clears all synced week metrics, CRM snapshots, and system-generated snapshot overrides for this org. User-entered manual overrides (e.g. demo locks) are preserved.
+            </div>
+          </div>
         </div>
 
         <div class="panel">
@@ -65,6 +72,29 @@ async function main() {
         </div>
       </div>
     `;
+
+    const resetBtn = document.getElementById('resetCrmDataBtn');
+    const resetStatus = document.getElementById('resetCrmDataStatus');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', async () => {
+        const confirmed = window.confirm(
+          `Reset CRM data for ${client.organization.name}?\n\nThis deletes synced week_metrics, crm_snapshots, and system-generated snapshot overrides for this org. The CRM connection itself stays; user-entered manual overrides stay. After reset, the user can click Refresh Data on the dashboard to repopulate from the active CRM.`
+        );
+        if (!confirmed) return;
+        resetBtn.disabled = true;
+        resetStatus.textContent = 'Resetting…';
+        try {
+          const res = await apiFetch(`/api/admin/orgs/${orgId}/reset-crm-data`, { method: 'POST' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Reset failed with ${res.status}`);
+          resetStatus.textContent = `Cleared: ${data.cleared.systemSnapshotOverrides} overrides, ${data.cleared.weekMetrics} week metrics, ${data.cleared.crmSnapshots} snapshots.`;
+        } catch (error) {
+          resetStatus.textContent = `Failed: ${error.message}`;
+        } finally {
+          resetBtn.disabled = false;
+        }
+      });
+    }
   } catch (error) {
     app.innerHTML = `<div class="panel">Failed to load client view: ${error.message}</div>`;
   }

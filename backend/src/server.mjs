@@ -28,7 +28,7 @@ import {
   upsertWeekMetrics,
   getMetricOverridesByOrg,
   upsertMetricOverride,
-  deleteMetricOverridesByOrg,
+  deleteSystemSnapshotOverridesByOrg,
   deleteWeekMetricsByOrg,
   upsertOrganizationSettings,
   getCrmConnectionByOrg,
@@ -1053,6 +1053,81 @@ function buildCredentialEnvelope(body, context) {
   };
 }
 
+/**
+ * Single source of truth for writing a CRM connection. Decides whether to
+ * clear provider-derived data based on the previous connection state.
+ *
+ * Cleanup runs when ANY of these are true:
+ *   - first connect, but a different provider was previously stored
+ *   - provider changed since last write (HCP → Jobber, etc.)
+ *   - previous status was 'disconnected' (reconnect after disconnect)
+ *   - opts.forceReset === true (admin "Reset CRM Data" button)
+ *
+ * On cleanup, we delete:
+ *   - week_metrics (org-wide)
+ *   - crm_snapshots (org-wide)
+ *   - metric_overrides that match SYSTEM_SNAPSHOT_METRIC_KEYS only —
+ *     user-entered manual overrides (e.g. demo accounts, custom locks)
+ *     are preserved.
+ *
+ * Returns: { saved, cleaned, reason } where `saved` is the upserted row,
+ * `cleaned` is a boolean, and `reason` describes why (for logging).
+ */
+async function applyCrmConnectionChange({
+  orgId,
+  provider,
+  status,
+  authType,
+  encryptedCredentials,
+  lastSyncAt = null,
+  lastError = null,
+  id = null,
+  forceReset = false,
+  logTag = 'crm-connect',
+}) {
+  if (!orgId) throw new Error('applyCrmConnectionChange: orgId is required');
+  if (!provider) throw new Error('applyCrmConnectionChange: provider is required');
+
+  const existing = await getCrmConnectionByOrg(orgId);
+
+  let cleaned = false;
+  let reason = null;
+  if (existing) {
+    if (forceReset) {
+      cleaned = true;
+      reason = 'forceReset';
+    } else if (existing.provider && existing.provider !== provider) {
+      cleaned = true;
+      reason = `provider-change:${existing.provider}->${provider}`;
+    } else if (existing.status === 'disconnected' && status === 'connected') {
+      cleaned = true;
+      reason = `reconnect-from-disconnected:${provider}`;
+    }
+  }
+
+  if (cleaned) {
+    console.log(`[${logTag}] Clearing provider-derived data for org ${orgId} (reason=${reason})`);
+    await Promise.all([
+      deleteSystemSnapshotOverridesByOrg(orgId),
+      deleteWeekMetricsByOrg(orgId),
+      deleteCrmSnapshotsByOrg(orgId),
+    ]);
+  }
+
+  const saved = await upsertCrmConnection({
+    id: existing?.id || id || crypto.randomUUID(),
+    organization_id: orgId,
+    provider,
+    status,
+    auth_type: authType,
+    encrypted_credentials: encryptedCredentials,
+    last_sync_at: lastSyncAt,
+    last_error: lastError,
+  });
+
+  return { saved, cleaned, reason };
+}
+
 function formatOverrides(items) {
   return (items || []).map((item) => ({
     id: item.id,
@@ -2056,24 +2131,15 @@ const server = http.createServer(async (req, res) => {
           },
         };
 
-        const existing = await getCrmConnectionByOrg(stateData.org);
-        if (existing?.provider && existing.provider !== 'jobber') {
-          console.log(`[jobber-oauth] Switching CRM from ${existing.provider} to jobber for org ${stateData.org} — clearing old metrics and overrides`);
-          await Promise.all([
-            deleteMetricOverridesByOrg(stateData.org),
-            deleteWeekMetricsByOrg(stateData.org),
-            deleteCrmSnapshotsByOrg(stateData.org),
-          ]);
-        }
-        await upsertCrmConnection({
-          id: existing?.id || crypto.randomUUID(),
-          organization_id: stateData.org,
+        await applyCrmConnectionChange({
+          orgId: stateData.org,
           provider: 'jobber',
           status: 'connected',
-          auth_type: 'oauth2',
-          encrypted_credentials: credentialEnvelope,
-          last_sync_at: new Date().toISOString(),
-          last_error: null,
+          authType: 'oauth2',
+          encryptedCredentials: credentialEnvelope,
+          lastSyncAt: new Date().toISOString(),
+          lastError: null,
+          logTag: 'jobber-oauth',
         });
 
         res.writeHead(302, { Location: `${origin}/crm.html?jobber=connected` });
@@ -2323,24 +2389,16 @@ return sendJson(res, 200, {
       if (req.method === 'POST' && pathname === '/api/crm-connection') {
         const body = await readJsonBody(req);
         const credentialEnvelope = buildCredentialEnvelope(body, context);
-        const existingConn = await getCrmConnectionByOrg(context.organization.id);
-        if (existingConn?.provider && existingConn.provider !== body.provider) {
-          console.log(`[crm-connect] Switching CRM from ${existingConn.provider} to ${body.provider} for org ${context.organization.id} — clearing old metrics and overrides`);
-          await Promise.all([
-            deleteMetricOverridesByOrg(context.organization.id),
-            deleteWeekMetricsByOrg(context.organization.id),
-            deleteCrmSnapshotsByOrg(context.organization.id),
-          ]);
-        }
-        const saved = await upsertCrmConnection({
-          id: existingConn?.id || '50000000-0000-0000-0000-000000000001',
-          organization_id: context.organization.id,
+        const { saved } = await applyCrmConnectionChange({
+          orgId: context.organization.id,
           provider: body.provider,
           status: credentialEnvelope.hasCredentials ? 'connected' : 'pending',
-          auth_type: body.authType,
-          encrypted_credentials: credentialEnvelope,
-          last_sync_at: new Date().toISOString(),
-          last_error: null,
+          authType: body.authType,
+          encryptedCredentials: credentialEnvelope,
+          lastSyncAt: new Date().toISOString(),
+          lastError: null,
+          id: '50000000-0000-0000-0000-000000000001',
+          logTag: 'crm-connect',
         });
         return sendJson(res, 200, {
           ok: true,
@@ -2376,15 +2434,16 @@ return sendJson(res, 200, {
         }, context);
 
         const existing = await getCrmConnectionByOrg(context.organization.id);
-        const saved = await upsertCrmConnection({
-          id: existing?.id || '50000000-0000-0000-0000-000000000001',
-          organization_id: context.organization.id,
+        const { saved } = await applyCrmConnectionChange({
+          orgId: context.organization.id,
           provider: 'housecall_pro',
           status: credentialEnvelope.hasCredentials ? 'connected' : 'pending',
-          auth_type: 'session_or_oauth',
-          encrypted_credentials: credentialEnvelope,
-          last_sync_at: existing?.last_sync_at || new Date().toISOString(),
-          last_error: null,
+          authType: 'session_or_oauth',
+          encryptedCredentials: credentialEnvelope,
+          lastSyncAt: existing?.last_sync_at || new Date().toISOString(),
+          lastError: null,
+          id: '50000000-0000-0000-0000-000000000001',
+          logTag: 'crm-connect-hcp-helper',
         });
 
         return sendJson(res, 200, {
@@ -2687,6 +2746,30 @@ return sendJson(res, 200, {
           ok: true,
           generatedAt: new Date().toISOString(),
           clients,
+        });
+      }
+      if (req.method === 'POST' && pathname.startsWith('/api/admin/orgs/') && pathname.endsWith('/reset-crm-data')) {
+        requireAdmin(context);
+        const orgId = pathname.split('/')[4];
+        if (!orgId) {
+          return sendJson(res, 400, { error: 'org id missing in path' });
+        }
+        const existing = await getCrmConnectionByOrg(orgId);
+        const [deletedOverrides, deletedWeekMetrics, deletedSnapshots] = await Promise.all([
+          deleteSystemSnapshotOverridesByOrg(orgId),
+          deleteWeekMetricsByOrg(orgId),
+          deleteCrmSnapshotsByOrg(orgId),
+        ]);
+        console.log(`[admin-reset] org=${orgId} cleared: ${deletedOverrides?.length || 0} system overrides, ${deletedWeekMetrics?.length || 0} week metrics, ${deletedSnapshots?.length || 0} snapshots (provider=${existing?.provider || 'none'})`);
+        return sendJson(res, 200, {
+          ok: true,
+          orgId,
+          provider: existing?.provider || null,
+          cleared: {
+            systemSnapshotOverrides: deletedOverrides?.length || 0,
+            weekMetrics: deletedWeekMetrics?.length || 0,
+            crmSnapshots: deletedSnapshots?.length || 0,
+          },
         });
       }
       if (req.method === 'GET' && pathname === '/api/supabase-status') {

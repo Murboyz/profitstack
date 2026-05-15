@@ -328,6 +328,29 @@ export async function deleteMetricOverridesByOrg(organizationId) {
   });
 }
 
+// System-generated snapshot metric_keys. These are derivative of the active
+// CRM's data and must be wiped when the CRM connection changes (or is
+// reconnected from a disconnected state). User-entered overrides are left
+// untouched.
+export const SYSTEM_SNAPSHOT_METRIC_KEYS = [
+  'scheduledProductionSnapshot',
+  'approvedSalesSnapshot',
+  'weeklyBreakEvenSnapshot',
+  'realizedSales3Weeks',
+  'capturedSales6Weeks',
+];
+
+export async function deleteSystemSnapshotOverridesByOrg(organizationId) {
+  const keysList = SYSTEM_SNAPSHOT_METRIC_KEYS.map((key) => `"${key}"`).join(',');
+  return supabaseRequest(
+    `/rest/v1/metric_overrides?organization_id=eq.${organizationId}&metric_key=in.(${keysList})`,
+    {
+      method: 'DELETE',
+      headers: { Prefer: 'return=representation' },
+    }
+  );
+}
+
 export async function deleteWeekMetricsByOrg(organizationId) {
   return supabaseRequest(`/rest/v1/week_metrics?organization_id=eq.${organizationId}`, {
     method: 'DELETE',
