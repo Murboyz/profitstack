@@ -242,7 +242,7 @@ async function getJobberAccessToken(crmConnection) {
   return fields.accessToken;
 }
 
-async function jobberGraphql(accessToken, query, variables = {}, retries = 3) {
+async function jobberGraphql(accessToken, query, variables = {}, retries = 5) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const response = await fetch(JOBBER_GRAPHQL_URL, {
       method: 'POST',
@@ -259,7 +259,7 @@ async function jobberGraphql(accessToken, query, variables = {}, retries = 3) {
       throw err;
     }
     if (response.status === 429 && attempt < retries) {
-      const waitSec = Math.pow(2, attempt + 1);
+      const waitSec = Math.min(30, 5 * Math.pow(2, attempt));
       console.log(`[jobber] Throttled (429), waiting ${waitSec}s before retry ${attempt + 1}/${retries}`);
       await new Promise((r) => setTimeout(r, waitSec * 1000));
       continue;
@@ -274,9 +274,11 @@ async function jobberGraphql(accessToken, query, variables = {}, retries = 3) {
       const cost = json.extensions?.cost || {};
       const available = cost.throttleStatus?.currentlyAvailable || 0;
       const restoreRate = cost.throttleStatus?.restoreRate || 500;
-      const needed = cost.requestedQueryCost || 1000;
-      const waitSec = Math.max(2, Math.ceil((needed - available) / restoreRate) + 1);
-      console.log(`[jobber] Throttled (THROTTLED), need ${needed} pts, have ${available}, waiting ${waitSec}s`);
+      const needed = cost.requestedQueryCost || 2000;
+      const targetPoints = needed + 2000;
+      const pointsToRecover = Math.max(0, targetPoints - available);
+      const waitSec = Math.min(45, Math.max(15, Math.ceil(pointsToRecover / restoreRate) + 5));
+      console.log(`[jobber] Throttled, need ${needed} pts, have ${available}, waiting ${waitSec}s`);
       await new Promise((r) => setTimeout(r, waitSec * 1000));
       continue;
     }
@@ -1619,16 +1621,26 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     }
   `;
 
-  const QUOTES_QUERY = `
-    query FetchQuotes($cursor: String) {
+  // Lightweight quotes list (no nested lineItems - costs only ~100 pts/page)
+  const QUOTES_LIST_QUERY = `
+    query FetchQuotesList($cursor: String) {
       quotes(first: 25, after: $cursor) {
         nodes {
           id
           quoteStatus
           createdAt
-          lineItems(first: 20) { nodes { totalPrice } }
         }
         pageInfo { hasNextPage endCursor }
+      }
+    }
+  `;
+
+  // Per-quote line items fetched only for approved/won quotes
+  const QUOTE_LINEITEMS_QUERY = `
+    query FetchQuoteLineItems($id: EncodedId!) {
+      quote(id: $id) {
+        id
+        lineItems(first: 50) { nodes { totalPrice } }
       }
     }
   `;
@@ -1636,7 +1648,7 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
   const allJobs = [];
   let cursor = null;
   for (let page = 0; page < 40; page++) {
-    if (page > 0) await new Promise((r) => setTimeout(r, 500));
+    if (page > 0) await new Promise((r) => setTimeout(r, 1500));
     const data = await jobberGraphql(accessToken, JOBS_QUERY, { cursor });
     const nodes = data?.jobs?.nodes || [];
     allJobs.push(...nodes);
@@ -1647,14 +1659,34 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
   const allQuotes = [];
   cursor = null;
   for (let page = 0; page < 20; page++) {
-    if (page > 0) await new Promise((r) => setTimeout(r, 500));
-    const data = await jobberGraphql(accessToken, QUOTES_QUERY, { cursor });
+    if (page > 0) await new Promise((r) => setTimeout(r, 1500));
+    const data = await jobberGraphql(accessToken, QUOTES_LIST_QUERY, { cursor });
     const nodes = data?.quotes?.nodes || [];
     allQuotes.push(...nodes);
     if (!data?.quotes?.pageInfo?.hasNextPage) break;
     cursor = data.quotes.pageInfo.endCursor;
     const oldestCreated = nodes[nodes.length - 1]?.createdAt;
     if (oldestCreated && oldestCreated < `${rangeStart}T00:00:00Z`) break;
+  }
+
+  // Fetch line items only for approved/won quotes within our date range
+  const approvedQuotes = allQuotes.filter((q) => {
+    const status = String(q.quoteStatus || '').toLowerCase();
+    if (status !== 'approved' && status !== 'won') return false;
+    if (!q.createdAt) return false;
+    return q.createdAt >= `${rangeStart}T00:00:00Z` && q.createdAt <= `${rangeEnd}T23:59:59Z`;
+  });
+  const quoteTotals = new Map();
+  for (let i = 0; i < approvedQuotes.length; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 800));
+    try {
+      const data = await jobberGraphql(accessToken, QUOTE_LINEITEMS_QUERY, { id: approvedQuotes[i].id });
+      const items = data?.quote?.lineItems?.nodes || [];
+      const total = items.reduce((sum, li) => sum + Number(li.totalPrice || 0), 0);
+      quoteTotals.set(approvedQuotes[i].id, total);
+    } catch (err) {
+      console.log(`[jobber] Failed to fetch line items for quote ${approvedQuotes[i].id}:`, err.message);
+    }
   }
 
   // Scheduled Production: full job total on scheduled-start day (HCP-aligned)
@@ -1686,14 +1718,13 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     }
   }
 
-  // Approved Sales from quotes with approved/won status
+  // Approved Sales from quotes with approved/won status (totals from per-quote line item fetch)
   for (const quote of allQuotes) {
     const status = String(quote.quoteStatus || '').toLowerCase();
     if (status !== 'approved' && status !== 'won') continue;
     const dateKey = quote.createdAt;
     if (!dateKey) continue;
-    const lineItems = quote.lineItems?.nodes || [];
-    const value = lineItems.reduce((sum, li) => sum + Number(li.totalPrice || 0), 0);
+    const value = quoteTotals.get(quote.id) || 0;
     if (!value) continue;
     incrementWeekMetric(weekMap, dateKey, (bucket) => {
       bucket.approvedSales += value;
