@@ -379,6 +379,34 @@ async function getStripeBillingStatus({ email, organizationId }) {
   };
 }
 
+/** source_version prefixes written by CRM sync pipelines */
+function crmWeekMetricsPrefix(provider) {
+  if (provider === 'jobber') return 'jobber-';
+  if (provider === 'housecall_pro') return 'housecall-pro-';
+  return null;
+}
+
+/** Only rows produced by the currently configured CRM (matched via week_metrics.source_version). */
+function filterWeekMetricsForActiveCrm(rows, provider) {
+  const prefix = crmWeekMetricsPrefix(provider);
+  if (!prefix) return rows || [];
+  return (rows || []).filter((row) => String(row.source_version || '').startsWith(prefix));
+}
+
+/**
+ * When CRM is connected, synced week_metrics are authoritative. Live overlay keys
+ * (scheduledProduction, approvedSales) can linger from coaching or another CRM era.
+ */
+function filterOverridesWhenCrmConnected(overrides, crmConnection) {
+  const active = Boolean(
+    crmConnection?.provider
+    && String(crmConnection.status || '').toLowerCase() === 'connected',
+  );
+  if (!active) return overrides || [];
+  const overlayKeys = new Set(['scheduledProduction', 'approvedSales']);
+  return (overrides || []).filter((row) => !overlayKeys.has(row.metric_key));
+}
+
 async function getAdminClientsOverview() {
   const [organizations, users, settings, crmConnections, syncRuns, weekMetrics] = await Promise.all([
     listOrganizations(),
@@ -405,14 +433,8 @@ async function getAdminClientsOverview() {
     if (!syncMap.has(item.organization_id)) syncMap.set(item.organization_id, item);
   }
 
-  const latestWeekByOrg = new Map();
   const recentWeeksByOrg = new Map();
   for (const item of weekMetrics || []) {
-    const current = latestWeekByOrg.get(item.organization_id);
-    if (!current || String(item.week_start_date) > String(current.week_start_date)) {
-      latestWeekByOrg.set(item.organization_id, item);
-    }
-
     if (!recentWeeksByOrg.has(item.organization_id)) recentWeeksByOrg.set(item.organization_id, []);
     recentWeeksByOrg.get(item.organization_id).push(item);
   }
@@ -425,8 +447,12 @@ async function getAdminClientsOverview() {
     const setting = settingsMap.get(organization.id) || null;
     const crm = crmMap.get(organization.id) || null;
     const latestSync = syncMap.get(organization.id) || null;
-    const latestWeek = latestWeekByOrg.get(organization.id) || null;
-    const orgWeekMetrics = recentWeeksByOrg.get(organization.id) || [];
+    const rawOrgWeekMetrics = recentWeeksByOrg.get(organization.id) || [];
+    const orgWeekMetrics = filterWeekMetricsForActiveCrm(rawOrgWeekMetrics, crm?.provider || null);
+    let latestWeek = null;
+    for (const row of orgWeekMetrics) {
+      if (!latestWeek || String(row.week_start_date) > String(latestWeek.week_start_date)) latestWeek = row;
+    }
     const recentWeeks = [...orgWeekMetrics]
       .sort((a, b) => String(b.week_start_date).localeCompare(String(a.week_start_date)))
       .slice(0, 6)
@@ -439,7 +465,7 @@ async function getAdminClientsOverview() {
 
     const orgMonthKey = formatDateInTimeZone(new Date(), organization.timezone || 'UTC').slice(0, 7);
 
-    const latestSnapshot = await getLatestCrmSnapshotByOrg(organization.id);
+    const latestSnapshot = await getLatestCrmSnapshotByOrg(organization.id, crm?.provider ?? null);
     const snapRollups = latestSnapshot?.payload?.rollups || null;
     const dailyMonthProduction = sumScheduledProductionForMonthFromDaily(snapRollups?.dailyScheduledByDate, orgMonthKey);
 
@@ -2281,12 +2307,10 @@ const server = http.createServer(async (req, res) => {
   getOrganizationSettingsByOrg(viewContext.organization.id),
   getLatestCrmSnapshotByOrg(viewContext.organization.id, activeProvider),
 ]);
-const activeSourcePrefix = activeProvider === 'jobber' ? 'jobber-' : activeProvider === 'housecall_pro' ? 'housecall-pro-' : null;
-const weekMetrics = activeSourcePrefix
-  ? allWeekMetrics.filter((row) => (row.source_version || '').startsWith(activeSourcePrefix))
-  : allWeekMetrics;
+const weekMetrics = filterWeekMetricsForActiveCrm(allWeekMetrics, activeProvider);
+const dashboardOverrides = filterOverridesWhenCrmConnected(overrides, crmConnection);
 const liveWeeks = buildWeeksFromMetrics(weekMetrics);
-const mergedWeeks = applyOverridesToWeeks(liveWeeks, overrides);
+const mergedWeeks = applyOverridesToWeeks(liveWeeks, dashboardOverrides);
 const rollups = latestSnapshot?.payload?.rollups || null;
 
 const currentMonthKey = formatDateInTimeZone(new Date(), viewContext.organization.timezone || 'UTC').slice(0, 7);
@@ -2297,7 +2321,7 @@ const currentMonthKey = formatDateInTimeZone(new Date(), viewContext.organizatio
 const dailyMonthProduction = sumScheduledProductionForMonthFromDaily(rollups?.dailyScheduledByDate, currentMonthKey);
 const monthProductionFromWeeks = sumWeekMetricForMonth(
   weekMetrics,
-  overrides,
+  dashboardOverrides,
   currentMonthKey,
   'scheduledProductionSnapshot',
   'scheduled_production',
@@ -2307,7 +2331,7 @@ const monthProduction = dailyMonthProduction != null ? dailyMonthProduction : mo
 // Sales Month: sums of weekly approved sales overlapping the month (unchanged).
 const salesMonthFromWeeks = sumWeekMetricForMonth(
   weekMetrics,
-  overrides,
+  dashboardOverrides,
   currentMonthKey,
   'approvedSalesSnapshot',
   'approved_sales',
@@ -2326,8 +2350,8 @@ return sendJson(res, 200, {
 
   crmConnection: formatDashboardCrmConnection(crmConnection),
   weeks: mergedWeeks,
-  weekHistory: formatWeekHistory(weekMetrics, overrides),
-  overridesApplied: summarizeOverridesByWeek(mergedWeeks, overrides),
+  weekHistory: formatWeekHistory(weekMetrics, dashboardOverrides),
+  overridesApplied: summarizeOverridesByWeek(mergedWeeks, dashboardOverrides),
 });
       }
       if (req.method === 'GET' && pathname === '/api/account') {
