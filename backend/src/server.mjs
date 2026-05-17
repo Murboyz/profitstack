@@ -1704,7 +1704,7 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
   const now = new Date();
   const weeks = buildWeekBuckets(now, 8, 2, 'jobber-graphql-v1');
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
-  const currentMonthKey = formatDateInTimeZone(now, 'UTC').slice(0, 7);
+  const currentMonthKey = formatDateInTimeZone(now, timeZone).slice(0, 7);
   const todayDate = formatDateInTimeZone(now, timeZone);
   const rangeStart = weeks[0].weekStartDate;
   const rangeEnd = weeks[weeks.length - 1].weekEndDate;
@@ -1844,16 +1844,18 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     });
   }
 
-  // Sales Today / Sales Month (from jobs created in range)
+  // Sales Today / Month — aligned with Approved Sales: approved/won quotes only,
+  // using line-item sums (same as weekly approvedSales). Job.createdAt × job.total
+  // diverges from invoice/quote value and inflates Sales Today versus Jobber UI.
   let salesToday = 0;
   let salesMonth = 0;
-  for (const job of allJobs) {
-    const totalAmount = Number(job.total || 0);
-    if (!totalAmount) continue;
-    const createdDate = formatDateInTimeZone(job.createdAt, timeZone);
+  for (const quote of approvedQuotes) {
+    const value = quoteTotals.get(quote.id) || 0;
+    if (!value) continue;
+    const createdDate = formatDateInTimeZone(quote.createdAt, timeZone);
     if (!createdDate) continue;
-    if (createdDate === todayDate) salesToday += totalAmount;
-    if (createdDate.slice(0, 7) === currentMonthKey) salesMonth += totalAmount;
+    if (createdDate === todayDate) salesToday += value;
+    if (createdDate.slice(0, 7) === currentMonthKey) salesMonth += value;
   }
 
   // Month Production from daily map
