@@ -1739,16 +1739,6 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     }
   `;
 
-  // Per-quote line items fetched only for approved/won quotes
-  const QUOTE_LINEITEMS_QUERY = `
-    query FetchQuoteLineItems($id: EncodedId!) {
-      quote(id: $id) {
-        id
-        lineItems(first: 50) { nodes { totalPrice } }
-      }
-    }
-  `;
-
   const allJobs = [];
   let cursor = null;
   for (let page = 0; page < 40; page++) {
@@ -1771,26 +1761,6 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     cursor = data.quotes.pageInfo.endCursor;
     const oldestCreated = nodes[nodes.length - 1]?.createdAt;
     if (oldestCreated && oldestCreated < `${rangeStart}T00:00:00Z`) break;
-  }
-
-  // Fetch line items only for approved/won quotes within our date range
-  const approvedQuotes = allQuotes.filter((q) => {
-    const status = String(q.quoteStatus || '').toLowerCase();
-    if (status !== 'approved' && status !== 'won') return false;
-    if (!q.createdAt) return false;
-    return q.createdAt >= `${rangeStart}T00:00:00Z` && q.createdAt <= `${rangeEnd}T23:59:59Z`;
-  });
-  const quoteTotals = new Map();
-  for (let i = 0; i < approvedQuotes.length; i++) {
-    if (i > 0) await new Promise((r) => setTimeout(r, 800));
-    try {
-      const data = await jobberGraphql(accessToken, QUOTE_LINEITEMS_QUERY, { id: approvedQuotes[i].id });
-      const items = data?.quote?.lineItems?.nodes || [];
-      const total = items.reduce((sum, li) => sum + Number(li.totalPrice || 0), 0);
-      quoteTotals.set(approvedQuotes[i].id, total);
-    } catch (err) {
-      console.log(`[jobber] Failed to fetch line items for quote ${approvedQuotes[i].id}:`, err.message);
-    }
   }
 
   // Scheduled Production: full job total on scheduled-start day (HCP-aligned)
@@ -1822,20 +1792,7 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     }
   }
 
-  // Approved Sales from quotes with approved/won status (totals from per-quote line item fetch)
-  for (const quote of allQuotes) {
-    const status = String(quote.quoteStatus || '').toLowerCase();
-    if (status !== 'approved' && status !== 'won') continue;
-    const dateKey = quote.createdAt;
-    if (!dateKey) continue;
-    const value = quoteTotals.get(quote.id) || 0;
-    if (!value) continue;
-    incrementWeekMetric(weekMap, dateKey, (bucket) => {
-      bucket.approvedSales += value;
-    });
-  }
-
-  // Opportunities: quotes created in range
+  // Opportunities: quotes attributed by createdAt week
   for (const quote of allQuotes) {
     const createdAt = quote.createdAt;
     if (!createdAt) continue;
@@ -1844,18 +1801,27 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     });
   }
 
-  // Sales Today / Month — aligned with Approved Sales: approved/won quotes only,
-  // using line-item sums (same as weekly approvedSales). Job.createdAt × job.total
-  // diverges from invoice/quote value and inflates Sales Today versus Jobber UI.
+  /**
+   * Approved Sales + rollups salesToday / salesMonth — Housecall-aligned:
+   * use job totals bucketed by job.createdAt week. Converted quotes become
+   * jobs but often leave quote.status ≠ approved/won; quote-line logic missed
+   * them. Mirrors HCP’s final overwrite of approvedSales from job rows.
+   */
+  const jobCreatedApprovedSales = new Map();
   let salesToday = 0;
   let salesMonth = 0;
-  for (const quote of approvedQuotes) {
-    const value = quoteTotals.get(quote.id) || 0;
-    if (!value) continue;
-    const createdDate = formatDateInTimeZone(quote.createdAt, timeZone);
-    if (!createdDate) continue;
-    if (createdDate === todayDate) salesToday += value;
-    if (createdDate.slice(0, 7) === currentMonthKey) salesMonth += value;
+  for (const job of allJobs) {
+    const totalAmount = Number(job.total || 0);
+    if (!totalAmount || !job.createdAt) continue;
+    incrementWeekMetric(weekMap, job.createdAt, (bucket) => {
+      jobCreatedApprovedSales.set(bucket.key, (jobCreatedApprovedSales.get(bucket.key) || 0) + totalAmount);
+    });
+    const createdDate = formatDateInTimeZone(job.createdAt, timeZone);
+    if (createdDate && createdDate === todayDate) salesToday += totalAmount;
+    if (createdDate && createdDate.slice(0, 7) === currentMonthKey) salesMonth += totalAmount;
+  }
+  for (const bucket of weekMap.values()) {
+    bucket.approvedSales = jobCreatedApprovedSales.get(bucket.key) || 0;
   }
 
   // Month Production from daily map
