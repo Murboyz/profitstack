@@ -1032,6 +1032,8 @@ function formatCrmConnectionDetail(item) {
     status: item.status,
     authType: item.auth_type || credentialEnvelope.authType || null,
     accountLabel: credentialEnvelope.accountLabel || null,
+    jobberAccountId: credentialEnvelope.fields?.accountId || null,
+    jobberAccountName: credentialEnvelope.fields?.accountName || null,
     savedFields: credentialEnvelope.fieldKeys || [],
     savedAt: credentialEnvelope.savedAt || null,
     hasCredentials: Boolean(credentialEnvelope.hasCredentials),
@@ -1702,7 +1704,7 @@ dailySalesMap.set(createdDate, (dailySalesMap.get(createdDate) || 0) + totalAmou
 async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
   const accessToken = await getJobberAccessToken(crmConnection);
   const now = new Date();
-  const weeks = buildWeekBuckets(now, 8, 2, 'jobber-graphql-v1');
+  const weeks = buildWeekBuckets(now, 8, 2, 'jobber-graphql-v2');
   const weekMap = new Map(weeks.map((week) => [week.key, week]));
   const currentMonthKey = formatDateInTimeZone(now, timeZone).slice(0, 7);
   const todayDate = formatDateInTimeZone(now, timeZone);
@@ -1718,6 +1720,16 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
           startAt
           endAt
           jobStatus
+          jobType
+          billingType
+          invoiceSchedule {
+            billingFrequency
+            scheduleSummary
+            recurrenceSchedule {
+              calendarRule
+              friendly
+            }
+          }
           createdAt
         }
         pageInfo { hasNextPage endCursor }
@@ -1739,6 +1751,33 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     }
   `;
 
+  const JOB_VISITS_QUERY = `
+    query FetchRecurringJobVisits(
+      $id: EncodedId!,
+      $cursor: String,
+      $startAfter: ISO8601DateTime!,
+      $startBefore: ISO8601DateTime!
+    ) {
+      job(id: $id) {
+        id
+        visits(
+          first: 100,
+          after: $cursor,
+          filter: { startAt: { after: $startAfter, before: $startBefore } }
+        ) {
+          nodes {
+            id
+            startAt
+            endAt
+            visitStatus
+            isComplete
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }
+  `;
+
   const allJobs = [];
   let cursor = null;
   for (let page = 0; page < 40; page++) {
@@ -1748,6 +1787,72 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     allJobs.push(...nodes);
     if (!data?.jobs?.pageInfo?.hasNextPage) break;
     cursor = data.jobs.pageInfo.endCursor;
+  }
+
+  const [firstRangeYear, firstRangeMonth] = rangeStart.split('-').map(Number);
+  const [lastRangeYear, lastRangeMonth] = rangeEnd.split('-').map(Number);
+  const recurringVisitStart = new Date(Date.UTC(firstRangeYear, firstRangeMonth - 1, 1));
+  recurringVisitStart.setUTCDate(recurringVisitStart.getUTCDate() - 1);
+  const recurringVisitEnd = new Date(Date.UTC(lastRangeYear, lastRangeMonth, 1));
+  recurringVisitEnd.setUTCDate(recurringVisitEnd.getUTCDate() + 1);
+
+  const isMonthlyFixedPriceRecurringJob = (job) => {
+    const jobType = String(job?.jobType || '').toUpperCase();
+    const billingType = String(job?.billingType || '').toUpperCase();
+    const billingFrequency = String(job?.invoiceSchedule?.billingFrequency || '').toUpperCase();
+    const recurrence = job?.invoiceSchedule?.recurrenceSchedule || {};
+    const scheduleText = [
+      job?.invoiceSchedule?.scheduleSummary,
+      recurrence.friendly,
+      recurrence.calendarRule,
+    ].filter(Boolean).join(' ').toUpperCase();
+
+    return jobType === 'RECURRING'
+      && billingType === 'FIXED_PRICE'
+      && billingFrequency === 'PERIODIC'
+      && (scheduleText.includes('MONTH') || scheduleText.includes('FREQ=MONTHLY'));
+  };
+  const overlapsVisibleRange = (job) => {
+    const status = String(job?.jobStatus || '').toUpperCase();
+    if (['ARCHIVED', 'CANCELLED', 'CLOSED', 'COMPLETED'].includes(status)) return false;
+    const startDay = job?.startAt ? formatDateInTimeZone(job.startAt, timeZone) : null;
+    const endDay = job?.endAt ? formatDateInTimeZone(job.endAt, timeZone) : null;
+    if (startDay && startDay > rangeEnd) return false;
+    if (endDay && endDay < rangeStart) return false;
+    return true;
+  };
+
+  // Monthly fixed-price jobs carry money on the parent Job while their
+  // individual visits can be $0. Fetch only those jobs' visits, one job at a
+  // time, to avoid the high query cost of nesting visits under every job.
+  const recurringMonthlyVisitsByJob = new Map();
+  const recurringCandidates = allJobs.filter(
+    (job) => Number(job?.total || 0) > 0
+      && isMonthlyFixedPriceRecurringJob(job)
+      && overlapsVisibleRange(job),
+  );
+  const recurringCandidateIds = new Set(recurringCandidates.map((job) => job.id));
+  for (let jobIndex = 0; jobIndex < recurringCandidates.length; jobIndex++) {
+    const job = recurringCandidates[jobIndex];
+    if (jobIndex > 0) await new Promise((r) => setTimeout(r, 800));
+    const visits = [];
+    let visitCursor = null;
+    for (let page = 0; page < 5; page++) {
+      const data = await jobberGraphql(accessToken, JOB_VISITS_QUERY, {
+        id: job.id,
+        cursor: visitCursor,
+        startAfter: recurringVisitStart.toISOString(),
+        startBefore: recurringVisitEnd.toISOString(),
+      });
+      const connection = data?.job?.visits;
+      visits.push(...(connection?.nodes || []));
+      if (!connection?.pageInfo?.hasNextPage) break;
+      visitCursor = connection.pageInfo.endCursor;
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    if (visits.some((visit) => visit?.id && visit?.startAt)) {
+      recurringMonthlyVisitsByJob.set(job.id, visits);
+    }
   }
 
   const allQuotes = [];
@@ -1773,9 +1878,49 @@ async function fetchJobberSnapshot(crmConnection, timeZone = 'UTC') {
     return null;
   };
 
+  // Allocate each recurring monthly parent total across its actual scheduled
+  // visits in that calendar month. The $0 visit/order records supply dates
+  // only; their values are never added. A $4,000 job with four visits becomes
+  // $1,000 per visit/week while Month Production remains $4,000.
+  for (const job of recurringCandidates) {
+    const rawVisits = recurringMonthlyVisitsByJob.get(job.id);
+    if (!rawVisits?.length) continue;
+
+    const uniqueVisits = [...new Map(
+      rawVisits
+        .filter((visit) => visit?.id && visit?.startAt)
+        .map((visit) => [visit.id, visit]),
+    ).values()];
+    const visitsByMonth = new Map();
+    for (const visit of uniqueVisits) {
+      const dayKey = formatDateInTimeZone(visit.startAt, timeZone);
+      if (!dayKey) continue;
+      const monthKey = dayKey.slice(0, 7);
+      if (!visitsByMonth.has(monthKey)) visitsByMonth.set(monthKey, []);
+      visitsByMonth.get(monthKey).push({ visit, dayKey });
+    }
+
+    const monthlyTotal = Number(job.total || 0);
+    for (const monthVisits of visitsByMonth.values()) {
+      if (!monthVisits.length) continue;
+      const amountPerVisit = monthlyTotal / monthVisits.length;
+      for (const { dayKey } of monthVisits) {
+        if (dayKey < rangeStart || dayKey > rangeEnd) continue;
+        dailyScheduledByDate[dayKey] = (dailyScheduledByDate[dayKey] || 0) + amountPerVisit;
+        const weekKey = findWeekKeyContainingDay(dayKey);
+        const bucket = weekKey ? weekMap.get(weekKey) : null;
+        if (bucket) bucket.scheduledProduction += amountPerVisit;
+      }
+    }
+  }
+
   const seenJobIds = new Set();
   for (const job of allJobs) {
     if (!job?.id || seenJobIds.has(job.id)) continue;
+    // A recognized monthly parent is never counted as one full production
+    // spike. If no visits have been scheduled yet, it contributes no
+    // scheduled production until service dates exist.
+    if (recurringCandidateIds.has(job.id)) continue;
     const totalAmount = Number(job.total || 0);
     if (!totalAmount) continue;
     const scheduledAt = job.startAt;
@@ -2109,19 +2254,45 @@ const server = http.createServer(async (req, res) => {
           redirect_uri: env.redirectUri,
         });
 
+        let authorizedAccount = null;
+        try {
+          const accountData = await jobberGraphql(tokens.access_token, `
+            query GetAuthorizedJobberAccount {
+              account {
+                id
+                name
+              }
+            }
+          `);
+          authorizedAccount = accountData?.account || null;
+        } catch (error) {
+          // The OAuth connection is still valid if account metadata cannot be
+          // loaded. Keep the generic label and let normal sync error handling
+          // report any broader API problem.
+          console.warn('[jobber-oauth] Could not load authorized account identity:', error.message);
+        }
+
         const credentialEnvelope = {
           version: 1,
           provider: 'jobber',
           authType: 'oauth2',
-          accountLabel: 'Jobber account',
+          accountLabel: authorizedAccount?.name || 'Jobber account',
           savedAt: new Date().toISOString(),
           hasCredentials: true,
-          fieldKeys: ['accessToken', 'refreshToken', 'expiresAt'],
+          fieldKeys: [
+            'accessToken',
+            'refreshToken',
+            'expiresAt',
+            ...(authorizedAccount?.id ? ['accountId'] : []),
+            ...(authorizedAccount?.name ? ['accountName'] : []),
+          ],
           fields: {
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,
             expiresAt: Date.now() + (tokens.expires_in || 3600) * 1000,
             scope: env.scopes,
+            accountId: authorizedAccount?.id || null,
+            accountName: authorizedAccount?.name || null,
           },
         };
 

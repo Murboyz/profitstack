@@ -75,6 +75,8 @@ async function loadStatus() {
       <h3>${escapeHtml(providerLabel)}</h3>
       <p>${statusDesc}</p>
     </div>
+    ${isJobber ? `<div class="row"><span>Authorized Jobber Company</span><strong>${escapeHtml(data.jobberAccountName || data.accountLabel || 'Unknown — reconnect to identify')}</strong></div>` : ''}
+    ${isJobber && data.jobberAccountId ? `<div class="row"><span>Jobber Account ID</span><strong>${escapeHtml(data.jobberAccountId)}</strong></div>` : ''}
     <div class="row"><span>Connection Name</span><strong>${escapeHtml(data.accountLabel || '—')}</strong></div>
     <div class="row"><span>Auth Type</span><strong>${escapeHtml(data.authType || '—')}</strong></div>
     <div class="row"><span>Saved Fields</span><strong>${escapeHtml((data.savedFields || []).join(', ') || 'None saved')}</strong></div>
@@ -83,9 +85,10 @@ async function loadStatus() {
     <div class="row"><span>Last Error</span><strong>${escapeHtml(data.lastError || 'None')}</strong></div>
     ${status === 'connected' ? `
       <div class="actions">
-        ${isJobber ? '<button class="primary" type="button" id="reconnectJobberButton">Reconnect / Change Jobber Account</button>' : ''}
+        ${isJobber ? '<button class="primary" type="button" id="reconnectJobberButton">Reconnect Jobber</button>' : ''}
         <button type="button" id="disconnectButton">Disconnect ${escapeHtml(providerLabel)}</button>
       </div>
+      ${isJobber ? '<p class="field-help">To use a different Jobber company, first sign out of Jobber in this browser, sign into the desired company, then click Reconnect Jobber.</p>' : ''}
     ` : ''}
   `;
 
@@ -120,7 +123,7 @@ async function loadStatus() {
     if (jobberPanel) jobberPanel.classList.add('active-provider');
     if (hcpPanel) hcpPanel.classList.add('inactive-provider');
     if (jobberEyebrow) jobberEyebrow.classList.add('eyebrow-active');
-    if (jobberConnectButton) jobberConnectButton.textContent = 'Reconnect / Change Jobber Account';
+    if (jobberConnectButton) jobberConnectButton.textContent = 'Reconnect Jobber';
     if (jobberDisconnectButton) jobberDisconnectButton.hidden = false;
   } else if (status === 'connected' && !isJobber) {
     if (hcpPanel) hcpPanel.classList.add('active-provider');

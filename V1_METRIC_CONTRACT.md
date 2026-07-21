@@ -18,6 +18,9 @@ Housecall Pro `jobDetails`. For each job we read `schedule.data.start_time` (wit
 **Rule:**
 Do not split by visit/calendar item, do not redistribute across an invoice family, and do not pro-rate across weeks. Every job's `total_amount` lives entirely in its scheduled-start day, regardless of whether the schedule spans multiple days. A 2-week install for $30k shows as a $30k spike in the start week and $0 in the spanned weeks — same as HCP's Jobs report. This is intentional: ProfitStack and HCP must agree on every week's number.
 
+**Jobber recurring-monthly exception:**
+Housecall Pro remains unchanged. For Jobber only, a job explicitly reported by Jobber as `RECURRING`, `FIXED_PRICE`, and monthly `PERIODIC` billing is treated as a monthly parent contract. Its parent `total` is divided across the actual scheduled visits in each calendar month, and each share lands on that visit's scheduled day. The $0 visit/order rows supply dates only and are never added as money. The parent total is not also counted as a full start-week spike. If no visits are scheduled yet, that parent contributes no Scheduled Production until service dates exist. Normal Jobber jobs retain the full-value scheduled-start rule.
+
 **Used in:**
 - Current Week card
 - Last Week Snapshot
@@ -29,6 +32,7 @@ Do not split by visit/calendar item, do not redistribute across an invoice famil
 
 **Implemented in:**
 - `backend/src/server.mjs` → `fetchHousecallProSnapshot(...)` Scheduled Production loop.
+- `backend/src/server.mjs` → `fetchJobberSnapshot(...)` normal Jobber loop plus recurring-monthly visit allocation.
 
 ---
 
