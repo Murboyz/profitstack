@@ -2133,6 +2133,10 @@ const server = http.createServer(async (req, res) => {
           encryptedCredentials: credentialEnvelope,
           lastSyncAt: new Date().toISOString(),
           lastError: null,
+          // Reauthorizing may select a different Jobber company even though
+          // the provider string remains "jobber". Remove all provider-derived
+          // rows so the next Refresh Data starts from this OAuth account only.
+          forceReset: true,
           logTag: 'jobber-oauth',
         });
 

@@ -18,6 +18,39 @@ function statusBadgeClass(status, hasError) {
   return 'status-missing';
 }
 
+function startJobberOAuth() {
+  const token = getAccessToken();
+  window.location.href = `/api/jobber/authorize?token=${encodeURIComponent(token)}`;
+}
+
+async function disconnectConnection(providerLabel, button) {
+  const confirmed = window.confirm(`Disconnect ${providerLabel}? Your last synced numbers will stay on the dashboard, but future refreshes will require a reconnect.`);
+  if (!confirmed) return;
+
+  button.disabled = true;
+  button.textContent = 'Disconnecting…';
+  const result = document.getElementById('result');
+  result.innerHTML = `<p class="muted">Disconnecting ${escapeHtml(providerLabel)} without touching saved numbers…</p>`;
+
+  try {
+    const res = await apiFetch('/api/crm-connection/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const payload = await res.json();
+    if (!res.ok) {
+      throw new Error(payload.error || `Failed to disconnect ${providerLabel}.`);
+    }
+    result.innerHTML = `<p class="success">${escapeHtml(payload.message || `${providerLabel} disconnected.`)}</p>`;
+    await loadStatus();
+  } catch (error) {
+    result.innerHTML = `<p class="error">${escapeHtml(error.message || `Failed to disconnect ${providerLabel}.`)}</p>`;
+    button.disabled = false;
+    button.textContent = `Disconnect ${providerLabel}`;
+  }
+}
+
 async function loadStatus() {
   const app = document.getElementById('statusCard');
   const res = await apiFetch('/api/crm-connection');
@@ -48,39 +81,22 @@ async function loadStatus() {
     <div class="row"><span>Saved At</span><strong>${escapeHtml(data.savedAt || '—')}</strong></div>
     <div class="row"><span>Last Sync</span><strong>${escapeHtml(data.lastSyncAt || '—')}</strong></div>
     <div class="row"><span>Last Error</span><strong>${escapeHtml(data.lastError || 'None')}</strong></div>
-    ${status === 'connected' ? `<div class="actions"><button type="button" id="disconnectButton">Disconnect ${escapeHtml(providerLabel)}</button></div>` : ''}
+    ${status === 'connected' ? `
+      <div class="actions">
+        ${isJobber ? '<button class="primary" type="button" id="reconnectJobberButton">Reconnect / Change Jobber Account</button>' : ''}
+        <button type="button" id="disconnectButton">Disconnect ${escapeHtml(providerLabel)}</button>
+      </div>
+    ` : ''}
   `;
+
+  const reconnectJobberButton = document.getElementById('reconnectJobberButton');
+  if (reconnectJobberButton) {
+    reconnectJobberButton.addEventListener('click', startJobberOAuth);
+  }
 
   const disconnectButton = document.getElementById('disconnectButton');
   if (disconnectButton) {
-    disconnectButton.addEventListener('click', async () => {
-      const confirmed = window.confirm(`Disconnect ${providerLabel}? Your last synced numbers will stay on the dashboard, but future refreshes will require a reconnect.`);
-      if (!confirmed) return;
-      disconnectButton.disabled = true;
-      disconnectButton.textContent = 'Disconnecting…';
-      const result = document.getElementById('result');
-      result.innerHTML = `<p class="muted">Disconnecting ${escapeHtml(providerLabel)} without touching saved numbers…</p>`;
-      try {
-        const res = await apiFetch('/api/crm-connection/disconnect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        const payload = await res.json();
-        if (!res.ok) {
-          result.innerHTML = `<p class="error">${escapeHtml(payload.error || `Failed to disconnect ${providerLabel}.`)}</p>`;
-          disconnectButton.disabled = false;
-          disconnectButton.textContent = `Disconnect ${escapeHtml(providerLabel)}`;
-          return;
-        }
-        result.innerHTML = `<p class="success">${escapeHtml(payload.message || `${providerLabel} disconnected.`)}</p>`;
-        await loadStatus();
-      } catch (error) {
-        result.innerHTML = `<p class="error">${escapeHtml(error.message || `Failed to disconnect ${providerLabel}.`)}</p>`;
-        disconnectButton.disabled = false;
-        disconnectButton.textContent = `Disconnect ${escapeHtml(providerLabel)}`;
-      }
-    });
+    disconnectButton.addEventListener('click', () => disconnectConnection(providerLabel, disconnectButton));
   }
 
   const saveButton = document.getElementById('saveButton');
@@ -91,6 +107,8 @@ async function loadStatus() {
   const jobberPanel = document.getElementById('jobberPanel');
   const hcpPanel = document.getElementById('hcpPanel');
   const jobberEyebrow = document.getElementById('jobberEyebrow');
+  const jobberConnectButton = document.getElementById('jobberConnectBtn');
+  const jobberDisconnectButton = document.getElementById('jobberDisconnectBtn');
   const hcpEyebrow = document.querySelector('#hcpPanel .eyebrow');
 
   if (jobberPanel) jobberPanel.classList.remove('active-provider', 'inactive-provider');
@@ -102,10 +120,17 @@ async function loadStatus() {
     if (jobberPanel) jobberPanel.classList.add('active-provider');
     if (hcpPanel) hcpPanel.classList.add('inactive-provider');
     if (jobberEyebrow) jobberEyebrow.classList.add('eyebrow-active');
+    if (jobberConnectButton) jobberConnectButton.textContent = 'Reconnect / Change Jobber Account';
+    if (jobberDisconnectButton) jobberDisconnectButton.hidden = false;
   } else if (status === 'connected' && !isJobber) {
     if (hcpPanel) hcpPanel.classList.add('active-provider');
     if (jobberPanel) jobberPanel.classList.add('inactive-provider');
     if (hcpEyebrow) hcpEyebrow.classList.add('eyebrow-active');
+    if (jobberConnectButton) jobberConnectButton.textContent = 'Switch to Jobber';
+    if (jobberDisconnectButton) jobberDisconnectButton.hidden = true;
+  } else {
+    if (jobberConnectButton) jobberConnectButton.textContent = status === 'disconnected' && isJobber ? 'Reconnect Jobber' : 'Connect Jobber';
+    if (jobberDisconnectButton) jobberDisconnectButton.hidden = true;
   }
 
   return data;
@@ -141,10 +166,12 @@ async function main() {
 
     const jobberBtn = document.getElementById('jobberConnectBtn');
     if (jobberBtn) {
-      jobberBtn.addEventListener('click', () => {
-        const token = getAccessToken();
-        window.location.href = `/api/jobber/authorize?token=${encodeURIComponent(token)}`;
-      });
+      jobberBtn.addEventListener('click', startJobberOAuth);
+    }
+
+    const jobberDisconnectBtn = document.getElementById('jobberDisconnectBtn');
+    if (jobberDisconnectBtn) {
+      jobberDisconnectBtn.addEventListener('click', () => disconnectConnection('Jobber', jobberDisconnectBtn));
     }
 
     form.addEventListener('submit', async (event) => {
