@@ -2586,6 +2586,7 @@ return sendJson(res, 200, {
           return sendJson(res, 400, { error: 'No Housecall Pro cookies were provided by the browser helper' });
         }
 
+        const capturedCookieNames = [...new Set(cookies.map((item) => item?.name).filter(Boolean))];
         const credentialEnvelope = buildCredentialEnvelope({
           provider: 'housecall_pro',
           authType: 'session_or_oauth',
@@ -2596,15 +2597,22 @@ return sendJson(res, 200, {
             helperSource: 'hcp_chrome_extension',
             helperVersion: body.helperVersion || 1,
             helperCapturedAt: body.capturedAt || new Date().toISOString(),
-            helperCookieNames: cookies.map((item) => item?.name).filter(Boolean),
+            helperCookieNames: capturedCookieNames,
           },
         }, context);
+
+        if (!credentialEnvelope.hasCredentials) {
+          const listedNames = capturedCookieNames.slice(0, 20).join(', ') || 'none';
+          return sendJson(res, 400, {
+            error: `Housecall Pro cookies were captured, but none of them is a login session (${listedNames}). Stay logged into pro.housecallpro.com in this same Chrome profile and try again.`,
+          });
+        }
 
         const existing = await getCrmConnectionByOrg(context.organization.id);
         const { saved } = await applyCrmConnectionChange({
           orgId: context.organization.id,
           provider: 'housecall_pro',
-          status: credentialEnvelope.hasCredentials ? 'connected' : 'pending',
+          status: 'connected',
           authType: 'session_or_oauth',
           encryptedCredentials: credentialEnvelope,
           lastSyncAt: existing?.last_sync_at || new Date().toISOString(),
