@@ -1052,8 +1052,7 @@ function normalizeHousecallSessionCookie(value) {
 function looksLikeHousecallAuthCookie(cookieString) {
   const value = String(cookieString || '').toLowerCase();
   if (!value) return false;
-  return /(^|;|\s)_?housecall_pro_session=[^;\s]+/.test(value)
-    || /(^|;|\s)_?housecall_session=[^;\s]+/.test(value)
+  return /(^|;|\s)_?housecall[\w-]*session[\w-]*=[^;\s]+/.test(value)
     || /(^|;|\s)remember_pro_user_token=[^;\s]+/.test(value);
 }
 
